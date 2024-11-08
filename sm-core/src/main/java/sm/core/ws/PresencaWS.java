@@ -88,7 +88,7 @@ public class PresencaWS {
 		System.out.println("PresencaWS | getPresenca default() -> 1 | Start");
 
 		ObjectMapper mapper = new ObjectMapper();
-		PresencaData presenca = new PresencaData(1, 1, "15:00", 1, "Sub-9", "20240815", 1, "Nuno");
+		PresencaData presenca = new PresencaData(1, 1, "15:00", 1, "Sub-7", "20240815", 1, "Nuno");
 
 		presenca.addJogador(1, "Antonio", "", "");
 
