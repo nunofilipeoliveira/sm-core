@@ -402,24 +402,32 @@ public class PresencaHelper {
 
 			}
 
-			boolean flagEncontrou = false;
-			for (int i = 0; i < parmPresencaData.getJogadoresPresenca().size(); i++) {
-				for (int z = 0; z < oldPresenca.getJogadoresPresenca().size(); z++) {
-					if (oldPresenca.getJogadoresPresenca().get(i).getId_jogador() == parmPresencaData
-							.getJogadoresPresenca().get(z).getId_jogador()) {
-						flagEncontrou = true;
-					}
-				}
+			
+			for (int i = oldPresenca.getJogadoresPresenca().size(); i < parmPresencaData.getJogadoresPresenca().size(); i++) {
+				
+								
+					
+						// significa que é um jogador novo na ficha. Registar no histórico
+						registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
+								"Novo Jogador:" + parmPresencaData.getJogadoresPresenca().get(i).getNome_jogador()
+										+ " | Estado:" + parmPresencaData.getJogadoresPresenca().get(i).getEstado()
+										+ " Motivo:" + parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
+						
+						//insere novo jogador na presenca
+						
+						DBUtils dbUtils = new DBUtils();
 
-				if (flagEncontrou == false) {
-					// significa que é um jogador novo na ficha. Registar no histórico
-					registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
-							"Novo Jogador:" + parmPresencaData.getJogadoresPresenca().get(i).getNome_jogador()
-									+ " | Estado:" + parmPresencaData.getJogadoresPresenca().get(i).getEstado()
-									+ " Motivo:" + parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
-				} else {
-					flagEncontrou = false;
-				}
+						PreparedStatement preparedStatement = dbUtils.getConnection()
+								.prepareStatement("insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo) VALUES(?,?,?,?)");
+						
+						preparedStatement.setString(3, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
+						preparedStatement.setString(4, parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
+						preparedStatement.setInt(1, parmPresencaData.getId());
+						preparedStatement.setInt(2, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
+						preparedStatement.executeUpdate();
+						
+							
+
 			}
 
 			DBUtils dbUtils = new DBUtils();
