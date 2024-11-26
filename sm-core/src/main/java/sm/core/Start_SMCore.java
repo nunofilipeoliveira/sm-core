@@ -19,7 +19,7 @@ public class Start_SMCore {
 
 		if (args.length > 0) {
 			InputStream in = Start_SMCore.class.getClassLoader().getResourceAsStream("application.properties");
-			System.out.println("Reading all properties from the file");
+			System.out.println("Reading all properties from the file.");
 			try {
 				configProp.load(in);
 			} catch (IOException e) {
