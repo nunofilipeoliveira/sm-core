@@ -30,7 +30,7 @@ public class LoginHelper {
 
 	}
 
-	public LoginData Dologin(String parmUser, String parmPWD) {
+	public LoginData Dologin(String parmUser, String parmPWD, int parmTenant_id) {
 
 		DBUtils dbUtils = new DBUtils();
 		LoginData loginData = null;
@@ -41,10 +41,11 @@ public class LoginHelper {
 							+ "inner join escalao_epoca ee on ue.id_escalao_epoca=ee.id \r\n"
 							+ "inner join epoca e on e.id =ee.id_epoca\r\n"
 							+ "inner join escalao e2 on ee.id_escalao =e2.id \r\n" + "where e.Estado ='1'\r\n"
-							+ "and uti.user=? and uti.password =?");
+							+ "and uti.user=? and uti.password =? and uti.tenant_id=?");
 
 			preparedStatement.setString(1, parmUser);
 			preparedStatement.setString(2, parmPWD);
+			preparedStatement.setInt(3, parmTenant_id);
 			ResultSet rs = preparedStatement.executeQuery();
 
 			if (rs == null) {

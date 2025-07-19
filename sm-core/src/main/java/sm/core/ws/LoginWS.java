@@ -36,7 +36,7 @@ public class LoginWS {
         System.out.println("login | User:" + loginRequest.getUser ());
 
         LoginHelper loginHelper = new LoginHelper();
-        LoginData loginData = loginHelper.Dologin(loginRequest.getUser (), loginRequest.getPwd());
+        LoginData loginData = loginHelper.Dologin(loginRequest.getUser (), loginRequest.getPwd(), loginRequest.getTenant_id());
 
         ObjectMapper mapper = new ObjectMapper();
 
