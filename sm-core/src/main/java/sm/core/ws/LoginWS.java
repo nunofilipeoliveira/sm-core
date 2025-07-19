@@ -16,170 +16,177 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.HistoricoLoginData;
 import sm.core.data.LoginData;
+import sm.core.data.TokenData;
 import sm.core.data.UtilizadorParaAtivarData;
 import sm.core.helper.LoginHelper;
+import sm.core.utils.TokenValidator; // Importando a classe TokenValidator
 import sm.core.ws.requesdata.LoginRequest;
 
 @RestController
 @RequestMapping("/sm")
 public class LoginWS {
 
-	@CrossOrigin
-	@PutMapping("/login")
-	@ResponseBody
-	public String login(@RequestBody LoginRequest loginRequest) {
-		// Faz o login e obtem informação do utilizador
+    @CrossOrigin
+    @PutMapping("/login")
+    @ResponseBody
+    public String login(@RequestBody LoginRequest loginRequest) {
+        // Faz o login e obtem informação do utilizador
 
-		System.out.println("login | Start");
-		System.out.println("login | User:" + loginRequest.getUser());
+        System.out.println("login | Start");
+        System.out.println("login | User:" + loginRequest.getUser ());
 
-		LoginHelper loginHelper = new LoginHelper();
-		LoginData loginData = loginHelper.Dologin(loginRequest.getUser(), loginRequest.getPwd());
+        LoginHelper loginHelper = new LoginHelper();
+        LoginData loginData = loginHelper.Dologin(loginRequest.getUser (), loginRequest.getPwd());
 
-		ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
 
-		try {
+        try {
+            System.out.println("login | End");
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(loginData);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("login | Error End");
+        }
 
-			System.out.println("login | End");
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(loginData);
+        System.out.println("login | Error End");
+        return "";
+    }
 
-			// return mapper.writeValueAsString(loginData);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("login | Error End");
-		}
+    @CrossOrigin
+    @PutMapping("/isAuthenticated")
+    @ResponseBody
+    public boolean isAuthenticated(@RequestBody TokenData token) {
+        // Verifica se o token é válido
 
-		System.out.println("login | Error End");
-		return "";
-	}
+        System.out.println("isAuthenticated | Start");
+        System.out.println("isAuthenticated | token:" + token.getToken());
 
-	@CrossOrigin
-	@PutMapping("/activateuser/{code}")
-	@ResponseBody
-	public String activateuser(@PathVariable String code) {
+        LoginHelper loginHelper = new LoginHelper();
+        return loginHelper.isAuthenticated(token.getToken());
+    }
 
-		System.out.println("activateuser | Start");
-		System.out.println("activateuser | code:" + code);
+    @CrossOrigin
+    @PutMapping("/activateuser/{code}")
+    @ResponseBody
+    public String activateuser(@PathVariable String code) {
+        System.out.println("activateuser | Start");
+        System.out.println("activateuser | code:" + code);
 
-		LoginHelper loginHelper = new LoginHelper();
-		UtilizadorParaAtivarData utilizadorParaAtivarData = loginHelper.getUtilizadorParaAtivarByCode(code);
+        LoginHelper loginHelper = new LoginHelper();
+        UtilizadorParaAtivarData utilizadorParaAtivarData = loginHelper.getUtilizadorParaAtivarByCode(code);
 
-		ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
 
-		try {
+        try {
+            System.out.println("activateuser | End");
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(utilizadorParaAtivarData);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("activateuser | Error End");
+        }
 
-			System.out.println("activateuser | End");
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(utilizadorParaAtivarData);
+        System.out.println("activateuser | Error End");
+        return "";
+    }
 
-			// return mapper.writeValueAsString(loginData);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("activateuser | Error End");
-		}
+    @CrossOrigin
+    @PutMapping("/getcode/{parmCode}")
+    @ResponseBody
+    public String getCode(@PathVariable String parmCode) {
+        System.out.println("getCode | Start");
+        System.out.println("getCode | code:" + parmCode);
 
-		System.out.println("login | Error End");
-		return "";
-	}
+        LoginHelper loginHelper = new LoginHelper();
+        String code = loginHelper.getCodebyUser (parmCode);
 
-	@CrossOrigin
-	@PutMapping("/getcode/{parmCode}")
-	@ResponseBody
-	public String getCode(@PathVariable String parmCode) {
+        ObjectMapper mapper = new ObjectMapper();
 
-		System.out.println("getCode | Start");
-		System.out.println("getCode | code:" + parmCode);
+        try {
+            System.out.println("getCode | End");
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(code);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("getCode | Error End");
+        }
 
-		LoginHelper loginHelper = new LoginHelper();
-		String code = loginHelper.getCodebyUser(parmCode);
+        System.out.println("getCode | Error End");
+        return "";
+    }
 
-		ObjectMapper mapper = new ObjectMapper();
+    @CrossOrigin
+    @PutMapping("/createuser")
+    @ResponseBody
+    public String createUser (@RequestBody LoginData parmLoginData) {
+        boolean resultado = false;
+        System.out.println("LoginWS | createUser  | Start");
+        System.out.println("LoginWS | createUser  | user:" + parmLoginData.getUser ());
 
-		try {
+        LoginHelper loginHelper = new LoginHelper();
+        resultado = loginHelper.createUtilizador(parmLoginData);
 
-			System.out.println("getCode | End");
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(code);
+        ObjectMapper mapper = new ObjectMapper();
 
-			// return mapper.writeValueAsString(loginData);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("getCode | Error End");
-		}
+        try {
+            System.out.println("LoginWS | createUser  | End");
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("LoginWS | createUser  | Error End");
+        }
 
-		System.out.println("getCode | Error End");
-		return "";
-	}
+        return "";
+    }
 
-	@CrossOrigin
-	@PutMapping("/createuser")
-	@ResponseBody
-	public String createUser(@RequestBody LoginData parmLoginData) {
+    @CrossOrigin
+    @PutMapping("/helloworld")
+    public String helloWorld() {
+        Timestamp timestamp; // 2021-03-24 16:34:26.666
+        timestamp = new Timestamp(System.currentTimeMillis());
+        System.out.println("HelloWorld:" + timestamp);
 
-		boolean resultado = false;
-		System.out.println("LoginWS | createUser | Start");
-		System.out.println("LoginWS | createUser | user:" + parmLoginData.getUser());
+        return "Hello World - SM";
+    }
 
-		LoginHelper loginHelper = new LoginHelper();
-		resultado = loginHelper.createUtilizador(parmLoginData);
+    @CrossOrigin
+    @PutMapping("/gethistoricoLogins")
+    public String getHistoricoLogins() {
+        System.out.println("getHistoricoLogins | Start");
+        ArrayList<HistoricoLoginData> listaHistorico;
 
-		ObjectMapper mapper = new ObjectMapper();
+        LoginHelper loginHelper = new LoginHelper();
+        listaHistorico = loginHelper.getHistoricoLogins();
 
-		try {
+        ObjectMapper mapper = new ObjectMapper();
 
-			System.out.println("LoginWS | createUser | End");
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("LoginWS | createUser | Error End");
-		}
+        try {
+            System.out.println("getHistoricoLogins | End");
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(listaHistorico);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("getHistoricoLogins | Error End");
+        }
 
-		return "";
+        System.out.println("getHistoricoLogins | Error End");
+        return "";
+    }
 
-	}
+    @CrossOrigin
+    @PutMapping("/extendSession")
+    @ResponseBody
+    public TokenData extendSession(@RequestBody TokenData tokenData) {
+        System.out.println("extendSession | Start");
+        System.out.println("extendSession | token:" + tokenData.getToken());
 
-	@CrossOrigin
-	@PutMapping("/helloworld")
-	public String login() {
-		// Faz o login e obtem informação do utilizador
+        String newToken = TokenValidator.handleExpiredToken(tokenData.getToken());
+        TokenData newTokenData = new TokenData();
 
-		Timestamp timestamp; // 2021-03-24 16:34:26.666
-		timestamp = new Timestamp(System.currentTimeMillis());
-		System.out.println("HelloWorld:" + timestamp);
-
-		return "Hello World - SM";
-	}
-
-	@CrossOrigin
-	@PutMapping("/gethistoricoLogins")
-	public String getHistoricoLogins() {
-		// Faz o login e obtem informação do utilizador
-
-		System.out.println("getHistoricoLogins | Start");
-		ArrayList<HistoricoLoginData> listaHistorico;
-
-		LoginHelper loginHelper = new LoginHelper();
-		listaHistorico = loginHelper.getHistoricoLogins();
-
-		ObjectMapper mapper = new ObjectMapper();
-
-		try {
-
-			System.out.println("getHistoricoLogins | End");
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(listaHistorico);
-
-			// return mapper.writeValueAsString(loginData);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("getHistoricoLogins | Error End");
-		}
-
-		System.out.println("getHistoricoLogins | Error End");
-		return "";
-
-	}
-
+        if (!newToken.isEmpty()) {
+            System.out.println("extendSession | New token generated");
+            newTokenData.setToken(newToken);
+            return newTokenData; // Retorna o novo token
+        } else {
+            System.out.println("extendSession | Unable to extend session");
+            return newTokenData; // Retorna vazio se não for possível estender a sessão
+        }
+    }
 }

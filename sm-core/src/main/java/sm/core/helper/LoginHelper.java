@@ -8,10 +8,25 @@ import java.util.ArrayList;
 import sm.core.data.HistoricoLoginData;
 import sm.core.data.LoginData;
 import sm.core.data.UtilizadorParaAtivarData;
+import sm.core.utils.TokenGenerator;
+import sm.core.utils.TokenValidator;
 
 public class LoginHelper {
 
 	public LoginHelper() {
+
+	}
+
+	public boolean isAuthenticated(String token) {
+
+		boolean isValid = TokenValidator.isTokenValid(token);
+		if (isValid) {
+			System.out.println("O token é válido.");
+			return true;
+		} else {
+			System.out.println("O token é inválido.");
+			return false;
+		}
 
 	}
 
@@ -39,7 +54,7 @@ public class LoginHelper {
 			while (rs.next()) {
 				if (loginData == null) {
 					loginData = new LoginData(rs.getInt("id"), rs.getString("nome"), rs.getString("user"),
-							rs.getString("password"));
+							rs.getString("password"), TokenGenerator.generateToken(rs.getString("user")));
 
 					// regista histórico de acesso
 

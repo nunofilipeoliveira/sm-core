@@ -9,6 +9,15 @@ public class LoginData {
 	private String user;
 	private String password;
 	private ArrayList<EscalaoEpocaData> escalaoEpoca;
+	private String token;
+
+	public String getToken() {
+		return token;
+	}
+
+	public void setToken(String token) {
+		this.token = token;
+	}
 
 	public int getId() {
 		return id;
@@ -46,13 +55,14 @@ public class LoginData {
 		this.escalaoEpoca = escalaoEpoca;
 	}
 
-	public LoginData(int id, String nome, String user, String password) {
+	public LoginData(int id, String nome, String user, String password, String token) {
 
 		this.id = id;
 		this.nome = nome;
 		this.user = user;
 		this.password = password;
 		this.escalaoEpoca = new ArrayList<EscalaoEpocaData>();
+		this.token=token;
 	}
 
 	public void adicionarEscalaoEpoca(int idEscalaoEpoca, String descritivoEscalao) {
