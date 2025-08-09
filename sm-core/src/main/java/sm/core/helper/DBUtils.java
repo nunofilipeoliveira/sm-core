@@ -23,8 +23,6 @@ public class DBUtils {
 	String username = "";
 	String password = "";
 
-	static Connection con = null;
-
 	private final Properties configProp = new Properties();
 
 	public Connection getConnection() {
@@ -32,6 +30,8 @@ public class DBUtils {
 		System.out.println("DBUtils | Obter conexão");
 
 		getConfigurations();
+
+		Connection con = null;
 
 		try {
 			Class.forName("com.mysql.jdbc.Driver");
@@ -92,7 +92,7 @@ public class DBUtils {
 		}
 	}
 
-	public void closeConnection() {
+	public void closeConnection(Connection con) {
 		try {
 			System.out.println("DBUtils | Fechar conexão");
 			con.close();

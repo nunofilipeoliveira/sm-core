@@ -7,6 +7,10 @@ public class EquipaData {
 	private int id;
 	private String epoca;
 	private String escalao;
+	public void setEscalao(String escalao) {
+		this.escalao = escalao;
+	}
+
 	private ArrayList<JogadorData> jogadores;
 	private ArrayList<StaffData> staff;
 

@@ -14,10 +14,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.ContadorPresencaData;
+import sm.core.data.ElementoSeleccao;
+import sm.core.data.EpocaData;
 import sm.core.data.EquipaData;
+import sm.core.data.EscalaoData;
+import sm.core.data.EscalaoEpocaData;
 import sm.core.data.FichaJogadorPresencasData;
 import sm.core.data.JogadorData;
-import sm.core.data.JogadorSeleccao;
 import sm.core.data.StaffData;
 import sm.core.helper.EquipaHelper;
 import sm.core.helper.JogadorHelper;
@@ -97,7 +100,7 @@ public class EquipaWS {
 		System.out.println("getJogadoresDisponiveis | Start");
 		System.out.println("getJogadoresDisponiveis | ID:" + id);
 
-		ArrayList<JogadorSeleccao> jogadores = new ArrayList<JogadorSeleccao>();
+		ArrayList<ElementoSeleccao> jogadores = new ArrayList<ElementoSeleccao>();
 
 		JogadorHelper jogadorHelper = new JogadorHelper();
 		jogadores = jogadorHelper.getJogadorDisponiveis(Integer.valueOf(id));
@@ -120,6 +123,333 @@ public class EquipaWS {
 	}
 
 	@CrossOrigin
+	@PutMapping("/getAllJogadores/{tenant_id}")
+	@ResponseBody
+	public String getAllJogadores(@PathVariable String tenant_id) {
+
+		// Carregar equipa
+
+		System.out.println("getAllJogadores | Start");
+		System.out.println("getAllJogadores | tenant_ID:" + tenant_id);
+
+		ArrayList<ElementoSeleccao> jogadores = new ArrayList<ElementoSeleccao>();
+
+		JogadorHelper jogadorHelper = new JogadorHelper();
+		jogadores = jogadorHelper.getAllJogadorAtivo(Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getAllJogadores | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogadores);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getAllJogadores | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getAllStaff/{tenant_id}")
+	@ResponseBody
+	public String getAllStaff(@PathVariable String tenant_id) {
+
+		// Carregar equipa
+
+		System.out.println("getAllStaff | Start");
+		System.out.println("getAllStaff | tenant_ID:" + tenant_id);
+
+		ArrayList<ElementoSeleccao> staffs = new ArrayList<ElementoSeleccao>();
+
+		StaffHelper staffHelper = new StaffHelper();
+		staffs = staffHelper.getAllStaffAtivo(Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getAllStaff | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(staffs);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getAllStaff | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getAllEquipasEpocaAtual/{tenant_id}")
+	@ResponseBody
+	public String getAllEquipasEpocaAtual(@PathVariable String tenant_id) {
+
+		// Carregar equipa
+
+		System.out.println("getAllEquipasEpocaAtual | Start");
+		System.out.println("getAllEquipasEpocaAtual | tenant_ID:" + tenant_id);
+
+		ArrayList<EquipaData> equipas = new ArrayList<EquipaData>();
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		equipas = equipaHelper.getAllEquipaLightEpocaAtual(Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getAllEquipasEpocaAtual | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(equipas);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getAllEquipasEpocaAtual | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getEpocaAtual/{tenant_id}")
+	@ResponseBody
+	public String getEpocaAtual(@PathVariable String tenant_id) {
+
+		// Carregar equipa
+
+		System.out.println("getEpocaAtual | Start");
+		System.out.println("getEpocaAtual | tenant_ID:" + tenant_id);
+
+		EpocaData epocaAtual = null;
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		epocaAtual = equipaHelper.getEpocaAtiva(Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getEpocaAtual | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(epocaAtual);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getAllStaff | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/setEpocaAtual/{idepoca}/{tenant_id}")
+	@ResponseBody
+	public String setEpocaAtual(@PathVariable String idepoca, @PathVariable String tenant_id) {
+
+		// Carregar equipa
+
+		System.out.println("setEpocaAtual | Start");
+		System.out.println("setEpocaAtual | idepoca:" + idepoca);
+		System.out.println("setEpocaAtual | tenant_ID:" + tenant_id);
+
+		Boolean sucesso = null;
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		sucesso = equipaHelper.setEpocaAtual(Integer.valueOf(idepoca), Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("setEpocaAtual | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(sucesso);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("setEpocaAtual | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/createEscalaoEpoca/{tenant_id}")
+	@ResponseBody
+	public String createEscalaoEpoca(@PathVariable String tenant_id,
+			@RequestBody EscalaoEpocaData parmEscalaoEpocaData) {
+
+		// Carregar equipa
+
+		System.out.println("createEscalaoEpoca | Start");
+
+		System.out.println("createEscalaoEpoca | tenant_ID:" + tenant_id);
+		System.out.println("createEscalaoEpoca | parmEscalaoEpocaData:" + parmEscalaoEpocaData);
+
+		Boolean sucesso = null;
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		sucesso = equipaHelper.createEscalaoEpoca(parmEscalaoEpocaData, Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("createEscalaoEpoca | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(sucesso);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("createEscalaoEpoca | Error End");
+		return "";
+	}
+	
+	
+	@CrossOrigin
+	@PutMapping("/deleteEscalaoEpoca/{tenant_id}")
+	@ResponseBody
+	public String deleteEscalaoEpoca(@PathVariable String tenant_id,
+			@RequestBody EscalaoEpocaData parmEscalaoEpocaData) {
+
+		// Carregar equipa
+
+		System.out.println("deleteEscalaoEpoca | Start");
+
+		System.out.println("deleteEscalaoEpoca | tenant_ID:" + tenant_id);
+		System.out.println("deleteEscalaoEpoca | parmEscalaoEpocaData:" + parmEscalaoEpocaData);
+
+		Boolean sucesso = null;
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		sucesso = equipaHelper.deleteEscalaoEpoca(parmEscalaoEpocaData, Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("deleteEscalaoEpoca | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(sucesso);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("deleteEscalaoEpoca | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getAllEpocas/{tenant_id}")
+	@ResponseBody
+	public String getAllEpocas(@PathVariable String tenant_id) {
+
+		// Carregar equipa
+
+		System.out.println("getAllEpocas | Start");
+		System.out.println("getAllEpocas | tenant_ID:" + tenant_id);
+
+		ArrayList<EpocaData> epocas = null;
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		epocas = equipaHelper.getAllEpocas(Integer.valueOf(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getAllEpocas | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(epocas);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getAllStaff | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getEscaloes")
+	@ResponseBody
+	public String getEscaloes() {
+
+		// Carregar equipa
+
+		System.out.println("getEscaloes | Start");
+
+		ArrayList<EscalaoData> escaloes = null;
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		escaloes = equipaHelper.getAllEscaloes();
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getEscaloes | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(escaloes);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getEscaloes | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getAllStaffDisponivel/{tenant_id}/{idequipa}")
+	@ResponseBody
+	public String getAllStaff(@PathVariable String tenant_id, @PathVariable String idequipa) {
+
+		// Carregar equipa
+
+		System.out.println("getAllStaffDisponivel | Start");
+		System.out.println("getAllStaffDisponivel | tenant_ID:" + tenant_id);
+
+		ArrayList<ElementoSeleccao> staffs = new ArrayList<ElementoSeleccao>();
+
+		StaffHelper staffHelper = new StaffHelper();
+		staffs = staffHelper.getAllStaffAtivoDisponivel(Integer.valueOf(tenant_id), Integer.valueOf(idequipa));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getAllStaffDisponivel | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(staffs);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getAllStaffDisponivel | Error End");
+		return "";
+	}
+
+	@CrossOrigin
 	@PutMapping("/updateJogador/{idUtilizador}")
 	@ResponseBody
 	public String updateJogador(@PathVariable String idUtilizador, @RequestBody JogadorData jogadorData) {
@@ -133,6 +463,135 @@ public class EquipaWS {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			System.out.println("PresencaWS | updateJogador | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			resultado = false;
+		}
+		return null;
+	}
+
+	@CrossOrigin
+	@PutMapping("/equipa/addJogadorEquipa/{idEquipa}")
+	@ResponseBody
+	public String addJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
+		boolean resultado = false;
+		System.out.println("EquipaWS | equipaAddJogador | Start");
+		System.out.println("EquipaWS | equipaAddJogador | Equipa:" + idEquipa);
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		resultado = equipaHelper.addJogadorEquipa(Integer.parseInt(idEquipa), jogadorData);
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			System.out.println("EquipaWS | equipaAddJogador | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			resultado = false;
+		}
+		return null;
+	}
+
+	@CrossOrigin
+	@PutMapping("/equipa/addStaffEquipa/{idEquipa}")
+	@ResponseBody
+	public String addStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
+		boolean resultado = false;
+		System.out.println("EquipaWS | addStaffEquipa | Start");
+		System.out.println("EquipaWS | addStaffEquipa | Equipa:" + idEquipa);
+		System.out.println("EquipaWS | addStaffEquipa | Staff:" + staffData.getId());
+		System.out.println("EquipaWS | addStaffEquipa | Tipo:" + staffData.getTipo());
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		resultado = equipaHelper.addStaffEquipa(Integer.parseInt(idEquipa), staffData);
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			System.out.println("EquipaWS | addStaffEquipa | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			resultado = false;
+		}
+		return null;
+	}
+
+	@CrossOrigin
+	@PutMapping("/addStaff/{tenant_id}/{utilizador_id}")
+	@ResponseBody
+	public String addStaff(@PathVariable String tenant_id, @PathVariable String utilizador_id,
+			@RequestBody StaffData staffData) {
+		boolean resultado = false;
+		System.out.println("EquipaWS | addStaff | Start");
+
+		StaffHelper staffHelper = new StaffHelper();
+		resultado = staffHelper.addStaff(staffData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			System.out.println("EquipaWS | addStaff | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			resultado = false;
+		}
+		return null;
+	}
+
+	@CrossOrigin
+	@PutMapping("/addJogador/{tenant_id}/{utilizador_id}")
+	@ResponseBody
+	public String addJogador(@PathVariable String tenant_id, @PathVariable String utilizador_id,
+			@RequestBody JogadorData jogadorData) {
+		boolean resultado = false;
+		System.out.println("EquipaWS | addJogador | Start");
+
+		JogadorHelper jogadorHelper = new JogadorHelper();
+		resultado = jogadorHelper.addJogador(jogadorData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			System.out.println("EquipaWS | addJogador | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			resultado = false;
+		}
+		return null;
+	}
+
+	@CrossOrigin
+	@PutMapping("/equipa/removeJogadorEquipa/{idEquipa}")
+	@ResponseBody
+	public String removeJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
+		boolean resultado = false;
+		System.out.println("EquipaWS | removeJogadorEquipa | Start");
+		System.out.println("EquipaWS | removeJogadorEquipa | Equipa:" + idEquipa);
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		resultado = equipaHelper.removeJogadorEquipa(Integer.parseInt(idEquipa), jogadorData);
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			System.out.println("EquipaWS | removeJogadorEquipa | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			resultado = false;
+		}
+		return null;
+	}
+
+	@CrossOrigin
+	@PutMapping("/equipa/removeStaffEquipa/{idEquipa}")
+	@ResponseBody
+	public String removeStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
+		boolean resultado = false;
+		System.out.println("EquipaWS | removeStaffEquipa | Start");
+		System.out.println("EquipaWS | removeStaffEquipa | Equipa:" + idEquipa);
+		System.out.println("EquipaWS | removeStaffEquipa | Staff?id:" + staffData.getId());
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		resultado = equipaHelper.removeStaffEquipa(Integer.parseInt(idEquipa), staffData);
+
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			System.out.println("EquipaWS | removeStaffEquipa | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;

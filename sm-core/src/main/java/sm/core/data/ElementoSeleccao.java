@@ -1,11 +1,11 @@
 package sm.core.data;
 
-public class JogadorSeleccao {
+public class ElementoSeleccao {
 
 	private Integer id_Jogador;
 	private String nome_Jogador;
 	private String escalao;
-	public JogadorSeleccao(Integer id_Jogador, String nome_Jogador, String escalao) {
+	public ElementoSeleccao(Integer id_Jogador, String nome_Jogador, String escalao) {
 		super();
 		this.id_Jogador = id_Jogador;
 		this.nome_Jogador = nome_Jogador;

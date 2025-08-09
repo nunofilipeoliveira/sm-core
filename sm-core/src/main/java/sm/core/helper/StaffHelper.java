@@ -3,9 +3,12 @@ package sm.core.helper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Date;
 
+import sm.core.data.ElementoSeleccao;
 import sm.core.data.StaffData;
 
 public class StaffHelper {
@@ -42,7 +45,7 @@ public class StaffHelper {
 
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return staffData;
 
 		} catch (SQLException e) {
@@ -111,8 +114,8 @@ public class StaffHelper {
 			preparedStatement = dbUtils.getConnection()
 					.prepareStatement("update\r\n" + "	staff \r\n" + "set\r\n" + "	nome =? ,\r\n"
 							+ "	data_nascimento =? ,\r\n" + "	email =? ,\r\n" + "	telemovel =? ,\r\n"
-							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? \r\n"
-							+ "where\r\n" + "	ID =?");
+							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? \r\n" + "where\r\n"
+							+ "	ID =?");
 
 			preparedStatement.setString(1, parmStaff.getNome());
 			preparedStatement.setInt(2, parmStaff.getData_nascimento());
@@ -124,7 +127,80 @@ public class StaffHelper {
 			preparedStatement.setInt(8, parmStaff.getId());
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			return true;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return false;
+	}
+
+	public boolean addStaff(StaffData parmStaff, int parmTenantID, int parmIdUtilizador) {
+
+		DBUtils dbUtils = new DBUtils();
+		StaffData staffData = new StaffData();
+
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,Tenant_id) VALUES\r\n"
+							+ "	 (?,?,?,?,?,?,?,0,1,?)",
+					Statement.RETURN_GENERATED_KEYS);
+
+			preparedStatement.setString(1, parmStaff.getNome());
+			preparedStatement.setString(2, parmStaff.getNome_completo());
+			preparedStatement.setString(3, parmStaff.getTelemovel());
+			preparedStatement.setString(4, parmStaff.getEmail());
+			preparedStatement.setString(5, parmStaff.getMorada());
+			preparedStatement.setString(6, parmStaff.getCodigo_postal());
+			preparedStatement.setInt(7, parmStaff.getData_nascimento());
+			preparedStatement.setInt(8, parmTenantID);
+			int affectedRows = preparedStatement.executeUpdate();
+
+			// Verifica se a inserção foi bem-sucedida
+			if (affectedRows > 0) {
+				// Obtém as chaves geradas
+				try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
+					if (generatedKeys.next()) {
+						int generatedId = generatedKeys.getInt(1); // Obtém o ID gerado
+						System.out.println("ID gerado: " + generatedId);
+
+						parmStaff.setId(generatedId);
+
+						// Realiza a comparação campo a campo e regita no histórico.
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Nome", staffData.getNome(),
+								parmStaff.getNome());
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Código Postal",
+								parmStaff.getCodigo_postal(), staffData.getCodigo_postal());
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Data Nascimento",
+								String.valueOf(staffData.getData_nascimento()),
+								String.valueOf(parmStaff.getData_nascimento()));
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Email",
+								staffData.getEmail(), parmStaff.getEmail());
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Morada",
+								staffData.getMorada(), parmStaff.getMorada());
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Nome Completo",
+								staffData.getNome_completo(), parmStaff.getNome_completo());
+
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Telemovel",
+								staffData.getTelemovel(), parmStaff.getTelemovel());
+
+					} else {
+						throw new SQLException("Falha ao obter o ID gerado.");
+					}
+				}
+			}
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
 
 			return true;
 
@@ -150,6 +226,83 @@ public class StaffHelper {
 		preparedStatement.setString(5, String.valueOf(new Timestamp(date.getTime())));
 		preparedStatement.setInt(6, parmIdUtilizador);
 		preparedStatement.executeUpdate();
+	}
+
+	public ArrayList<ElementoSeleccao> getAllStaffAtivo(int parmTenantID) {
+	
+		DBUtils dbUtils = new DBUtils();
+		ElementoSeleccao staff = null;
+		ArrayList<ElementoSeleccao> staffDisponiveis = new ArrayList<ElementoSeleccao>();
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+					"select id, nome from staff where ESTADO='1' and TENANT_ID=? and id_jogador =0\r\n" + "union\r\n"
+							+ "select s.id, j.nome from staff s \r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
+							+ "where s.ESTADO='1' and s.TENANT_ID=? and s.id_jogador <>0\r\n" + "order by 1 ");
+	
+			preparedStatement.setInt(1, parmTenantID);
+			preparedStatement.setInt(2, parmTenantID);
+			ResultSet rs = preparedStatement.executeQuery();
+	
+			if (rs == null) {
+				return null;
+			}
+	
+			while (rs.next()) {
+	
+				staff = new ElementoSeleccao(rs.getInt("id"), rs.getString("nome"), "");
+				staffDisponiveis.add(staff);
+	
+			}
+	
+			dbUtils.closeConnection(preparedStatement.getConnection());
+			return staffDisponiveis;
+	
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	
+		return null;
+	}
+
+	public ArrayList<ElementoSeleccao> getAllStaffAtivoDisponivel(int parmTenantID, int parmIDEquipa) {
+	
+		DBUtils dbUtils = new DBUtils();
+		ElementoSeleccao staff = null;
+		ArrayList<ElementoSeleccao> staffDisponiveis = new ArrayList<ElementoSeleccao>();
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement("select * from (\r\n"
+					+ "select id, nome from staff where ESTADO='1' and TENANT_ID=? and id_jogador =0\r\n" + "union\r\n"
+					+ "select s.id, j.nome from staff s\r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
+					+ "where s.ESTADO='1' and s.TENANT_ID=? and s.id_jogador <>0\r\n" + "order by 1 \r\n" + ") a \r\n"
+					+ "where \r\n" + "not exists (select * from escalao_epoca_staff X \r\n" + "where \r\n"
+					+ "X.id_staff  = a.id  AND\r\n" + "X.id_escalao_epoca = ?)");
+	
+			preparedStatement.setInt(1, parmTenantID);
+			preparedStatement.setInt(2, parmTenantID);
+			preparedStatement.setInt(3, parmIDEquipa);
+			ResultSet rs = preparedStatement.executeQuery();
+	
+			if (rs == null) {
+				return null;
+			}
+	
+			while (rs.next()) {
+	
+				staff = new ElementoSeleccao(rs.getInt("id"), rs.getString("nome"), "");
+				staffDisponiveis.add(staff);
+	
+			}
+	
+			dbUtils.closeConnection(preparedStatement.getConnection());
+			return staffDisponiveis;
+	
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	
+		return null;
 	}
 
 }

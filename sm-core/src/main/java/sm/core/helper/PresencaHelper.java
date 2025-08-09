@@ -104,7 +104,7 @@ public class PresencaHelper {
 
 			presencas.add(presencaData);
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return presencas;
 
 		} catch (SQLException e) {
@@ -174,7 +174,7 @@ public class PresencaHelper {
 				presencaData.addStaff(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4));
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return presencaData;
 
 		} catch (SQLException e) {
@@ -216,7 +216,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			if (presencaData != null) {
 				return true;
 			} else {
@@ -256,7 +256,7 @@ public class PresencaHelper {
 				historico.add(historicoItem);
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return historico;
 
 		} catch (SQLException e) {
@@ -315,7 +315,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return true;
 
 		} catch (SQLException e) {
@@ -466,7 +466,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return true;
 
 		} catch (SQLException e) {
@@ -484,7 +484,7 @@ public class PresencaHelper {
 		preparedStatement.setInt(2, idUtilizador);
 		preparedStatement.setString(3, alteracao);
 		preparedStatement.executeUpdate();
-		dbUtils.closeConnection();
+		dbUtils.closeConnection(preparedStatement.getConnection());
 
 	}
 

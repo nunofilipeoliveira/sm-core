@@ -71,7 +71,7 @@ public class LoginHelper {
 
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return loginData;
 
 		} catch (SQLException e) {
@@ -104,7 +104,7 @@ public class LoginHelper {
 						rs.getString("code"), rs.getString("ids_escalao"), rs.getString("nome"));
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return utilizadorParaAtivarData;
 
 		} catch (SQLException e) {
@@ -150,7 +150,7 @@ public class LoginHelper {
 			preparedStatement.setString(1, parmLoginData.getUser());
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return true;
 
 		} catch (SQLException e) {
@@ -182,7 +182,7 @@ public class LoginHelper {
 				code = rs.getString("code");
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return code;
 
 		} catch (SQLException e) {
@@ -214,7 +214,7 @@ public class LoginHelper {
 				listaHistorico.add(hosHistoricoLoginData);
 			}
 
-			dbUtils.closeConnection();
+			dbUtils.closeConnection(preparedStatement.getConnection());
 			return listaHistorico;
 
 		} catch (SQLException e) {
