@@ -258,7 +258,7 @@ public class EquipaHelper {
 
 			// ler staff
 
-			preparedStatement = dbUtils.getConnection().prepareStatement(
+			PreparedStatement preparedStatement2 = dbUtils.getConnection().prepareStatement(
 					"select	ee.id as id,	e2.Descritivo, 	e.Nome, 	j.id,	j.nome as nome,	j.data_nascimento,	eej.tipo, 0 as id_Jogador\r\n"
 							+ "from	escalao_epoca ee\r\n" + "inner join escalao e on	e.id = ee.id_escalao\r\n"
 							+ "inner join epoca e2 on ee.id_epoca=e2.id	\r\n"
@@ -272,9 +272,9 @@ public class EquipaHelper {
 							+ "inner join staff j on	j.id = eej.id_staff\r\n"
 							+ "inner join jogador j2 on	j.id_jogador = j2.id\r\n"
 							+ "where	ee.id = ?	and j.id_jogador <> 0");
-			preparedStatement.setInt(1, parmId);
-			preparedStatement.setInt(2, parmId);
-			rs = preparedStatement.executeQuery();
+			preparedStatement2.setInt(1, parmId);
+			preparedStatement2.setInt(2, parmId);
+			rs = preparedStatement2.executeQuery();
 
 			StaffData tmpStaff = null;
 			while (rs.next()) {
@@ -287,6 +287,7 @@ public class EquipaHelper {
 			}
 
 			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(preparedStatement2.getConnection());
 			return equipaData;
 
 		} catch (SQLException e) {
@@ -363,18 +364,14 @@ public class EquipaHelper {
 			return false;
 		}
 	}
-	
-	
+
 	public boolean createEscalaoEpoca(EscalaoEpocaData parmEscalaoEpocaData, int parmTenantID) {
 
 		DBUtils dbUtils = new DBUtils();
-		
-		//obter o id da epoca em vigor
-		
+
+		// obter o id da epoca em vigor
+
 		EpocaData epoca = getEpocaAtiva(parmTenantID);
-		
-		
-		
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
@@ -388,8 +385,6 @@ public class EquipaHelper {
 
 			dbUtils.closeConnection(preparedStatement.getConnection());
 
-			
-
 			return true;
 
 		} catch (SQLException e) {
@@ -398,13 +393,10 @@ public class EquipaHelper {
 			return false;
 		}
 	}
-	
+
 	public boolean deleteEscalaoEpoca(EscalaoEpocaData parmEscalaoEpocaData, int parmTenantID) {
 
 		DBUtils dbUtils = new DBUtils();
-		
-
-		
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
@@ -412,12 +404,9 @@ public class EquipaHelper {
 
 			preparedStatement.setInt(1, parmEscalaoEpocaData.getId_escalao_epoca());
 
-
 			preparedStatement.executeUpdate();
 
 			dbUtils.closeConnection(preparedStatement.getConnection());
-
-			
 
 			return true;
 
@@ -427,7 +416,6 @@ public class EquipaHelper {
 			return false;
 		}
 	}
-	
 
 	public ArrayList<EpocaData> getAllEpocas(int parmTenantID) {
 
