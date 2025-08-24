@@ -285,6 +285,86 @@ public class LoginWS {
 	
 	
 	@CrossOrigin
+	@PutMapping("/enableUser/{parmUserId}")
+	@ResponseBody
+	public String enableUser(@PathVariable String parmUserId) {
+		System.out.println("enableUser | Start");
+		System.out.println("enableUser | parmUserId:" + parmUserId);
+	
+
+		LoginHelper loginHelper = new LoginHelper();
+		Boolean resultado= loginHelper.enableUser(Integer.parseInt(parmUserId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			System.out.println("enableUser | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			System.out.println("enableUser | Error End");
+		}
+
+		System.out.println("enableUser | Error End");
+		return "";
+	}
+	
+	
+	@CrossOrigin
+	@PutMapping("/resetPWD/{parmUserId}")
+	@ResponseBody
+	public String resetPWD(@PathVariable String parmUserId) {
+		System.out.println("resetPWD | Start");
+		System.out.println("resetPWD | parmUserId:" + parmUserId);
+	
+
+		LoginHelper loginHelper = new LoginHelper();
+		Boolean resultado= loginHelper.resetPWD(Integer.parseInt(parmUserId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			System.out.println("resetPWD | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			System.out.println("resetPWD | Error End");
+		}
+
+		System.out.println("resetPWD | Error End");
+		return "";
+	}
+	
+	
+	
+	@CrossOrigin
+	@PutMapping("/disableUser/{parmUserId}")
+	@ResponseBody
+	public String disableUser(@PathVariable String parmUserId) {
+		System.out.println("disableUser | Start");
+		System.out.println("disableUser | parmUserId:" + parmUserId);
+	
+
+		LoginHelper loginHelper = new LoginHelper();
+		Boolean resultado= loginHelper.disableUser(Integer.parseInt(parmUserId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			System.out.println("disableUser | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			System.out.println("disableUser | Error End");
+		}
+
+		System.out.println("disableUser | Error End");
+		return "";
+	}
+	
+	
+	
+	@CrossOrigin
 	@PutMapping("/getUserByUserName/{parmUserName}/{parmTenantId}")
 	@ResponseBody
 	public String getUserByUserName(@PathVariable String parmUserName, @PathVariable String parmTenantId) {
@@ -310,15 +390,15 @@ public class LoginWS {
 	}
 
 	@CrossOrigin
-	@PutMapping("/createuser")
+	@PutMapping("/createuser/{parmTenantId}")
 	@ResponseBody
-	public String createUser(@RequestBody LoginData parmLoginData) {
+	public String createUser(@RequestBody LoginData parmLoginData, @PathVariable String parmTenantId) {
 		boolean resultado = false;
 		System.out.println("LoginWS | createUser  | Start");
 		System.out.println("LoginWS | createUser  | user:" + parmLoginData.getUser());
 
 		LoginHelper loginHelper = new LoginHelper();
-		resultado = loginHelper.createUtilizador(parmLoginData);
+		resultado = loginHelper.createUtilizador(parmLoginData, Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
 

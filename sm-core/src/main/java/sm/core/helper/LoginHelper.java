@@ -21,7 +21,6 @@ import sm.core.utils.TokenValidator;
 @Component
 public class LoginHelper {
 
-	
 	public LoginHelper() {
 
 	}
@@ -130,33 +129,46 @@ public class LoginHelper {
 		return null;
 	}
 
-	public boolean createUtilizador(LoginData parmLoginData) {
+	public boolean createUtilizador(LoginData parmLoginData, int parmTenantID) {
 
 		DBUtils dbUtils = new DBUtils();
 		boolean resultado = false;
+		PreparedStatement preparedStatement = null;
+		// verifica se já existe e é apenas para ativar.
+
+		UtilizadorData tmpUtiliazdor = getUserByUserName(parmLoginData.getUser(), parmTenantID);
+
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
-					"insert into utilizadores(nome, user, password) values(?, ?, ?)",
-					PreparedStatement.RETURN_GENERATED_KEYS);
 
-			preparedStatement.setString(1, parmLoginData.getNome());
-			preparedStatement.setString(2, parmLoginData.getUser());
-			preparedStatement.setString(3, parmLoginData.getPassword());
-			preparedStatement.executeUpdate();
-			ResultSet rs = preparedStatement.getGeneratedKeys();
+			if (tmpUtiliazdor.getId() == 0) {
 
-			if (rs.next()) {
-				parmLoginData.setId(rs.getInt(1));
-			}
+				preparedStatement = dbUtils.getConnection().prepareStatement(
+						"insert into utilizadores(nome, user, password, Tenant_id) values(?, ?, ?, ?)",
+						PreparedStatement.RETURN_GENERATED_KEYS);
 
-			// registar os escaloes
-			for (int i = 0; i < parmLoginData.getEscalaoEpoca().size(); i++) {
-				preparedStatement = dbUtils.getConnection()
-						.prepareStatement("insert into utilizadores_escalao  values(?, ?)");
-				preparedStatement.setInt(1, parmLoginData.getId());
-				preparedStatement.setInt(2, parmLoginData.getEscalaoEpoca().get(i).getId_escalao_epoca());
-
+				preparedStatement.setString(1, parmLoginData.getNome());
+				preparedStatement.setString(2, parmLoginData.getUser());
+				preparedStatement.setString(3, parmLoginData.getPassword());
+				preparedStatement.setInt(4, parmTenantID);
 				preparedStatement.executeUpdate();
+				ResultSet rs = preparedStatement.getGeneratedKeys();
+
+				if (rs.next()) {
+					parmLoginData.setId(rs.getInt(1));
+				}
+
+				// registar os escaloes
+				for (int i = 0; i < parmLoginData.getEscalaoEpoca().size(); i++) {
+					preparedStatement = dbUtils.getConnection()
+							.prepareStatement("insert into utilizadores_escalao  values(?, ?)");
+					preparedStatement.setInt(1, parmLoginData.getId());
+					preparedStatement.setInt(2, parmLoginData.getEscalaoEpoca().get(i).getId_escalao_epoca());
+
+					preparedStatement.executeUpdate();
+				}
+			} else {
+				updatePWD(tmpUtiliazdor.getId(), parmLoginData.getPassword());
+				enableUser(tmpUtiliazdor.getId());
 			}
 
 			preparedStatement = dbUtils.getConnection()
@@ -260,7 +272,7 @@ public class LoginHelper {
 		ArrayList<UtilizadorData> utilizadores = new ArrayList<>();
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("select * from utilizadores where tenant_id=?");
+					.prepareStatement("select * from utilizadores where tenant_id=? and estado in (0, 1) ");
 
 			preparedStatement.setInt(1, parmTenantID);
 
@@ -295,7 +307,7 @@ public class LoginHelper {
 		ArrayList<UtilizadorParaAtivarData> utilizadores = new ArrayList<>();
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("select * from utilizadores_ativar where tenant_id=?");
+					.prepareStatement("select * from utilizadores_ativar where estado=0 and tenant_id=?");
 
 			preparedStatement.setInt(1, parmTenantID);
 
@@ -393,9 +405,7 @@ public class LoginHelper {
 
 		return null;
 	}
-	
-	
-	
+
 	public UtilizadorData getUserByUserName(String parmUserName, int parmTenantID) {
 
 		DBUtils dbUtils = new DBUtils();
@@ -422,6 +432,30 @@ public class LoginHelper {
 			}
 
 			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			if (utilizadorData == null) {
+
+				preparedStatement = dbUtils.getConnection()
+						.prepareStatement("select * from utilizadores_ativar where tenant_id=? and user=?");
+
+				preparedStatement.setInt(1, parmTenantID);
+				preparedStatement.setString(2, parmUserName);
+
+				rs = preparedStatement.executeQuery();
+
+				if (rs == null) {
+					return null;
+				}
+
+				while (rs.next()) {
+
+					utilizadorData = new UtilizadorData(0, rs.getString("Nome"), rs.getString("user"),
+							rs.getString("perfil"), rs.getString("email"), "0");
+
+				}
+
+			}
+
 			return utilizadorData;
 
 		} catch (SQLException e) {
@@ -431,8 +465,6 @@ public class LoginHelper {
 
 		return null;
 	}
-	
-	
 
 	public ArrayList<HistoricoLoginData> getHistoricoLogins() {
 
@@ -522,6 +554,124 @@ public class LoginHelper {
 			preparedStatement.setString(2, parmUserData.getPerfil());
 			preparedStatement.setString(3, parmUserData.getEmail());
 			preparedStatement.setInt(4, parmUserId);
+
+			preparedStatement.executeUpdate();
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			return true;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	public boolean updatePWD(int parmUserId, String parmPWD) {
+
+		DBUtils dbUtils = new DBUtils();
+
+		try {
+			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("update UTILIZADORES SET password=? where ID=?");
+
+			preparedStatement.setString(1, parmPWD);
+			preparedStatement.setInt(2, parmUserId);
+
+			preparedStatement.executeUpdate();
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			return true;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	public boolean enableUser(int parmUserId) {
+
+		DBUtils dbUtils = new DBUtils();
+
+		try {
+			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("update UTILIZADORES SET estado='1' where ID=?");
+
+			preparedStatement.setInt(1, parmUserId);
+
+			preparedStatement.executeUpdate();
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			return true;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	public boolean resetPWD(int parmUserId) {
+
+		DBUtils dbUtils = new DBUtils();
+		UtilizadorParaAtivarData tmpUtilizadorParaAtivarData = null;
+
+		try {
+			// COLOCA UTILIZADOR NUM ESTADO DE AGUARDA PWD
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("update UTILIZADORES SET estado='2' where ID=?");
+
+			preparedStatement.setInt(1, parmUserId);
+
+			preparedStatement.executeUpdate();
+
+			// APAGA POSSIVEIS REGISTOS EM ATIVAÇÃO
+
+			preparedStatement = dbUtils.getConnection().prepareStatement("SELECT * FROM UTILIZADORES WHERE ID=?");
+
+			preparedStatement.setInt(1, parmUserId);
+
+			ResultSet rs = preparedStatement.executeQuery();
+
+			if (rs == null) {
+				return false;
+			}
+
+			while (rs.next()) {
+
+				tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", "",
+						rs.getString("Nome"), rs.getString("email"), rs.getString("perfil"), "");
+				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("Tenant_id"));
+
+			}
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			return true;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	public boolean disableUser(int parmUserId) {
+
+		DBUtils dbUtils = new DBUtils();
+
+		try {
+			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("update UTILIZADORES SET estado='0' where ID=?");
+
+			preparedStatement.setInt(1, parmUserId);
 
 			preparedStatement.executeUpdate();
 
