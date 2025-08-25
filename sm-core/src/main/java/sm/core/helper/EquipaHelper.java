@@ -316,7 +316,8 @@ public class EquipaHelper {
 
 			while (rs.next()) {
 
-				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Estado"));
+				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Estado"),
+						rs.getInt("AnoInicio"));
 
 			}
 
@@ -436,7 +437,8 @@ public class EquipaHelper {
 
 			while (rs.next()) {
 
-				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Estado"));
+				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Estado"),
+						rs.getInt("AnoInicio"));
 				epocas.add(epocaAtual);
 
 			}
@@ -483,6 +485,40 @@ public class EquipaHelper {
 		}
 
 		return null;
+	}
+
+	public String getEscalaoByEquipa(int parmEquipaID) {
+
+		DBUtils dbUtils = new DBUtils();
+		String escalao = "";
+
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+					"SELECT escalao.nome FROM escalao inner join escalao_epoca e on e.id_escalao = escalao.id where e.id =?");
+
+			preparedStatement.setInt(1, parmEquipaID);
+			;
+			ResultSet rs = preparedStatement.executeQuery();
+
+			if (rs == null) {
+				return null;
+			}
+
+			while (rs.next()) {
+
+				escalao = rs.getString(1);
+
+			}
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+			return escalao;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return escalao;
 	}
 
 }

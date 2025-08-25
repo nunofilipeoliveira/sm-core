@@ -317,8 +317,7 @@ public class EquipaWS {
 		System.out.println("createEscalaoEpoca | Error End");
 		return "";
 	}
-	
-	
+
 	@CrossOrigin
 	@PutMapping("/deleteEscalaoEpoca/{tenant_id}")
 	@ResponseBody
@@ -707,6 +706,36 @@ public class EquipaWS {
 		}
 
 		System.out.println("loadJogadorbyID | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getEscalaoByEquipa/{parmEquipaId}")
+	@ResponseBody
+	public String getEscalaoByEquipa(@PathVariable String parmEquipaId) {
+
+		// Carregar equipa
+
+		System.out.println("getEscalaoByEquipa | Start");
+		System.out.println("getEscalaoByEquipa | parmEquipaId:" + parmEquipaId);
+
+		EquipaHelper equipaHelper = new EquipaHelper();
+		String escalao = equipaHelper.getEscalaoByEquipa(Integer.parseInt(parmEquipaId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			System.out.println("getEscalaoByEquipa | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(escalao);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println("getEscalaoByEquipa | Error End");
 		return "";
 	}
 
