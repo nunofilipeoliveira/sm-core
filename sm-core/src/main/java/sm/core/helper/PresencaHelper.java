@@ -91,8 +91,8 @@ public class PresencaHelper {
 				}
 
 				if (rs.getString("Tipo").equals("J")) {
-					presencaData.addJogador(rs.getInt("id_Item"), rs.getString("nome"),
-							rs.getString("estado"), rs.getString("motivo"));
+					presencaData.addJogador(rs.getInt("id_Item"), rs.getString("nome"), rs.getString("estado"),
+							rs.getString("motivo"));
 				}
 
 				if (rs.getString("Tipo").equals("S")) {
@@ -229,6 +229,67 @@ public class PresencaHelper {
 		}
 
 		return false;
+	}
+
+	public int totalTrainings(int parmEquipaID) {
+
+		DBUtils dbUtils = new DBUtils();
+		int numTreinos = 0;
+
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("select count(*) from presencas where id_equipa =?");
+
+			preparedStatement.setInt(1, parmEquipaID);
+
+			ResultSet rs = preparedStatement.executeQuery();
+
+			if (rs == null) {
+				return 0;
+			}
+			while (rs.next()) {
+				numTreinos = rs.getInt(1);
+			}
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return numTreinos;
+	}
+
+	public int totalAthletesByEstado(int parmEquipaID, String parmEstado) {
+
+		DBUtils dbUtils = new DBUtils();
+		int numTotalAthletesPresent = 0;
+
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+					"select count(*) from presenca_jogador p inner join presencas on presencas.id=id_presenca where estado=? and id_equipa=?");
+
+			preparedStatement.setString(1, parmEstado);
+			preparedStatement.setInt(2, parmEquipaID);
+
+			ResultSet rs = preparedStatement.executeQuery();
+
+			if (rs == null) {
+				return 0;
+			}
+			while (rs.next()) {
+				numTotalAthletesPresent = rs.getInt(1);
+			}
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return numTotalAthletesPresent;
 	}
 
 	public ArrayList<String> loadHistoricoByID(int id) {
@@ -402,31 +463,27 @@ public class PresencaHelper {
 
 			}
 
-			
-			for (int i = oldPresenca.getJogadoresPresenca().size(); i < parmPresencaData.getJogadoresPresenca().size(); i++) {
-				
-								
-					
-						// significa que é um jogador novo na ficha. Registar no histórico
-						registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
-								"Novo Jogador:" + parmPresencaData.getJogadoresPresenca().get(i).getNome_jogador()
-										+ " | Estado:" + parmPresencaData.getJogadoresPresenca().get(i).getEstado()
-										+ " Motivo:" + parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
-						
-						//insere novo jogador na presenca
-						
-						DBUtils dbUtils = new DBUtils();
+			for (int i = oldPresenca.getJogadoresPresenca().size(); i < parmPresencaData.getJogadoresPresenca()
+					.size(); i++) {
 
-						PreparedStatement preparedStatement = dbUtils.getConnection()
-								.prepareStatement("insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo) VALUES(?,?,?,?)");
-						
-						preparedStatement.setString(3, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
-						preparedStatement.setString(4, parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
-						preparedStatement.setInt(1, parmPresencaData.getId());
-						preparedStatement.setInt(2, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
-						preparedStatement.executeUpdate();
-						
-							
+				// significa que é um jogador novo na ficha. Registar no histórico
+				registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
+						"Novo Jogador:" + parmPresencaData.getJogadoresPresenca().get(i).getNome_jogador()
+								+ " | Estado:" + parmPresencaData.getJogadoresPresenca().get(i).getEstado() + " Motivo:"
+								+ parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
+
+				// insere novo jogador na presenca
+
+				DBUtils dbUtils = new DBUtils();
+
+				PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+						"insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo) VALUES(?,?,?,?)");
+
+				preparedStatement.setString(3, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
+				preparedStatement.setString(4, parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
+				preparedStatement.setInt(1, parmPresencaData.getId());
+				preparedStatement.setInt(2, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
+				preparedStatement.executeUpdate();
 
 			}
 

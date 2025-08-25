@@ -3,6 +3,7 @@ package sm.core.ws;
 import java.util.ArrayList;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -95,6 +96,110 @@ public class PresencaWS {
 		try {
 			System.out.println("PresencaWS | getPresenca | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presenca);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return "";
+
+	}
+
+	@CrossOrigin
+	@GetMapping("/dashboard/getTotalTrainings/{parmEquipaID}")
+	@ResponseBody
+	public String getTotalTrainings(@PathVariable String parmEquipaID) {
+		// Faz o login e obtem informação do utilizador
+
+		System.out.println("PresencaWS | dashboard/totalTrainings | Start");
+		System.out.println("PresencaWS | dashboard/totalTrainings | parmEquipaID:" + parmEquipaID);
+
+		ObjectMapper mapper = new ObjectMapper();
+		PresencaHelper presencaHelper = new PresencaHelper();
+		int numTreinos = presencaHelper.totalTrainings(Integer.parseInt(parmEquipaID));
+
+		try {
+			System.out.println("PresencaWS | dashboard/totalTrainings | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(numTreinos);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return "";
+
+	}
+
+	@CrossOrigin
+	@GetMapping("/dashboard/getAverageAthletes/{parmEquipaID}")
+	@ResponseBody
+	public String getAverageAthletes(@PathVariable String parmEquipaID) {
+		// Faz o login e obtem informação do utilizador
+
+		System.out.println("PresencaWS | dashboard/getAverageAthletes | Start");
+		System.out.println("PresencaWS | dashboard/getAverageAthletes | parmEquipaID:" + parmEquipaID);
+
+		ObjectMapper mapper = new ObjectMapper();
+		PresencaHelper presencaHelper = new PresencaHelper();
+		int numTreinos = presencaHelper.totalTrainings(Integer.parseInt(parmEquipaID));
+		int numTotalAthletesPresent = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID), "Presente");
+		int numMedia = 0;
+		if (numTotalAthletesPresent > 0) {
+			numMedia = numTotalAthletesPresent / numTreinos;
+		}
+
+		try {
+			System.out.println("PresencaWS | dashboard/getAverageAthletes | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(numMedia);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return "";
+
+	}
+
+	@CrossOrigin
+	@GetMapping("/dashboard/getAbsencePercentage/{parmEquipaID}")
+	@ResponseBody
+	public String getAbsencePercentage(@PathVariable String parmEquipaID) {
+		// Faz o login e obtem informação do utilizador
+
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | Start");
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | parmEquipaID:" + parmEquipaID);
+
+		ObjectMapper mapper = new ObjectMapper();
+		PresencaHelper presencaHelper = new PresencaHelper();
+
+		int numTotalAthletesPresent = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID), "Presente");
+		int numTotalAthletes_FJ = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID),
+				"Ausente (Avisou)");
+		int numTotalAthletes_FI = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID),
+				"Ausente (Não Avisou)");
+		double numMedia = 0;
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletesPresent :"+ numTotalAthletesPresent);
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FJ :"+ numTotalAthletes_FJ);
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FI :"+ numTotalAthletes_FI);
+		
+		int total = numTotalAthletesPresent + numTotalAthletes_FJ + numTotalAthletes_FI;
+		
+		if (numTotalAthletesPresent > 0) {
+			 numMedia = ((double) (numTotalAthletes_FJ + numTotalAthletes_FI) / total) * 100.0;
+			 numMedia = Math.round(numMedia * 100.0) / 100.0;
+
+			System.out.println("PresencaWS | dashboard/getAbsencePercentage | numMedia :"+ numMedia);
+		}
+
+		try {
+			System.out.println("PresencaWS | dashboard/getAbsencePercentage | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(numMedia);
 
 			// return mapper.writeValueAsString(loginData);
 		} catch (JsonProcessingException e) {
