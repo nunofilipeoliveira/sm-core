@@ -15,11 +15,15 @@ import sm.core.data.LoginData;
 import sm.core.data.UtilizadorData;
 import sm.core.data.UtilizadorParaAtivarData;
 import sm.core.utils.EmailService;
+import sm.core.utils.TenantProperties;
 import sm.core.utils.TokenGenerator;
 import sm.core.utils.TokenValidator;
 
 @Component
 public class LoginHelper {
+
+	@Autowired
+	private TenantProperties tenantProperties;
 
 	public LoginHelper() {
 
@@ -689,13 +693,17 @@ public class LoginHelper {
 	public String reenviarEmailAtivacao(UtilizadorParaAtivarData parmUtilizadorData, int parmTenantID) {
 		String enderecoEmail = parmUtilizadorData.getEmail();
 		String codigoAtivacao = getCodebyUser(parmUtilizadorData.getUser());
-		String linkAtivacao = "https://sm.com.pt/ativar?code=" + codigoAtivacao + "&tenant=" + parmTenantID;
+		String linkAtivacao = "https://sm.com.pt/"
+				+ tenantProperties.getTenant_id().get(String.valueOf(parmTenantID)).get("name") + "/#/ativeuser?code="
+				+ codigoAtivacao;
 
 		String html = "<!DOCTYPE html>" + "<html>"
 				+ "<body style='font-family: Arial, sans-serif; background-color:#f4f4f4; padding:20px;'>"
 				+ "  <div style='max-width:600px; margin:0 auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);'>"
 				+ "    <h2 style='color:#333;'>Olá " + parmUtilizadorData.getNome() + ",</h2>"
-				+ "    <p style='color:#555;'>Obrigado por se registar na plataforma <b>SM</b>. Para concluir o seu registo, clique no botão abaixo:</p>"
+				+ "    <p style='color:#555;'>Obrigado por se registar na plataforma <b>Sports Manager - "
+				+ tenantProperties.getTenant_id().get(String.valueOf(parmTenantID)).get("name")
+				+ "</b>. Para concluir o seu registo, clique no botão abaixo:</p>"
 				+ "    <p style='text-align:center; margin:30px 0;'>" + "      <a href='" + linkAtivacao
 				+ "' style='background:#007bff; color:#fff; padding:12px 24px; text-decoration:none; border-radius:5px; font-size:16px;'>Ativar Conta</a>"
 				+ "    </p>"
@@ -704,7 +712,8 @@ public class LoginHelper {
 				+ "    <p style='font-size:12px; color:#999;'>Este email foi enviado automaticamente, por favor não responda.</p>"
 				+ "  </div>" + "</body>" + "</html>";
 
-		boolean enviado = emailService.enviarEmailHtml(enderecoEmail, "Ative a sua conta - SM", html);
+		boolean enviado = emailService.enviarEmailHtml(enderecoEmail, "Ative a sua conta - Sports Manager | "
+				+ tenantProperties.getTenant_id().get(String.valueOf(parmTenantID)).get("name"), html);
 
 		return enviado ? "Email de ativação enviado com sucesso para " + enderecoEmail
 				: "Erro ao enviar email de ativação para " + enderecoEmail;
