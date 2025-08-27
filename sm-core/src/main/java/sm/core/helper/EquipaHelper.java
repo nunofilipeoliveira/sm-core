@@ -225,13 +225,13 @@ public class EquipaHelper {
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("select\r\n" + "	ee.id,\r\n" + "	e2.Descritivo ,\r\n" + "	e.Nome,\r\n"
-							+ "	j.id,\r\n" + "	j.nome,\r\n" + "	j.numero,\r\n" + "	j.data_nascimento \r\n"
-							+ "from\r\n" + "	escalao_epoca ee\r\n" + "inner join escalao e on\r\n"
-							+ "	e.id = ee.id_escalao\r\n" + "inner join epoca e2 on\r\n" + "	ee.id_epoca=e2.id\r\n"
-							+ "inner join escalao_epoca_jogador eej \r\n" + "on eej.id_escalao_epoca =ee.id\r\n"
-							+ "inner join jogador j \r\n" + "on j.id=eej.id_jogador \r\n" + "where\r\n"
-							+ " j.estado='1' and ee.id = ?");
+					.prepareStatement("select	ee.id,	e2.Descritivo ,	e.Nome,	j.id, j.nome, j.numero,	j.data_nascimento\r\n"
+							+ "from escalao_epoca ee\r\n"
+							+ "inner join escalao e on	e.id = ee.id_escalao\r\n"
+							+ "inner join epoca e2 on	ee.id_epoca = e2.id\r\n"
+							+ "left join escalao_epoca_jogador eej on	eej.id_escalao_epoca = ee.id\r\n"
+							+ "left join jogador j on	j.id = eej.id_jogador and j.estado = '1'\r\n"
+							+ "where   ee.id = ?");
 
 			preparedStatement.setInt(1, parmId);
 			ResultSet rs = preparedStatement.executeQuery();

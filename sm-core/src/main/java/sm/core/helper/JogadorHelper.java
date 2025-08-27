@@ -70,7 +70,7 @@ public class JogadorHelper {
 					"select j.id, j.nome , ee.id, ee.nome , pj.estado , pj.motivo , p.`data` , p.hora from jogador j \r\n"
 							+ "inner join presenca_jogador pj on j.id=pj.id_jogador \r\n"
 							+ "inner join presencas p on pj.id_presenca =p.id\r\n"
-							+ "inner join escalao_epoca ee on ee.id_escalao =p.id_equipa\r\n"
+							+ "inner join escalao_epoca ee on ee.id =p.id_equipa\r\n"
 							+ "inner join epoca e on e.id=ee.id_epoca \r\n"
 							+ "where e.Estado =1 and pj.estado like 'Ausente%'\r\n" + "and j.id=?\r\n"
 							+ "order by data, hora");
@@ -111,10 +111,13 @@ public class JogadorHelper {
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
 					"select id_jogador, ee.nome, mid(data, 5, 2) mes, count(*) from presenca_jogador pj\r\n"
-							+ "inner join presencas p ON P.id =PJ.id_presenca\r\n"
-							+ "inner join escalao_epoca ee on EE.ID=P.id_equipa \r\n" + "where id_jogador =?\r\n"
-							+ "and estado='Presente'\r\n" + "group by ee.nome, mid(data, 5, 2)\r\n"
-							+ "order by 1, 2, 3");
+					+ "inner join presencas p ON P.id =PJ.id_presenca\r\n"
+					+ "inner join escalao_epoca ee on EE.ID=P.id_equipa  \r\n"
+					+ "inner join epoca e on e.id=ee.id_epoca and e.Estado ='1'\r\n"
+					+ "where id_jogador =?\r\n"
+					+ "and pj.estado='Presente' \r\n"
+					+ "group by ee.nome, mid(data, 5, 2)\r\n"
+					+ "order by 1, 2, 3");
 
 			preparedStatement.setInt(1, parmId);
 			ResultSet rs = preparedStatement.executeQuery();

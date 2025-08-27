@@ -511,7 +511,7 @@ public class LoginHelper {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
 					.prepareStatement("delete from utilizadores_escalao  where  id_utilizador =?\r\n"
 							+ "and exists (select *from escalao_epoca inner join EPOCA on ID_EPOCA=EPOCA.ID\r\n"
-							+ "where ESTADO='1' and ID_ESCALAO=ID_ESCALAO_EPOCA\r\n" + " )");
+							+ "where ESTADO='1' and escalao_epoca.id=ID_ESCALAO_EPOCA\r\n" + " )");
 
 			preparedStatement.setInt(1, parmUserId);
 
