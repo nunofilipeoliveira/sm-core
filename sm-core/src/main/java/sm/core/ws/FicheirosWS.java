@@ -26,7 +26,7 @@ public class FicheirosWS {
 	@ResponseBody
 	public String uploadFoto(@PathVariable String nomeFoto, @RequestPart MultipartFile foto) {
 
-		boolean resultado = false;
+		
 		System.out.println("FicheirosWS | uploadfoto | Start");
 		System.out.println("FicheirosWS | uploadfoto | nomeFoto:" + nomeFoto);
 
