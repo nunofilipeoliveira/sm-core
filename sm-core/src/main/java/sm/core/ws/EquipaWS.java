@@ -91,19 +91,25 @@ public class EquipaWS {
 	}
 
 	@CrossOrigin
-	@PutMapping("/getJogadoreDisponiveis/{id}")
+	@PutMapping("/getJogadoreDisponiveis/{id}/{all}/{tenant_id}")
 	@ResponseBody
-	public String getJogadoresDisponiveis(@PathVariable String id) {
+	public String getJogadoresDisponiveis(@PathVariable String id, @PathVariable String all, @PathVariable String tenant_id) {
 
 		// Carregar equipa
 
 		System.out.println("getJogadoresDisponiveis | Start");
 		System.out.println("getJogadoresDisponiveis | ID:" + id);
+		System.out.println("getJogadoresDisponiveis | ID:" + tenant_id);
 
 		ArrayList<ElementoSeleccao> jogadores = new ArrayList<ElementoSeleccao>();
+		
+		boolean allJogadores = false;
+		if(all.equals("1")) {
+			allJogadores=true;
+		}
 
 		JogadorHelper jogadorHelper = new JogadorHelper();
-		jogadores = jogadorHelper.getJogadorDisponiveis(Integer.valueOf(id));
+		jogadores = jogadorHelper.getJogadorDisponiveis(Integer.valueOf(id), allJogadores, Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
 
