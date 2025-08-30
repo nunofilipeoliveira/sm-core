@@ -129,62 +129,66 @@ public class JogadorHelper {
 				tmpMes = 0;
 				if (tmpContadorPorEscalao == null) {
 					tmpContadorPorEscalao = new ContadorPresencaData(rs.getInt(1), rs.getString(2), 0, 0, 0, 0, 0, 0, 0,
-							0, 0, 0, 0);
+							0, 0, 0, 0, 0);
 				}
 				if (!tmpContadorPorEscalao.getEscalao().equals(rs.getString(2))) {
 					presencaPorEscalao.add(tmpContadorPorEscalao);
 					tmpContadorPorEscalao = new ContadorPresencaData(rs.getInt(1), rs.getString(2), 0, 0, 0, 0, 0, 0, 0,
-							0, 0, 0, 0);
+							0, 0, 0, 0, 0);
 				}
 
 				tmpMes = rs.getInt(3);
 				switch (tmpMes) {
-				case 1: {
-					tmpContadorPorEscalao.setJan(rs.getInt(4));
-					break;
-				}
-				case 2: {
-					tmpContadorPorEscalao.setFev(rs.getInt(4));
-					break;
-				}
-				case 3: {
-					tmpContadorPorEscalao.setMar(rs.getInt(4));
-					break;
-				}
-				case 4: {
-					tmpContadorPorEscalao.setAbr(rs.getInt(4));
-					break;
-				}
-				case 5: {
-					tmpContadorPorEscalao.setMai(rs.getInt(4));
-					break;
-				}
-				case 6: {
-					tmpContadorPorEscalao.setJun(rs.getInt(4));
-					break;
-				}
-				case 7: {
-					tmpContadorPorEscalao.setJul(rs.getInt(4));
-					break;
-				}
-				case 9: {
-					tmpContadorPorEscalao.setSet(rs.getInt(4));
-					break;
-				}
-				case 10: {
-					tmpContadorPorEscalao.setOut(rs.getInt(4));
-					break;
-				}
-				case 11: {
-					tmpContadorPorEscalao.setNov(rs.getInt(4));
-					break;
-				}
-				case 12: {
-					tmpContadorPorEscalao.setDez(rs.getInt(4));
-					break;
-				}
-				default:
-					throw new IllegalArgumentException("Unexpected value: " + tmpMes);
+					case 1: {
+						tmpContadorPorEscalao.setJan(rs.getInt(4));
+						break;
+					}
+					case 2: {
+						tmpContadorPorEscalao.setFev(rs.getInt(4));
+						break;
+					}
+					case 3: {
+						tmpContadorPorEscalao.setMar(rs.getInt(4));
+						break;
+					}
+					case 4: {
+						tmpContadorPorEscalao.setAbr(rs.getInt(4));
+						break;
+					}
+					case 5: {
+						tmpContadorPorEscalao.setMai(rs.getInt(4));
+						break;
+					}
+					case 6: {
+						tmpContadorPorEscalao.setJun(rs.getInt(4));
+						break;
+					}
+					case 7: {
+						tmpContadorPorEscalao.setJul(rs.getInt(4));
+						break;
+					}
+					case 8: {
+						tmpContadorPorEscalao.setAgo(rs.getInt(4));
+						break;
+					}
+					case 9: {
+						tmpContadorPorEscalao.setSet(rs.getInt(4));
+						break;
+					}
+					case 10: {
+						tmpContadorPorEscalao.setOut(rs.getInt(4));
+						break;
+					}
+					case 11: {
+						tmpContadorPorEscalao.setNov(rs.getInt(4));
+						break;
+					}
+					case 12: {
+						tmpContadorPorEscalao.setDez(rs.getInt(4));
+						break;
+					}
+					default:
+						throw new IllegalArgumentException("Unexpected value: " + tmpMes);
 				}
 
 			}
@@ -233,14 +237,12 @@ public class JogadorHelper {
 					jogadoresDisponiveis.add(jogador);
 
 				}
-			}
-			else {
-				
+			} else {
+
 				preparedStatement = dbUtils.getConnection()
 						.prepareStatement("select j.id, j.nome, \"\" from jogador j \r\n"
 								+ "where estado='1' and j.Tenant_id =?");
 
-			
 				preparedStatement.setInt(1, parmTenandId);
 				ResultSet rs = preparedStatement.executeQuery();
 
@@ -254,7 +256,7 @@ public class JogadorHelper {
 					jogadoresDisponiveis.add(jogador);
 
 				}
-				
+
 			}
 
 			dbUtils.closeConnection(preparedStatement.getConnection());

@@ -15,9 +15,12 @@ public class ContadorPresencaData {
 	private int mai;
 	private int jun;
 	private int jul;
-	
+	private int ago;
+
+
+
 	public ContadorPresencaData(int id_jogador, String escalao, int set, int out, int nov, int dez, int jan, int fev,
-			int mar, int abr, int mai, int jun, int jul) {
+			int mar, int abr, int mai, int jun, int jul, int ago) {
 		super();
 		this.id_jogador = id_jogador;
 		this.escalao = escalao;
@@ -136,6 +139,14 @@ public class ContadorPresencaData {
 
 	public void setJul(int jul) {
 		this.jul = jul;
+	}
+
+		public int getAgo() {
+		return ago;
+	}
+
+	public void setAgo(int ago) {
+		this.ago = ago;
 	}
 
 	
