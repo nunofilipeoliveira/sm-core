@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
@@ -51,10 +52,16 @@ public class FicheirosWS {
 		boolean resultado = false;
 		ObjectMapper mapper = new ObjectMapper();
 
-		String tmpTenantID = tenantProperties.getTenant_id().get(String.valueOf(tenantId)).toString();
+		Object tenantObj = tenantProperties.getTenant_id().get(String.valueOf(tenantId));
+		String tmpTenantID = null;
+		if (tenantObj instanceof Map) {
+			Map<?, ?> tenantMap = (Map<?, ?>) tenantObj;
+			tmpTenantID = (String) tenantMap.get("name");
+			// agora tmpTenantID == "hcmaia"
+		}
 
 		String amb = Start_SMCore.configProp.getProperty("sm.core.amb");
-		if (amb.equals("DEV")) {
+		if (amb != null && amb.equals("DEV")) {
 			System.out.println("FicheirosWS | uploadfoto | Ambiente:" + amb);
 			try {
 				// Define o caminho completo do ficheiro local
@@ -99,6 +106,7 @@ public class FicheirosWS {
 				File firstLocalFile = convFile;
 
 				String firstRemoteFile = "/httpdocs/" + tmpTenantID + "/assets/img/jogadores/" + nomeFoto + ".jpg";
+				System.out.println("FicheirosWS | uploadfoto | firstRemoteFile:" + firstRemoteFile);
 				InputStream inputStream = new FileInputStream(firstLocalFile);
 
 				System.out.println("Start uploading first file");

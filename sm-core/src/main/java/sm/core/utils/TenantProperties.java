@@ -18,4 +18,17 @@ public class TenantProperties {
 	public void setTenant_id(Map<String, Map<String, String>> tenant_id) {
 		this.tenant_id = tenant_id;
 	}
+
+	  public static class Tenant {
+        private String name;
+        // getters e setters
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+    }
 }
