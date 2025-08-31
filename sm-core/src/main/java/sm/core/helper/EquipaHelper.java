@@ -230,8 +230,8 @@ public class EquipaHelper {
 							+ "inner join escalao e on	e.id = ee.id_escalao\r\n"
 							+ "inner join epoca e2 on	ee.id_epoca = e2.id\r\n"
 							+ "left join escalao_epoca_jogador eej on	eej.id_escalao_epoca = ee.id\r\n"
-							+ "left join jogador j on	j.id = eej.id_jogador and j.estado = '1'\r\n"
-							+ "where   ee.id = ?");
+							+ "left join jogador j on	j.id = eej.id_jogador \r\n"
+							+ "where   ee.id = ? and j.estado = '1'");
 
 			preparedStatement.setInt(1, parmId);
 			ResultSet rs = preparedStatement.executeQuery();
