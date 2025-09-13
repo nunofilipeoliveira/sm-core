@@ -71,7 +71,7 @@ public class JogadorHelper {
 							+ "inner join presencas p on pj.id_presenca =p.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id =p.id_equipa\r\n"
 							+ "inner join epoca e on e.id=ee.id_epoca \r\n"
-							+ "where e.Estado =1 and pj.estado like 'Ausente%'\r\n" + "and j.id=?\r\n"
+							+ "where e.Estado =1 and (pj.estado like 'Ausente%' or pj.estado like 'Lesão') " + "and j.id=?\r\n"
 							+ "order by data, hora");
 
 			preparedStatement.setInt(1, parmId);

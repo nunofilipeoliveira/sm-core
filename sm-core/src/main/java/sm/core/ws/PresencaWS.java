@@ -183,18 +183,22 @@ public class PresencaWS {
 				"Ausente (Avisou)");
 		int numTotalAthletes_FI = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID),
 				"Ausente (Não Avisou)");
+		int numTotalAthletes_FL = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID),
+				"Lesão");
 		double numMedia = 0;
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletesPresent :"+ numTotalAthletesPresent);
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FJ :"+ numTotalAthletes_FJ);
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FI :"+ numTotalAthletes_FI);
-		
-		int total = numTotalAthletesPresent + numTotalAthletes_FJ + numTotalAthletes_FI;
-		
-		if (numTotalAthletesPresent > 0) {
-			 numMedia = ((double) (numTotalAthletes_FJ + numTotalAthletes_FI) / total) * 100.0;
-			 numMedia = Math.round(numMedia * 100.0) / 100.0;
+		System.out.println(
+				"PresencaWS | dashboard/getAbsencePercentage | numTotalAthletesPresent :" + numTotalAthletesPresent);
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FJ :" + numTotalAthletes_FJ);
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FI :" + numTotalAthletes_FI);
+		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FL :" + numTotalAthletes_FL);
 
-			System.out.println("PresencaWS | dashboard/getAbsencePercentage | numMedia :"+ numMedia);
+		int total = numTotalAthletesPresent + numTotalAthletes_FJ + numTotalAthletes_FI + numTotalAthletes_FL;
+
+		if (numTotalAthletesPresent > 0) {
+			numMedia = ((double) (numTotalAthletes_FJ + numTotalAthletes_FI + numTotalAthletes_FL) / total) * 100.0;
+			numMedia = Math.round(numMedia * 100.0) / 100.0;
+
+			System.out.println("PresencaWS | dashboard/getAbsencePercentage | numMedia :" + numMedia);
 		}
 
 		try {
