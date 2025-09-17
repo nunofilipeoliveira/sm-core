@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Start_SMCore<sm-core>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "sm.core.Start_SMCore",
+            "projectName": "sm-core",
+            "args": "DEV",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
