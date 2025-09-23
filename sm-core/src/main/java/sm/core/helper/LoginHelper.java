@@ -51,7 +51,7 @@ public class LoginHelper {
 		LoginData loginData = null;
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
-					"select uti.user, uti.id, uti.password, uti.Nome nome, ee.id IDEscalao_Epoca, e2.nome DesctivoEscalao from UTILIZADORES Uti\r\n"
+					"select uti.user, uti.id, uti.password, uti.Nome nome, uti.perfil, ee.id IDEscalao_Epoca, e2.nome  DesctivoEscalao from UTILIZADORES Uti\r\n"
 							+ "inner join utilizadores_escalao UE on ue.id_utilizador=Uti.id\r\n"
 							+ "inner join escalao_epoca ee on ue.id_escalao_epoca=ee.id \r\n"
 							+ "inner join epoca e on e.id =ee.id_epoca\r\n"
@@ -70,7 +70,7 @@ public class LoginHelper {
 			while (rs.next()) {
 				if (loginData == null) {
 					loginData = new LoginData(rs.getInt("id"), rs.getString("nome"), rs.getString("user"),
-							rs.getString("password"), TokenGenerator.generateToken(rs.getString("user")));
+							rs.getString("password"), TokenGenerator.generateToken(rs.getString("user")), rs.getString("perfil"));
 
 					// regista histórico de acesso
 
@@ -147,13 +147,14 @@ public class LoginHelper {
 			if (tmpUtiliazdor.getId() == 0) {
 
 				preparedStatement = dbUtils.getConnection().prepareStatement(
-						"insert into utilizadores(nome, user, password, Tenant_id) values(?, ?, ?, ?)",
+						"insert into utilizadores(nome, user, password, perfil, Tenant_id) values(?, ?, ?, ?, ?)",
 						PreparedStatement.RETURN_GENERATED_KEYS);
 
 				preparedStatement.setString(1, parmLoginData.getNome());
 				preparedStatement.setString(2, parmLoginData.getUser());
 				preparedStatement.setString(3, parmLoginData.getPassword());
-				preparedStatement.setInt(4, parmTenantID);
+				preparedStatement.setString(4, parmLoginData.getPerfil());
+				preparedStatement.setInt(5, parmTenantID);
 				preparedStatement.executeUpdate();
 				ResultSet rs = preparedStatement.getGeneratedKeys();
 

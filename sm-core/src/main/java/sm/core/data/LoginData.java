@@ -10,6 +10,7 @@ public class LoginData {
 	private String password;
 	private ArrayList<EscalaoEpocaData> escalaoEpoca;
 	private String token;
+	private String perfil;
 
 	public String getToken() {
 		return token;
@@ -55,7 +56,14 @@ public class LoginData {
 		this.escalaoEpoca = escalaoEpoca;
 	}
 
-	public LoginData(int id, String nome, String user, String password, String token) {
+	public String getPerfil() {
+		return perfil;
+	}
+	public void setPerfil(String perfil) {
+		this.perfil = perfil;
+	}
+
+	public LoginData(int id, String nome, String user, String password, String token, String perfil) {
 
 		this.id = id;
 		this.nome = nome;
@@ -63,6 +71,7 @@ public class LoginData {
 		this.password = password;
 		this.escalaoEpoca = new ArrayList<EscalaoEpocaData>();
 		this.token=token;
+		this.perfil=perfil;
 	}
 
 	public void adicionarEscalaoEpoca(int idEscalaoEpoca, String descritivoEscalao) {
