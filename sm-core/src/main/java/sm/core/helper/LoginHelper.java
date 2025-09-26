@@ -147,7 +147,7 @@ public class LoginHelper {
 			if (tmpUtiliazdor.getId() == 0) {
 
 				preparedStatement = dbUtils.getConnection().prepareStatement(
-						"insert into utilizadores(nome, user, password, perfil, Tenant_id) values(?, ?, ?, ?, ?)",
+						"insert into utilizadores(nome, user, password, perfil, Tenant_id, estado) values(?, ?, ?, ?, ?, 1)",
 						PreparedStatement.RETURN_GENERATED_KEYS);
 
 				preparedStatement.setString(1, parmLoginData.getNome());
