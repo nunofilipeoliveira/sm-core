@@ -29,7 +29,7 @@ public class ClubeHelper {
             while (rs.next()) {
 
                 clube = new ClubeData(rs.getInt("id"), rs.getString("nome"), rs.getString("pav_nome"),
-                        rs.getString("pav_morada"), rs.getString("pav_link"));
+                        rs.getString("pav_endereco"), rs.getString("pav_link"));
 
             }
 
