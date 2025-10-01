@@ -2,6 +2,7 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,16 +16,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.PresencaData;
+import sm.core.helper.LoginHelper;
 import sm.core.helper.PresencaHelper;
 
 @RestController
 @RequestMapping("/sm")
 public class PresencaWS {
 
+	@Autowired
+	private PresencaHelper presencaHelper;
+
 	@CrossOrigin
-	@PutMapping("/presenca")
-	@ResponseBody
-	public String createPresenca(@RequestBody PresencaData presencaData) {
+	@PutMapping("/presenca/{parmTenantId}")
+	public String createPresenca(@RequestBody PresencaData presencaData, @PathVariable String parmTenantId) {
 		// Faz o login e obtem informação do utilizador
 
 		boolean resultado = false;
@@ -32,8 +36,8 @@ public class PresencaWS {
 		System.out.println("PresencaWS | createPresenca | Escalao:" + presencaData.getEscalao_descricao());
 		System.out.println("PresencaWS | createPresenca | Dia:" + presencaData.getData());
 
-		PresencaHelper presencaHelper = new PresencaHelper();
-		resultado = presencaHelper.createPresenca(presencaData);
+	
+		resultado = presencaHelper.createPresenca(presencaData, parmTenantId);
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -62,7 +66,7 @@ public class PresencaWS {
 		System.out.println("PresencaWS | updatePresenca | IdUtilizador:" + idUtilizador);
 		System.out.println("PresencaWS | updatePresenca | IdPresenca:" + presencaData.getId());
 
-		PresencaHelper presencaHelper = new PresencaHelper();
+		
 		resultado = presencaHelper.updatePresenca(presencaData, Integer.parseInt(idUtilizador));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -117,7 +121,6 @@ public class PresencaWS {
 		System.out.println("PresencaWS | dashboard/totalTrainings | parmEquipaID:" + parmEquipaID);
 
 		ObjectMapper mapper = new ObjectMapper();
-		PresencaHelper presencaHelper = new PresencaHelper();
 		int numTreinos = presencaHelper.totalTrainings(Integer.parseInt(parmEquipaID));
 
 		try {
@@ -144,7 +147,6 @@ public class PresencaWS {
 		System.out.println("PresencaWS | dashboard/getAverageAthletes | parmEquipaID:" + parmEquipaID);
 
 		ObjectMapper mapper = new ObjectMapper();
-		PresencaHelper presencaHelper = new PresencaHelper();
 		int numTreinos = presencaHelper.totalTrainings(Integer.parseInt(parmEquipaID));
 		int numTotalAthletesPresent = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID), "Presente");
 		int numMedia = 0;
@@ -176,7 +178,7 @@ public class PresencaWS {
 		System.out.println("PresencaWS | dashboard/getAbsencePercentage | parmEquipaID:" + parmEquipaID);
 
 		ObjectMapper mapper = new ObjectMapper();
-		PresencaHelper presencaHelper = new PresencaHelper();
+		
 
 		int numTotalAthletesPresent = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID), "Presente");
 		int numTotalAthletes_FJ = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID),
@@ -227,7 +229,6 @@ public class PresencaWS {
 
 		String[] tmpDatas = datas.split("_");
 
-		PresencaHelper presencaHelper = new PresencaHelper();
 		ArrayList<PresencaData> presencas = presencaHelper.loadPresencasbyData(Integer.parseInt(tmpDatas[0]),
 				Integer.parseInt(tmpDatas[1]), Integer.parseInt(tmpDatas[2]));
 
@@ -261,7 +262,6 @@ public class PresencaWS {
 
 		String[] tmpDatas = datas.split("_");
 
-		PresencaHelper presencaHelper = new PresencaHelper();
 		boolean presencas = presencaHelper.isPresencasbyEquipaDataHora(Integer.parseInt(tmpDatas[0]),
 				Integer.parseInt(tmpDatas[1]), tmpDatas[2]);
 
@@ -293,7 +293,6 @@ public class PresencaWS {
 		System.out.println("getPresencasbyId | Start");
 		System.out.println("getPresencasbyId | id:" + id);
 
-		PresencaHelper presencaHelper = new PresencaHelper();
 		PresencaData presenca = presencaHelper.loadPresencasbyID(Integer.parseInt(id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -324,7 +323,6 @@ public class PresencaWS {
 		System.out.println("getHistoricobyId | Start");
 		System.out.println("getHistoricobyId | id:" + id);
 
-		PresencaHelper presencaHelper = new PresencaHelper();
 		ArrayList<String> presenca = presencaHelper.loadHistoricoByID(Integer.parseInt(id));
 
 		ObjectMapper mapper = new ObjectMapper();

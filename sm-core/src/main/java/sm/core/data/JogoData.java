@@ -1,6 +1,7 @@
 package sm.core.data;
 
-
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 
 public class JogoData {
     private int id;
@@ -21,6 +22,7 @@ public class JogoData {
     private String arbitro_1;
     private String arbitro_2;
     private String estado;
+    private ArrayList<JogadorJogo> jogadores;
 
 
     public String getEstado() {
@@ -153,6 +155,13 @@ public class JogoData {
         this.equipa_adv_nome = equipa_adv_nome;
         this.competicao_nome = competicao_nome;
         this.estado = estado;
+    }
+
+    public ArrayList<JogadorJogo> getJogadores() {
+        return jogadores;
+    }
+    public void setJogadores(ArrayList<JogadorJogo> jogadores) {
+        this.jogadores = jogadores;
     }
 
     

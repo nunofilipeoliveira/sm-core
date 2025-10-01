@@ -11,95 +11,58 @@ import sm.core.Start_SMCore;
 
 public class DBUtils {
 
-//	static String url = "jdbc:mysql://localhost:3306/sm_hcmaia";
-//	static String username = "root";
-//	static String password = "admin123";
+    String url = "";
+    String username = "";
+    String password = "";
 
-//	static String url = "jdbc:mysql://94.46.180.24:3306/sm_hcmaia";
-//	static String username = "nfoliveira";
-//	static String password = "oliveiraDB2024#";
+    private final Properties configProp = new Properties();
 
-	String url = "";
-	String username = "";
-	String password = "";
+    public Connection getConnection() {
+        System.out.println("DBUtils | Obter conexão");
+        getConfigurations();
 
-	private final Properties configProp = new Properties();
+        try {
+            // Já não precisas do Class.forName()
+            return DriverManager.getConnection(url, username, password);
+        } catch (SQLException e) {
+            System.out.println("DBUtils | Erro a criar conexão");
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-	public Connection getConnection() {
+    private void getConfigurations() {
+        if (this.url.equals("")) {
+            try (InputStream in = this.getClass().getClassLoader().getResourceAsStream("application.properties")) {
+                System.out.println("Reading all properties from the file");
+                configProp.load(in);
 
-		System.out.println("DBUtils | Obter conexão");
+                String amb = Start_SMCore.configProp.getProperty("sm.core.amb");
 
-		getConfigurations();
+                if (amb == null || amb.equals("PROD")) {
+                    this.url = configProp.getProperty("sm.core.db.url.prod");
+                    this.username = configProp.getProperty("sm.core.db.user.prod");
+                    this.password = configProp.getProperty("sm.core.db.pwd.prod");
+                } else if (amb.equals("DEV")) {
+                    this.url = configProp.getProperty("sm.core.db.url.dev");
+                    this.username = configProp.getProperty("sm.core.db.user.dev");
+                    this.password = configProp.getProperty("sm.core.db.pwd.dev");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
-		Connection con = null;
-
-		try {
-			Class.forName("com.mysql.jdbc.Driver");
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			System.out.println("DBUtils | Erro a criar conexão (Driver)");
-			e.printStackTrace();
-		}
-
-		try {
-			con = DriverManager.getConnection(url, username, password);
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("DBUtils | Erro a criar conexão (obter nova conexão)");
-		}
-
-		return con;
-
-	}
-
-	private void getConfigurations() {
-
-		if (this.url.equals("")) {
-
-			// Private constructor to restrict new instances
-			InputStream in = this.getClass().getClassLoader().getResourceAsStream("application.properties");
-			System.out.println("Reading all properties from the file");
-			try {
-				configProp.load(in);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-			String amb = Start_SMCore.configProp.getProperty("sm.core.amb");
-			if (amb == null) {
-
-				this.url = configProp.getProperty("sm.core.db.url.prod");
-				this.username = configProp.getProperty("sm.core.db.user.prod");
-				this.password = configProp.getProperty("sm.core.db.pwd.prod");
-				return;
-			}
-			if (amb.equals("PROD")) {
-
-				this.url = configProp.getProperty("sm.core.db.url.prod");
-				this.username = configProp.getProperty("sm.core.db.user.prod");
-				this.password = configProp.getProperty("sm.core.db.pwd.prod");
-				return;
-			}
-
-			if (amb.equals("DEV")) {
-
-				this.url = configProp.getProperty("sm.core.db.url.dev");
-				this.username = configProp.getProperty("sm.core.db.user.dev");
-				this.password = configProp.getProperty("sm.core.db.pwd.dev");
-				return;
-			}
-		}
-	}
-
-	public void closeConnection(Connection con) {
-		try {
-			System.out.println("DBUtils | Fechar conexão");
-			con.close();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
+    public void closeConnection(Connection con) {
+        if (con != null) {
+            try {
+                System.out.println("DBUtils | Fechar conexão");
+                con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }
+

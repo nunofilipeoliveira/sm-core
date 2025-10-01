@@ -221,4 +221,22 @@ public class JogoWS {
         System.out.println("getConvocatoriaByJogoId | Error End");
         return "";
     }
+
+    @CrossOrigin
+    @PutMapping("/atualizarJogo")
+    @ResponseBody
+    public String atualizarJogo(@RequestBody JogoData entity) {
+        System.out.println("atualizarJogo | Start");
+        JogoHelper jogoHelper = new JogoHelper();
+        jogoHelper.updateJogo(entity);
+        System.out.println("atualizarJogo | End");
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(entity);
+        } catch (JsonProcessingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return "";
+    }
 }

@@ -5,9 +5,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import sm.core.data.PresencaData;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+import sm.core.data.PresencaData;
+import sm.core.data.PresencaJogadorData;
+import sm.core.utils.EmailService;
+import sm.core.utils.TenantProperties;
+
+@Component
 public class PresencaHelper {
+
+	@Autowired
+	private EmailService emailService;
+
+	@Autowired
+	private TenantProperties tenantProperties;
 
 	public PresencaHelper() {
 
@@ -20,13 +33,17 @@ public class PresencaHelper {
 		ArrayList<PresencaData> presencas = new ArrayList<PresencaData>();
 
 		try {
-//			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement("select\r\n" + "	*\r\n"
-//					+ "	from PRESENCAS P\r\n" + "inner join presenca_jogador pj on\r\n" + "	PJ.id_presenca = P.id\r\n"
-//					+ "inner join escalao_epoca ee on\r\n" + "	ee.id = p.id_equipa\r\n"
-//					+ "inner join utilizadores u on\r\n" + "	u.id = p.utilizador_criacao\r\n"
-//					+ "inner join jogador j on\r\n" + "	j.id = pj.id_jogador\r\n" + "where\r\n" + "	ee.id =?\r\n"
-//					+ "	and \r\n" + "	((?=1 and ?=1) or \r\n" + "	P.`data` between ? and ?)\r\n" + "order by\r\n"
-//					+ "	p.data,\r\n" + "	p.hora,\r\n" + "	p.id ");
+			// PreparedStatement preparedStatement =
+			// dbUtils.getConnection().prepareStatement("select\r\n" + " *\r\n"
+			// + " from PRESENCAS P\r\n" + "inner join presenca_jogador pj on\r\n" + "
+			// PJ.id_presenca = P.id\r\n"
+			// + "inner join escalao_epoca ee on\r\n" + " ee.id = p.id_equipa\r\n"
+			// + "inner join utilizadores u on\r\n" + " u.id = p.utilizador_criacao\r\n"
+			// + "inner join jogador j on\r\n" + " j.id = pj.id_jogador\r\n" + "where\r\n" +
+			// " ee.id =?\r\n"
+			// + " and \r\n" + " ((?=1 and ?=1) or \r\n" + " P.`data` between ? and ?)\r\n"
+			// + "order by\r\n"
+			// + " p.data,\r\n" + " p.hora,\r\n" + " p.id ");
 
 			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement("select * FROM(\r\n"
 					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as NOMEEQUIPA, p.datacriacao , p.utilizador_criacao , u.nome as NOMEUTILIZADOR, pj.id_jogador as id_Item, j.nome, pj.estado, pj.motivo, 'J' as TIPO\r\n"
@@ -328,7 +345,7 @@ public class PresencaHelper {
 		return null;
 	}
 
-	public boolean createPresenca(PresencaData parmPresencaData) {
+	public boolean createPresenca(PresencaData parmPresencaData, String parmTenantId) {
 
 		DBUtils dbUtils = new DBUtils();
 
@@ -377,6 +394,10 @@ public class PresencaHelper {
 			}
 
 			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			// enviar email de registo presenca
+			sendEmailPresencaRegisto(parmPresencaData, parmTenantId);
+
 			return true;
 
 		} catch (SQLException e) {
@@ -543,6 +564,66 @@ public class PresencaHelper {
 		preparedStatement.executeUpdate();
 		dbUtils.closeConnection(preparedStatement.getConnection());
 
+	}
+
+	public void sendEmailPresencaRegisto(PresencaData parmPresencaData, String parmTenantId) {
+
+		String destinatario = "nunooliveira8@gmail.com"; // substituir pelo email real
+		String assunto = "Sports Manager - Registo de Presença";
+
+		String htmlCorpo = "<!DOCTYPE html>"
+				+ "<html lang='pt'>"
+				+ "<head>"
+				+ "<meta charset='UTF-8'/>"
+				+ "<style>"
+				+ "body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }"
+				+ ".container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; "
+				+ "box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; }"
+				+ "h1 { color: #2c3e50; text-align: center; }"
+				+ "p { font-size: 14px; color: #333; line-height: 1.5; }"
+				+ ".details { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 6px; }"
+				+ ".details p { margin: 6px 0; }"
+				+ ".players { margin-top: 20px; }"
+				+ ".player-card { padding: 10px; border-bottom: 1px solid #ddd; }"
+				+ ".player-card:last-child { border-bottom: none; }"
+				+ ".footer { margin-top: 30px; text-align: center; font-size: 12px; color: #888; }"
+				+ "</style>"
+				+ "</head>"
+				+ "<body>"
+				+ "<div class='container'>"
+				+ "<h1>✅ Registo de Presença</h1>"
+				+ "<p>Olá,</p>"
+				+ "<p>Este email é para confirmar que a sua presença foi registada com sucesso.</p>"
+				+ "<div class='details'>"
+				+ "<p><strong>ID Presença:</strong> " + parmPresencaData.getId() + "</p>"
+				+ "<p><strong>Clube:</strong> "
+				+ tenantProperties.getTenant_id().get(String.valueOf(parmTenantId)).get("name") + "</p>"
+				+ "<p><strong>Equipa:</strong> " + parmPresencaData.getEscalao_descricao() + "</p>"
+				+ "<p><strong>Data:</strong> " + parmPresencaData.getData() + "</p>"
+				+ "<p><strong>Hora:</strong> " + parmPresencaData.getHora() + "</p>"
+				+ "<p><strong>Registado por:</strong> " + parmPresencaData.getUser_criacao() + "</p>"
+				+ "</div>"
+				+ "<div class='players'>"
+				+ "<h3>👥 Jogadores</h3>";
+
+		for (PresencaJogadorData jogador : parmPresencaData.getJogadoresPresenca()) {
+			htmlCorpo += "<div class='player-card'>"
+					+ "<strong>" + jogador.getNome_jogador() + "</strong><br/>"
+					+ "Estado: " + jogador.getEstado()
+					+ (jogador.getMotivo() != null && !jogador.getMotivo().isEmpty()
+							? " | Motivo: " + jogador.getMotivo()
+							: "")
+					+ "</div>";
+		}
+
+		htmlCorpo += "</div>"
+				+ "<div class='footer'>"
+				+ "<p>Obrigado,<br/><strong>Equipa Sports Manager</strong></p>"
+				+ "</div>"
+				+ "</div>"
+				+ "</body></html>";
+
+		emailService.enviarEmailHtml(destinatario, assunto, htmlCorpo);
 	}
 
 }

@@ -4,8 +4,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+
 import sm.core.data.CompeticaoData;
 import sm.core.data.ConvocatoriaData;
+import sm.core.data.JogadorJogo;
 import sm.core.data.JogoData;
 
 public class JogoHelper {
@@ -21,7 +23,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado \r\n" + //
 												"From jogo\r\n" + //
 												"inner join competicao c on c.id=competicao_id \r\n" + //
-												"inner join clube on clube.id=equipa_adv_id where EQUIPA_ID=? ");
+												"inner join clube on clube.id=equipa_adv_id where EQUIPA_ID=? order by data, hora");
 
 			preparedStatement.setInt(1, parmEquipaID);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -109,8 +111,10 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			preparedStatement.setString(14, jogo.getArbitro_2());
 			preparedStatement.setString(15, jogo.getEstado());
 
+			//obter ID quando realiza o insert
 			int rowsAffected = preparedStatement.executeUpdate();
 			dbUtils.closeConnection(preparedStatement.getConnection());
+
 			return rowsAffected > 0;
 
 		} catch (SQLException e) {
@@ -147,6 +151,41 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			int rowsAffected = preparedStatement.executeUpdate();
 			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			if(jogo.getJogadores().size()>0) {
+				//Atualizar convocatória se existirem jogadores associados
+				preparedStatement = dbUtils.getConnection()
+						.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
+				preparedStatement.setInt(1, jogo.getId());
+				preparedStatement.executeUpdate();	
+				preparedStatement.close();
+				PreparedStatement insertStatement = dbUtils.getConnection()
+						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+				for(JogadorJogo jogador : jogo.getJogadores()) {
+					insertStatement.setInt(1, jogo.getId());
+					insertStatement.setInt(2, jogador.getId_jogador());
+					insertStatement.setString(3, jogador.getCapitao());
+					insertStatement.setInt(4, jogador.getNumero());
+					insertStatement.setInt(5, jogador.getAmarelo());
+					insertStatement.setInt(6, jogador.getAzul());
+					insertStatement.setInt(7, jogador.getVermelho());
+					insertStatement.setInt(8, jogador.getGolos_p());
+					insertStatement.setInt(9, jogador.getGolos_ld());
+					insertStatement.setInt(10, jogador.getGolos_pp());
+					insertStatement.setInt(11, jogador.getGolos_up());
+					insertStatement.setInt(12, jogador.getGolos_normal());
+					insertStatement.setInt(13, jogador.getGolos_s_p());
+					insertStatement.setInt(14, jogador.getGolos_s_ld());
+					insertStatement.setInt(15, jogador.getGolos_s_up());
+					insertStatement.setInt(16, jogador.getGolos_s_pp());
+					insertStatement.setInt(17, jogador.getGolos_s_normal());
+					insertStatement.executeUpdate();
+				}
+				insertStatement.close();
+				dbUtils.closeConnection(dbUtils.getConnection());
+			}
+
+
 			return rowsAffected > 0;
 
 		} catch (SQLException e) {
@@ -181,6 +220,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 	public JogoData getJogoById(int id) {
 
 		DBUtils dbUtils = new DBUtils();
+		JogoData jogo = null;
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
@@ -198,18 +238,53 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			if (rs.next()) {
 
-				JogoData jogo = new JogoData(rs.getInt("id"), rs.getInt("epoca_id"), rs.getInt("equipa_id"),
+				jogo = new JogoData(rs.getInt("id"), rs.getInt("epoca_id"), rs.getInt("equipa_id"),
 						rs.getString("tipoEquipa"), rs.getString("data"), rs.getString("hora"), rs.getString("local"),
 						rs.getInt("golos_equipa"), rs.getInt("equipa_adv_id"), rs.getString("tipoEquipa_adv"),
 						rs.getString("clube.nome"), rs.getInt("golos_equipa_adv"), rs.getString("tipo_local"), rs.getInt("competicao_id"),
 						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"));
 
 				dbUtils.closeConnection(preparedStatement.getConnection());
-				return jogo;
+				
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
-			return null;
+			
+			
+			PreparedStatement psJogadores = dbUtils.getConnection()
+					.prepareStatement("SELECT jj.id_jogador, j.nome, jj.capitao, jj.numero, jj.amarelo, jj.azul, jj.vermelho, jj.golo_p, jj.golo_ld, jj.golo_pp, jj.golo_up, jj.golo_normal, jj.golo_s_p, jj.golo_s_ld, jj.golo_s_up, jj.golo_s_pp, jj.golo_s_normal " +
+									  "FROM jogo_jogador jj " +
+									  "INNER JOIN jogador j ON jj.id_jogador = j.id " +
+									  "WHERE jj.id_jogo = ?");
+			psJogadores.setInt(1, id);
+			ResultSet rsJogadores = psJogadores.executeQuery();	
+			ArrayList<JogadorJogo> listaJogadores = new ArrayList<>();
+			while (rsJogadores.next()) {
+				JogadorJogo jogador = new JogadorJogo(
+					rsJogadores.getInt("id_jogador"),
+					rsJogadores.getString("nome"),
+					rsJogadores.getString("capitao"),
+					rsJogadores.getInt("numero"),
+					rsJogadores.getInt("amarelo"),
+					rsJogadores.getInt("azul"),
+					rsJogadores.getInt("vermelho"),
+					rsJogadores.getInt("golo_p"),
+					rsJogadores.getInt("golo_ld"),
+					rsJogadores.getInt("golo_pp"),
+					rsJogadores.getInt("golo_up"),
+					rsJogadores.getInt("golo_normal"),
+					rsJogadores.getInt("golo_s_p"),
+					rsJogadores.getInt("golo_s_ld"),
+					rsJogadores.getInt("golo_s_up"),
+					rsJogadores.getInt("golo_s_pp"),
+					rsJogadores.getInt("golo_s_normal")
+				);
+				listaJogadores.add(jogador);
+			}
+			
+			jogo.setJogadores(listaJogadores);
+			dbUtils.closeConnection(psJogadores.getConnection());
+
+			return jogo;
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -227,24 +302,31 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		try {
 			// Primeiro, eliminar convocatória existente para o jogo, se houver
 			PreparedStatement deleteStatement = dbUtils.getConnection()
-					.prepareStatement("DELETE FROM convocatoria_jogador WHERE id_jogo = ?");
+					.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
 			deleteStatement.setInt(1, convocatoriaData.getId());
 			deleteStatement.executeUpdate();
 			deleteStatement.close();
 
 			// Depois, inserir a nova convocatória
 			PreparedStatement insertStatement = dbUtils.getConnection()
-					.prepareStatement("INSERT INTO convocatoria_jogador (id_jogo, id_jogador) VALUES (?, ?)");
+					.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, numero) select ?, ?, CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero FROM jogador where id= ?");
 
 			for (Integer jogadorId : convocatoriaData.getJogadoresConvocados()) {
 				insertStatement.setInt(1, convocatoriaData.getId());
 				insertStatement.setInt(2, jogadorId);
+				insertStatement.setInt(3, jogadorId);
 				insertStatement.addBatch();
 			}
 
 			int[] rowsAffected = insertStatement.executeBatch();
 			insertStatement.close();
 			dbUtils.closeConnection(dbUtils.getConnection());
+
+			
+
+			//Atualizado estado do jogo para INICIADO
+			updateEstadoJogo(convocatoriaData.getId(), "INICIADO");
+
 			return rowsAffected.length > 0;
 
 		} catch (SQLException e) {
@@ -262,7 +344,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("SELECT id_jogador FROM convocatoria_jogador WHERE id_jogo = ?");
+					.prepareStatement("SELECT id_jogador FROM jogo_jogador WHERE id_jogo = ?");
 
 			preparedStatement.setInt(1, jogoId);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -285,5 +367,28 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		return null;
 	}
+
+	public boolean updateEstadoJogo(int jogoId, String estado) {
+
+		DBUtils dbUtils = new DBUtils();
+		try {
+			System.out.println("JogoHelper | updateEstadoJogo | jogoId: " + jogoId + ", estado: " + estado);
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("UPDATE jogo SET estado = ? WHERE id = ?");
+
+			preparedStatement.setString(1, estado);
+			preparedStatement.setInt(2, jogoId);
+
+			int rowsAffected = preparedStatement.executeUpdate();
+			dbUtils.closeConnection(preparedStatement.getConnection());
+			return rowsAffected > 0;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return false;
+	}	
 
 }
