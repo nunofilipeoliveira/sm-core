@@ -23,8 +23,24 @@ public class JogoData {
     private String arbitro_2;
     private String estado;
     private ArrayList<JogadorJogo> jogadores;
+    private String hora_concentracao;
+    private String obs;
 
 
+    
+
+    public String getHora_concentracao() {
+        return hora_concentracao;
+    }
+    public void setHora_concentracao(String hora_concentracao) {
+        this.hora_concentracao = hora_concentracao;
+    }
+    public String getObs() {
+        return obs;
+    }
+    public void setObs(String obs) {
+        this.obs = obs;
+    }
     public String getEstado() {
         return estado;
     }
@@ -136,7 +152,7 @@ public class JogoData {
     }
     public JogoData(int id, int epoca_id, int equipa_id, String tipoEquipa, String data, String hora, String local,
             int golos_equipa, int equipa_adv_id, String tipoEquipa_adv, String equipa_adv_nome, int golos_equipa_adv, String tipo_local,
-            int competicao_id, String competicao_nome, String arbitro_1, String arbitro_2, String estado) {
+            int competicao_id, String competicao_nome, String arbitro_1, String arbitro_2, String estado, String hora_concentracao, String obs) {
         this.id = id;
         this.epoca_id = epoca_id;
         this.equipa_id = equipa_id;
@@ -155,6 +171,8 @@ public class JogoData {
         this.equipa_adv_nome = equipa_adv_nome;
         this.competicao_nome = competicao_nome;
         this.estado = estado;
+        this.hora_concentracao = hora_concentracao;
+        this.obs = obs;
     }
 
     public ArrayList<JogadorJogo> getJogadores() {

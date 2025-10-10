@@ -3,6 +3,8 @@ package sm.core.helper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
 import sm.core.data.CompeticaoData;
@@ -20,7 +22,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado \r\n" + //
+					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado, hora_concentracao, obs \r\n" + //
 												"From jogo\r\n" + //
 												"inner join competicao c on c.id=competicao_id \r\n" + //
 												"inner join clube on clube.id=equipa_adv_id where EQUIPA_ID=? order by data, hora");
@@ -38,7 +40,8 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getString("tipoEquipa"), rs.getString("data"), rs.getString("hora"), rs.getString("local"),
 						rs.getInt("golos_equipa"), rs.getInt("equipa_adv_id"), rs.getString("tipoEquipa_adv"),
 						rs.getString("clube.nome"), rs.getInt("golos_equipa_adv"), rs.getString("tipo_local"), rs.getInt("competicao_id"),
-						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"));
+						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"),
+						rs.getString("hora_concentracao"), rs.getString("obs"));
 
 				jogos.add(jogo);
 			}
@@ -93,7 +96,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		DBUtils dbUtils = new DBUtils();
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("INSERT INTO jogo (epoca_id, equipa_id, tipoEquipa, Data, Hora, local, golos_equipa, equipa_adv_id, tipoEquipa_adv, golos_equipa_adv, tipo_local, competicao_id, arbitro_1, arbitro_2, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+					.prepareStatement("INSERT INTO jogo (epoca_id, equipa_id, tipoEquipa, Data, Hora, local, golos_equipa, equipa_adv_id, tipoEquipa_adv, golos_equipa_adv, tipo_local, competicao_id, arbitro_1, arbitro_2, estado, hora_concentracao, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
 			preparedStatement.setInt(1, jogo.getEpoca_id());
 			preparedStatement.setInt(2, jogo.getEquipa_id());
@@ -110,6 +113,8 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			preparedStatement.setString(13, jogo.getArbitro_1());
 			preparedStatement.setString(14, jogo.getArbitro_2());
 			preparedStatement.setString(15, jogo.getEstado());
+			preparedStatement.setString(16, calculaHoraConcentracao(jogo.getHora()));
+			preparedStatement.setString(17, jogo.getObs());
 
 			//obter ID quando realiza o insert
 			int rowsAffected = preparedStatement.executeUpdate();
@@ -125,12 +130,18 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		return false;
 	}
 
+	public static String calculaHoraConcentracao(String horaJogo) {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+    LocalTime hora = LocalTime.parse(horaJogo, formatter);
+    return hora.minusHours(1).format(formatter);
+}
+
 	public boolean updateJogo(JogoData jogo) {
 
 		DBUtils dbUtils = new DBUtils();
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("UPDATE jogo SET epoca_id = ?, equipa_id = ?, tipoEquipa = ?, Data = ?, Hora = ?, local = ?, golos_equipa = ?, equipa_adv_id = ?, tipoEquipa_adv = ?, golos_equipa_adv = ?, tipo_local = ?, competicao_id = ?, arbitro_1 = ?, arbitro_2 = ?, estado = ? WHERE id = ?");
+					.prepareStatement("UPDATE jogo SET epoca_id = ?, equipa_id = ?, tipoEquipa = ?, Data = ?, Hora = ?, local = ?, golos_equipa = ?, equipa_adv_id = ?, tipoEquipa_adv = ?, golos_equipa_adv = ?, tipo_local = ?, competicao_id = ?, arbitro_1 = ?, arbitro_2 = ?, estado = ?, hora_concentracao = ?, obs = ? WHERE id = ?");
 
 			preparedStatement.setInt(1, jogo.getEpoca_id());
 			preparedStatement.setInt(2, jogo.getEquipa_id());
@@ -147,7 +158,9 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			preparedStatement.setString(13, jogo.getArbitro_1());
 			preparedStatement.setString(14, jogo.getArbitro_2());
 			preparedStatement.setString(15, jogo.getEstado());
-			preparedStatement.setInt(16, jogo.getId());
+			preparedStatement.setString(16, jogo.getHora_concentracao());
+			preparedStatement.setString(17, jogo.getObs());	
+			preparedStatement.setInt(18, jogo.getId());
 
 			int rowsAffected = preparedStatement.executeUpdate();
 			dbUtils.closeConnection(preparedStatement.getConnection());
@@ -224,7 +237,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado \r\n" + //
+					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado, hora_concentracao, obs \r\n" + //
 												"From jogo\r\n" + //
 												"inner join competicao c on c.id=competicao_id \r\n" + //
 												"inner join clube on clube.id=equipa_adv_id where jogo.ID=? ");
@@ -242,7 +255,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getString("tipoEquipa"), rs.getString("data"), rs.getString("hora"), rs.getString("local"),
 						rs.getInt("golos_equipa"), rs.getInt("equipa_adv_id"), rs.getString("tipoEquipa_adv"),
 						rs.getString("clube.nome"), rs.getInt("golos_equipa_adv"), rs.getString("tipo_local"), rs.getInt("competicao_id"),
-						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"));
+						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"), rs.getString("hora_concentracao"), rs.getString("obs"));
 
 				dbUtils.closeConnection(preparedStatement.getConnection());
 				
