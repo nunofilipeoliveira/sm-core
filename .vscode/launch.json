@@ -2,7 +2,7 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Spring Boot-Start_SMCore<sm-core>",
+            "name": "SM-CORE (DEV)",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "mainClass": "sm.core.Start_SMCore",

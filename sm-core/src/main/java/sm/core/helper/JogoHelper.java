@@ -152,7 +152,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			int rowsAffected = preparedStatement.executeUpdate();
 			dbUtils.closeConnection(preparedStatement.getConnection());
 
-			if(jogo.getJogadores().size()>0) {
+			if(jogo.getJogadores()!=null && jogo.getJogadores().size()>0) {
 				//Atualizar convocatória se existirem jogadores associados
 				preparedStatement = dbUtils.getConnection()
 						.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
