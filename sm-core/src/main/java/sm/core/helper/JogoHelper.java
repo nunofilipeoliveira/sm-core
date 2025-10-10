@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 import sm.core.data.CompeticaoData;
 import sm.core.data.ConvocatoriaData;
+import sm.core.data.JogadorConvocado;
 import sm.core.data.JogadorJogo;
 import sm.core.data.JogoData;
 
@@ -22,7 +23,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado, hora_concentracao, obs \r\n" + //
+					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado, hora_concentracao, jogo.obs \r\n" + //
 												"From jogo\r\n" + //
 												"inner join competicao c on c.id=competicao_id \r\n" + //
 												"inner join clube on clube.id=equipa_adv_id where EQUIPA_ID=? order by data, hora");
@@ -41,7 +42,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getInt("golos_equipa"), rs.getInt("equipa_adv_id"), rs.getString("tipoEquipa_adv"),
 						rs.getString("clube.nome"), rs.getInt("golos_equipa_adv"), rs.getString("tipo_local"), rs.getInt("competicao_id"),
 						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"),
-						rs.getString("hora_concentracao"), rs.getString("obs"));
+						rs.getString("hora_concentracao"), rs.getString("jogo.obs"));
 
 				jogos.add(jogo);
 			}
@@ -173,7 +174,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				preparedStatement.executeUpdate();	
 				preparedStatement.close();
 				PreparedStatement insertStatement = dbUtils.getConnection()
-						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 				for(JogadorJogo jogador : jogo.getJogadores()) {
 					insertStatement.setInt(1, jogo.getId());
 					insertStatement.setInt(2, jogador.getId_jogador());
@@ -192,6 +193,8 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					insertStatement.setInt(15, jogador.getGolos_s_up());
 					insertStatement.setInt(16, jogador.getGolos_s_pp());
 					insertStatement.setInt(17, jogador.getGolos_s_normal());
+					insertStatement.setString(18, jogador.getEstado());
+					insertStatement.setString(19, jogador.getObs());
 					insertStatement.executeUpdate();
 				}
 				insertStatement.close();
@@ -264,7 +267,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			
 			
 			PreparedStatement psJogadores = dbUtils.getConnection()
-					.prepareStatement("SELECT jj.id_jogador, j.nome, jj.capitao, jj.numero, jj.amarelo, jj.azul, jj.vermelho, jj.golo_p, jj.golo_ld, jj.golo_pp, jj.golo_up, jj.golo_normal, jj.golo_s_p, jj.golo_s_ld, jj.golo_s_up, jj.golo_s_pp, jj.golo_s_normal " +
+					.prepareStatement("SELECT jj.id_jogador, j.nome, jj.capitao, jj.numero, jj.amarelo, jj.azul, jj.vermelho, jj.golo_p, jj.golo_ld, jj.golo_pp, jj.golo_up, jj.golo_normal, jj.golo_s_p, jj.golo_s_ld, jj.golo_s_up, jj.golo_s_pp, jj.golo_s_normal, jj.estado, jj.obs " +
 									  "FROM jogo_jogador jj " +
 									  "INNER JOIN jogador j ON jj.id_jogador = j.id " +
 									  "WHERE jj.id_jogo = ?");
@@ -289,7 +292,9 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					rsJogadores.getInt("golo_s_ld"),
 					rsJogadores.getInt("golo_s_up"),
 					rsJogadores.getInt("golo_s_pp"),
-					rsJogadores.getInt("golo_s_normal")
+					rsJogadores.getInt("golo_s_normal"),
+					rsJogadores.getString("estado"),
+					rsJogadores.getString("obs")
 				);
 				listaJogadores.add(jogador);
 			}
@@ -322,12 +327,14 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			// Depois, inserir a nova convocatória
 			PreparedStatement insertStatement = dbUtils.getConnection()
-					.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, numero) select ?, ?, CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero FROM jogador where id= ?");
+					.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, estado, obs, numero) select ?, ?, ?, ?, CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero FROM jogador where id= ?");
 
-			for (Integer jogadorId : convocatoriaData.getJogadoresConvocados()) {
+			for (JogadorConvocado jogador : convocatoriaData.getJogadoresConvocatoria()) {
 				insertStatement.setInt(1, convocatoriaData.getId());
-				insertStatement.setInt(2, jogadorId);
-				insertStatement.setInt(3, jogadorId);
+				insertStatement.setInt(2, jogador.getId_jogador());
+				insertStatement.setString(3, jogador.getEstado());
+				insertStatement.setString(4, jogador.getObs());
+				insertStatement.setInt(5, jogador.getId_jogador());
 				insertStatement.addBatch();
 			}
 
@@ -353,11 +360,11 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 	public ConvocatoriaData getConvocatoriaByJogoId(int jogoId) {
 
 		DBUtils dbUtils = new DBUtils();
-		ArrayList<Integer> jogadoresConvocados = new ArrayList<>();
+		ArrayList<JogadorConvocado> jogadoresConvocados = new ArrayList<JogadorConvocado>();
 
 		try {
 			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("SELECT id_jogador FROM jogo_jogador WHERE id_jogo = ?");
+					.prepareStatement("SELECT id_jogador, nome, jogo_jogador.estado, obs FROM jogo_jogador inner join jogador on jogo_jogador.id_jogador = jogador.id WHERE id_jogo = ?");
 
 			preparedStatement.setInt(1, jogoId);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -367,7 +374,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			}
 
 			while (rs.next()) {
-				jogadoresConvocados.add(rs.getInt("id_jogador"));
+				jogadoresConvocados.add(new JogadorConvocado(rs.getInt("id_jogador"), rs.getString("nome"), rs.getString("estado"), rs.getString("obs")));
 			}
 
 			dbUtils.closeConnection(preparedStatement.getConnection());

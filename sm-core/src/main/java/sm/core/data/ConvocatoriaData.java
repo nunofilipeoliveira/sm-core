@@ -5,12 +5,12 @@ import java.util.ArrayList;
 public class ConvocatoriaData {
     
     private int id;
-    private ArrayList<Integer> jogadoresConvocados;
+    private ArrayList<JogadorConvocado> jogadoresConvocatoria;
 
-    public ConvocatoriaData(int id, ArrayList<Integer> jogadoresConvocados) {
+    public ConvocatoriaData(int id, ArrayList<JogadorConvocado> jogadoresConvocatoria) {
         super();
         this.id = id;
-        this.jogadoresConvocados = jogadoresConvocados;
+        this.jogadoresConvocatoria = jogadoresConvocatoria;
     }
     public int getId() {
         return id;
@@ -18,10 +18,11 @@ public class ConvocatoriaData {
     public void setId(int id) {
         this.id = id;
     }
-    public ArrayList<Integer> getJogadoresConvocados() {
-        return jogadoresConvocados;
+ 
+    public ArrayList<JogadorConvocado> getJogadoresConvocatoria() {
+        return jogadoresConvocatoria;
     }
-    public void setJogadoresConvocados(ArrayList<Integer> jogadoresConvocados) {
-        this.jogadoresConvocados = jogadoresConvocados;
+    public void setJogadoresConvocatorias(ArrayList<JogadorConvocado> jogadoresConvocatoria) {
+        this.jogadoresConvocatoria = jogadoresConvocatoria;
     }
 }

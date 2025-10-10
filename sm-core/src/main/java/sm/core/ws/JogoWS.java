@@ -177,7 +177,7 @@ public class JogoWS {
     @ResponseBody
     public String salvarConvocatoria(@RequestBody ConvocatoriaData convocatoriaData) {
         System.out.println("salvarConvocatoria | Start");
-        System.out.println("salvarConvocatoria | IDs Atletas:" + convocatoriaData.getJogadoresConvocados().toString());
+     
 
         JogoHelper jogoHelper = new JogoHelper();
         boolean saved = jogoHelper.salvarConvocatoria(convocatoriaData);

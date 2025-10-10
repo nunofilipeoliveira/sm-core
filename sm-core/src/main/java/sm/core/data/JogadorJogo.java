@@ -19,10 +19,12 @@ private int golos_s_ld;
 private int golos_s_up;
 private int golos_s_pp;
 private int golos_s_normal;
+private String estado;
+private String obs;
 
 public JogadorJogo(int id_jogador, String nome, String capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
         int golos_pp, int golos_up, int golos_normal, int golos_s_p, int golos_s_ld, int golos_s_up, int golos_s_pp,
-        int golos_s_normal) {
+        int golos_s_normal, String estado, String obs) {
     this.id_jogador = id_jogador;
     this.nome = nome;
     this.capitao = capitao;
@@ -40,7 +42,35 @@ public JogadorJogo(int id_jogador, String nome, String capitao, int numero, int 
     this.golos_s_up = golos_s_up;
     this.golos_s_pp = golos_s_pp;
     this.golos_s_normal = golos_s_normal;
+    this.estado = estado;
+    this.obs = obs;
         }
+
+    
+
+public String getEstado() {
+    return estado;
+}
+
+
+
+public void setEstado(String estado) {
+    this.estado = estado;
+}
+
+
+
+public String getObs() {
+    return obs;
+}
+
+
+
+public void setObs(String obs) {
+    this.obs = obs;
+}
+
+
 
 public int getId_jogador() {
     return id_jogador;
