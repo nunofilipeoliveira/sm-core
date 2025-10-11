@@ -411,4 +411,57 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		return false;
 	}	
 
+	public ArrayList<JogoData> getJogosByJogadorId(int jogadorId) {
+		DBUtils dbUtils = new DBUtils();
+		ArrayList<JogoData> jogos = new ArrayList<>();
+
+		try {
+			PreparedStatement preparedStatement = dbUtils.getConnection()
+					.prepareStatement("SELECT j.id, j.epoca_id, j.equipa_id, j.tipoEquipa, j.Data, j.Hora, j.local, j.golos_equipa, j.equipa_adv_id, clube.nome AS clube_nome, j.tipoEquipa_adv, j.golos_equipa_adv, j.tipo_local, j.competicao_id, c.nome AS competicao_nome, j.arbitro_1, j.arbitro_2, j.estado, j.hora_concentracao, j.obs, jj.*, jg.nome AS jogador_nome " +
+										"FROM jogo_jogador jj " +
+										"INNER JOIN jogo j ON jj.id_jogo = j.id " +
+										"INNER JOIN JOGADOR jg ON jg.id = jj.id_jogador " +
+										"INNER JOIN competicao c ON c.id = j.competicao_id " +
+										"INNER JOIN clube ON clube.id = j.equipa_adv_id " +
+										"WHERE jj.id_jogador = ? " +
+										"ORDER BY j.data, j.hora");
+
+			preparedStatement.setInt(1, jogadorId);
+			ResultSet rs = preparedStatement.executeQuery();
+
+			if (rs == null) {
+				return null;
+			}
+
+			while (rs.next()) {
+
+				JogoData jogo = new JogoData(rs.getInt("id"), rs.getInt("epoca_id"), rs.getInt("equipa_id"),
+						rs.getString("tipoEquipa"), rs.getString("data"), rs.getString("hora"), rs.getString("local"),
+						rs.getInt("golos_equipa"), rs.getInt("equipa_adv_id"), rs.getString("tipoEquipa_adv"),
+						rs.getString("clube_nome"), rs.getInt("golos_equipa_adv"), rs.getString("tipo_local"), rs.getInt("competicao_id"),
+						rs.getString("competicao_nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"),
+						rs.getString("hora_concentracao"), rs.getString("obs"));
+
+				JogadorJogo jogadorNoJogo = new JogadorJogo(rs.getInt("id_jogador"), rs.getString("jogador_nome"), rs.getString("capitao"), rs.getInt("numero"),
+						rs.getInt("amarelo"), rs.getInt("azul"), rs.getInt("vermelho"), rs.getInt("golo_p"),
+						rs.getInt("golo_ld"), rs.getInt("golo_pp"), rs.getInt("golo_up"), rs.getInt("golo_normal"),
+						rs.getInt("golo_s_p"), rs.getInt("golo_s_ld"), rs.getInt("golo_s_up"), rs.getInt("golo_s_pp"),
+						rs.getInt("golo_s_normal"), rs.getString("estado"), rs.getString("obs"));
+
+				ArrayList<JogadorJogo> jogadores = new ArrayList<>();
+				jogadores.add(jogadorNoJogo);
+				jogo.setJogadores(jogadores);
+
+				jogos.add(jogo);
+			}
+
+			dbUtils.closeConnection(preparedStatement.getConnection());
+			return jogos;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+		} 
+		return null;
+	}
 }
+

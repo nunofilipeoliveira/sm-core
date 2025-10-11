@@ -239,4 +239,32 @@ public class JogoWS {
         }
         return "";
     }
+
+    @CrossOrigin
+    @PutMapping("/getJogosByJogadorId/{id}")
+    @ResponseBody
+    public String getJogosByJogadorId(@PathVariable String id) {
+        System.out.println("getJogosByJogadorId | Start");
+        System.out.println("getJogosByJogadorId | ID Jogador:" + id);
+
+        JogoHelper jogoHelper = new JogoHelper();
+        ArrayList<JogoData> jogos = jogoHelper.getJogosByJogadorId(Integer.valueOf(id));
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        try {
+
+            System.out.println("getJogosByJogadorId | End" + id);
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogos);
+
+            // return mapper.writeValueAsString(loginData);
+        } catch (JsonProcessingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        System.out.println("getJogosByJogadorId | Error End");
+        return "";
+    }
+    
 }
