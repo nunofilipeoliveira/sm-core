@@ -1,6 +1,6 @@
 package sm.core.data;
 
-import java.lang.reflect.Array;
+
 import java.util.ArrayList;
 
 public class JogoData {
@@ -25,6 +25,7 @@ public class JogoData {
     private ArrayList<JogadorJogo> jogadores;
     private String hora_concentracao;
     private String obs;
+    private String numeroJogo;
 
 
     
@@ -150,9 +151,12 @@ public class JogoData {
     public void setArbitro_2(String arbitro_2) {
         this.arbitro_2 = arbitro_2;
     }
+    
+
+
     public JogoData(int id, int epoca_id, int equipa_id, String tipoEquipa, String data, String hora, String local,
             int golos_equipa, int equipa_adv_id, String tipoEquipa_adv, String equipa_adv_nome, int golos_equipa_adv, String tipo_local,
-            int competicao_id, String competicao_nome, String arbitro_1, String arbitro_2, String estado, String hora_concentracao, String obs) {
+            int competicao_id, String competicao_nome, String arbitro_1, String arbitro_2, String estado, String hora_concentracao, String obs, String numeroJogo) {
         this.id = id;
         this.epoca_id = epoca_id;
         this.equipa_id = equipa_id;
@@ -173,6 +177,7 @@ public class JogoData {
         this.estado = estado;
         this.hora_concentracao = hora_concentracao;
         this.obs = obs;
+        this.numeroJogo=numeroJogo;
     }
 
     public ArrayList<JogadorJogo> getJogadores() {
@@ -180,6 +185,12 @@ public class JogoData {
     }
     public void setJogadores(ArrayList<JogadorJogo> jogadores) {
         this.jogadores = jogadores;
+    }
+    public String getNumeroJogo() {
+        return numeroJogo;
+    }
+    public void setNumeroJogo(String numeroJogo) {
+        this.numeroJogo = numeroJogo;
     }
 
     

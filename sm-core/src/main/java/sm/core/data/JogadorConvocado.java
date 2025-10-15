@@ -6,12 +6,14 @@ public class JogadorConvocado {
     private String nome;
     private String estado;
     private String obs;
+    private String licenca;
 
-    public JogadorConvocado(int id_jogador, String nome, String estado, String obs) {
+    public JogadorConvocado(int id_jogador, String nome, String estado, String obs, String licenca) {
         this.id_jogador = id_jogador;
         this.nome = nome;
         this.estado = estado;
         this.obs = obs;
+        this.licenca=licenca;
     }
 
     public int getId_jogador() {
@@ -45,4 +47,14 @@ public class JogadorConvocado {
     public void setObs(String obs) {
         this.obs = obs;
     }
+
+    public String getLicenca() {
+        return licenca;
+    }
+
+    public void setLicenca(String licenca) {
+        this.licenca = licenca;
+    }
+
+    
 }
