@@ -2,6 +2,7 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RequestMapping("/sm")
 public class JogoWS {
 
+    @Autowired
+    private JogoHelper jogoHelper;
+
     @CrossOrigin
     @PutMapping("/getAllJogosByEquipa/{id}")
     @ResponseBody
@@ -32,7 +36,7 @@ public class JogoWS {
         System.out.println("getAllJogosByEquipa | Start");
         System.out.println("getAllJogosByEquipa | ID:" + id);
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         ArrayList<JogoData> jogos = jogoHelper.getAllJogosByEquipa(Integer.valueOf(id));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -61,7 +65,7 @@ public class JogoWS {
 
         System.out.println("getAllCompeticoes | Start");
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         ArrayList<CompeticaoData> competicoes = jogoHelper.getAllCompeticoes();
 
         ObjectMapper mapper = new ObjectMapper();
@@ -88,7 +92,7 @@ public class JogoWS {
         // TODO: process PUT request
         System.out.println("createJogo | Jogo:" + entity.toString());
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         jogoHelper.createJogo(entity);
 
         System.out.println("createJogo | End");
@@ -109,7 +113,7 @@ public class JogoWS {
     @ResponseBody
     public String updateJogo(@RequestBody JogoData entity) {
         System.out.println("updateJogo | Start");
-        JogoHelper jogoHelper = new JogoHelper();
+        
         jogoHelper.updateJogo(entity);
         System.out.println("updateJogo | End");
         ObjectMapper mapper = new ObjectMapper();
@@ -130,7 +134,7 @@ public class JogoWS {
         System.out.println("deleteJogo | Start");
         System.out.println("deleteJogo | ID:" + id);
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         boolean deleted = jogoHelper.deleteJogo(Integer.valueOf(id));
 
         System.out.println("deleteJogo | End");
@@ -152,7 +156,7 @@ public class JogoWS {
         System.out.println("getJogoById | Start");
         System.out.println("getJogoById | ID:" + id);
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         JogoData jogo = jogoHelper.getJogoById(Integer.valueOf(id));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -179,7 +183,7 @@ public class JogoWS {
         System.out.println("salvarConvocatoria | Start");
      
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         boolean saved = jogoHelper.salvarConvocatoria(convocatoriaData);
 
         System.out.println("salvarConvocatoria | End");
@@ -202,7 +206,7 @@ public class JogoWS {
         System.out.println("getConvocatoriaByJogoId | Start");
         System.out.println("getConvocatoriaByJogoId | ID Jogo:" + id);
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         ConvocatoriaData convocatoria = jogoHelper.getConvocatoriaByJogoId(Integer.valueOf(id));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -227,7 +231,7 @@ public class JogoWS {
     @ResponseBody
     public String atualizarJogo(@RequestBody JogoData entity) {
         System.out.println("atualizarJogo | Start");
-        JogoHelper jogoHelper = new JogoHelper();
+        
         jogoHelper.updateJogo(entity);
         System.out.println("atualizarJogo | End");
         ObjectMapper mapper = new ObjectMapper();
@@ -247,7 +251,7 @@ public class JogoWS {
         System.out.println("getJogosByJogadorId | Start");
         System.out.println("getJogosByJogadorId | ID Jogador:" + id);
 
-        JogoHelper jogoHelper = new JogoHelper();
+        
         ArrayList<JogoData> jogos = jogoHelper.getJogosByJogadorId(Integer.valueOf(id));
 
         ObjectMapper mapper = new ObjectMapper();

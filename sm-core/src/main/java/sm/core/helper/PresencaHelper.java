@@ -1,5 +1,6 @@
 package sm.core.helper;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,13 +23,14 @@ public class PresencaHelper {
 	@Autowired
 	private TenantProperties tenantProperties;
 
-	public PresencaHelper() {
+	private final DBUtils dbUtils;
 
+	public PresencaHelper(DBUtils dbUtils) {
+		this.dbUtils = dbUtils;
 	}
 
 	public ArrayList<PresencaData> loadPresencasbyData(int DataInicio, int DataFim, int equipaID) {
 
-		DBUtils dbUtils = new DBUtils();
 		PresencaData presencaData = null;
 		ArrayList<PresencaData> presencas = new ArrayList<PresencaData>();
 
@@ -45,7 +47,8 @@ public class PresencaHelper {
 			// + "order by\r\n"
 			// + " p.data,\r\n" + " p.hora,\r\n" + " p.id ");
 
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement("select * FROM(\r\n"
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement("select * FROM(\r\n"
 					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as NOMEEQUIPA, p.datacriacao , p.utilizador_criacao , u.nome as NOMEUTILIZADOR, pj.id_jogador as id_Item, j.nome, pj.estado, pj.motivo, 'J' as TIPO\r\n"
 					+ "from PRESENCAS P inner join presenca_jogador pj on PJ.id_presenca = P.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
@@ -121,7 +124,7 @@ public class PresencaHelper {
 
 			presencas.add(presencaData);
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return presencas;
 
 		} catch (SQLException e) {
@@ -134,11 +137,11 @@ public class PresencaHelper {
 
 	public PresencaData loadPresencasbyID(int id) {
 
-		DBUtils dbUtils = new DBUtils();
 		PresencaData presencaData = null;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("select\r\n" + "	p.id,\r\n" + "	data,\r\n" + "	hora,\r\n" + "	id_equipa,\r\n"
 							+ "	ee.nome,\r\n" + "	datacriacao,\r\n" + "	utilizador_criacao,\r\n" + "	u.nome,\r\n"
 							+ "	pj.id_jogador,\r\n" + "	j.nome,\r\n" + "	pj.estado,\r\n" + "	pj.motivo\r\n"
@@ -168,7 +171,7 @@ public class PresencaHelper {
 						rs.getString("pj.motivo"));
 			}
 
-			preparedStatement = dbUtils.getConnection()
+			preparedStatement = conn
 					.prepareStatement("select ps.id_staff, s.nome, ps.estado, ps.motivo\r\n" + "from PRESENCAS P\r\n"
 							+ "inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
@@ -191,7 +194,7 @@ public class PresencaHelper {
 				presencaData.addStaff(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4));
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return presencaData;
 
 		} catch (SQLException e) {
@@ -204,11 +207,11 @@ public class PresencaHelper {
 
 	public boolean isPresencasbyEquipaDataHora(int idEquipa, int Data, String Hora) {
 
-		DBUtils dbUtils = new DBUtils();
 		PresencaData presencaData = null;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select *from presencas P inner join presenca_jogador pj on PJ.id_presenca =P.id \r\n"
 							+ "inner join escalao_epoca ee on ee.id =p.id_equipa \r\n"
 							+ "inner join utilizadores u on u.id=p.utilizador_criacao \r\n"
@@ -233,7 +236,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			if (presencaData != null) {
 				return true;
 			} else {
@@ -250,11 +253,11 @@ public class PresencaHelper {
 
 	public int totalTrainings(int parmEquipaID) {
 
-		DBUtils dbUtils = new DBUtils();
 		int numTreinos = 0;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("select count(*) from presencas where id_equipa =?");
 
 			preparedStatement.setInt(1, parmEquipaID);
@@ -268,7 +271,7 @@ public class PresencaHelper {
 				numTreinos = rs.getInt(1);
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -280,11 +283,11 @@ public class PresencaHelper {
 
 	public int totalAthletesByEstado(int parmEquipaID, String parmEstado) {
 
-		DBUtils dbUtils = new DBUtils();
 		int numTotalAthletesPresent = 0;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select count(*) from presenca_jogador p inner join presencas on presencas.id=id_presenca where estado=? and id_equipa=?");
 
 			preparedStatement.setString(1, parmEstado);
@@ -299,7 +302,7 @@ public class PresencaHelper {
 				numTotalAthletesPresent = rs.getInt(1);
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -311,10 +314,9 @@ public class PresencaHelper {
 
 	public ArrayList<String> loadHistoricoByID(int id) {
 
-		DBUtils dbUtils = new DBUtils();
-
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select concat( ph.`data`, '  ',  u.nome, '   ', ph.alteracao) as hist from presencas_historico ph \r\n"
 							+ "inner join utilizadores u on u.id=ph.id_utilizador \r\n" + "where ph.id_presenca =? ");
 
@@ -334,7 +336,7 @@ public class PresencaHelper {
 				historico.add(historicoItem);
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return historico;
 
 		} catch (SQLException e) {
@@ -347,10 +349,9 @@ public class PresencaHelper {
 
 	public boolean createPresenca(PresencaData parmPresencaData, String parmTenantId) {
 
-		DBUtils dbUtils = new DBUtils();
-
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"insert into PRESENCAS(DATA, HORA, ID_EQUIPA, DATACRIACAO, UTILIZADOR_CRIACAO)\r\n"
 							+ "values (?, ?, ?, NOW(), ?)",
 					PreparedStatement.RETURN_GENERATED_KEYS);
@@ -369,7 +370,7 @@ public class PresencaHelper {
 
 			for (int i = 0; i < parmPresencaData.getJogadoresPresenca().size(); i++) {
 
-				preparedStatement = dbUtils.getConnection()
+				preparedStatement = conn
 						.prepareStatement("insert into presenca_jogador VALUES(?, ?, ?, ?)");
 
 				preparedStatement.setInt(1, parmPresencaData.getId());
@@ -382,7 +383,7 @@ public class PresencaHelper {
 
 			for (int i = 0; i < parmPresencaData.getStaffPresenca().size(); i++) {
 
-				preparedStatement = dbUtils.getConnection()
+				preparedStatement = conn
 						.prepareStatement("insert into presenca_staff VALUES(?, ?, ?, ?)");
 
 				preparedStatement.setInt(1, parmPresencaData.getId());
@@ -393,7 +394,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 			// enviar email de registo presenca
 			sendEmailPresencaRegisto(parmPresencaData, parmTenantId);
@@ -484,6 +485,8 @@ public class PresencaHelper {
 
 			}
 
+			Connection conn = dbUtils.getConnection();
+
 			for (int i = oldPresenca.getJogadoresPresenca().size(); i < parmPresencaData.getJogadoresPresenca()
 					.size(); i++) {
 
@@ -495,9 +498,8 @@ public class PresencaHelper {
 
 				// insere novo jogador na presenca
 
-				DBUtils dbUtils = new DBUtils();
-
-				PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+				
+				PreparedStatement preparedStatement = conn.prepareStatement(
 						"insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo) VALUES(?,?,?,?)");
 
 				preparedStatement.setString(3, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
@@ -508,9 +510,8 @@ public class PresencaHelper {
 
 			}
 
-			DBUtils dbUtils = new DBUtils();
-
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("update PRESENCAS set DATA=?, HORA=?\r\n" + "where id=?");
 
 			preparedStatement.setInt(1, parmPresencaData.getData());
@@ -520,7 +521,7 @@ public class PresencaHelper {
 
 			for (int i = 0; i < parmPresencaData.getJogadoresPresenca().size(); i++) {
 
-				preparedStatement = dbUtils.getConnection().prepareStatement(
+				preparedStatement = conn.prepareStatement(
 						"update presenca_jogador set estado=?, motivo=? where id_presenca=? and id_jogador=?");
 
 				preparedStatement.setString(1, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
@@ -533,7 +534,7 @@ public class PresencaHelper {
 
 			for (int i = 0; i < parmPresencaData.getStaffPresenca().size(); i++) {
 
-				preparedStatement = dbUtils.getConnection().prepareStatement(
+				preparedStatement = conn.prepareStatement(
 						"update presenca_staff set estado=?, motivo=? where id_presenca=? and id_staff=?");
 
 				preparedStatement.setString(1, parmPresencaData.getStaffPresenca().get(i).getEstado());
@@ -544,7 +545,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return true;
 
 		} catch (SQLException e) {
@@ -554,15 +555,16 @@ public class PresencaHelper {
 	}
 
 	private void registaHistorico(int idPresenca, int idUtilizador, String alteracao) throws SQLException {
-		DBUtils dbUtils = new DBUtils();
-		PreparedStatement preparedStatement = dbUtils.getConnection()
+
+		Connection conn = dbUtils.getConnection();
+		PreparedStatement preparedStatement = conn
 				.prepareStatement("insert PRESENCAS_historico values (?, now(), ?, ?)");
 
 		preparedStatement.setInt(1, idPresenca);
 		preparedStatement.setInt(2, idUtilizador);
 		preparedStatement.setString(3, alteracao);
 		preparedStatement.executeUpdate();
-		dbUtils.closeConnection(preparedStatement.getConnection());
+		dbUtils.closeConnection(conn);
 
 	}
 

@@ -1,68 +1,75 @@
 package sm.core.helper;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import sm.core.Start_SMCore;
+import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
+
+@Component
 public class DBUtils {
 
-    String url = "";
-    String username = "";
-    String password = "";
+    private static final Logger log = LoggerFactory.getLogger(DBUtils.class);
 
+    private final DataSource dataSource;
     private final Properties configProp = new Properties();
 
-    public Connection getConnection() {
-        System.out.println("DBUtils | Obter conexão");
-        getConfigurations();
-
-        try {
-            // Já não precisas do Class.forName()
-            return DriverManager.getConnection(url, username, password);
-        } catch (SQLException e) {
-            System.out.println("DBUtils | Erro a criar conexão");
-            e.printStackTrace();
-            return null;
-        }
+    public DBUtils(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 
-    private void getConfigurations() {
-        if (this.url.equals("")) {
-            try (InputStream in = this.getClass().getClassLoader().getResourceAsStream("application.properties")) {
-                System.out.println("Reading all properties from the file");
-                configProp.load(in);
+    public Connection getConnection() throws SQLException {
+        // Se for Hikari, obtém o MXBean e regista estado antes de pedir a connection
+        if (dataSource instanceof HikariDataSource) {
+            HikariPoolMXBean mx = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+            if (mx != null) {
+                log.info("Hikari BEFORE getConnection - total={}, active={}, idle={}, waiting={}",
+                        mx.getTotalConnections(), mx.getActiveConnections(),
+                        mx.getIdleConnections(), mx.getThreadsAwaitingConnection());
+            }
+        } else {
+            log.debug("DataSource is not Hikari, cannot log pool metrics.");
+        }
 
-                String amb = Start_SMCore.configProp.getProperty("sm.core.amb");
+        Connection con = dataSource.getConnection();
 
-                if (amb == null || amb.equals("PROD")) {
-                    this.url = configProp.getProperty("sm.core.db.url.prod");
-                    this.username = configProp.getProperty("sm.core.db.user.prod");
-                    this.password = configProp.getProperty("sm.core.db.pwd.prod");
-                } else if (amb.equals("DEV")) {
-                    this.url = configProp.getProperty("sm.core.db.url.dev");
-                    this.username = configProp.getProperty("sm.core.db.user.dev");
-                    this.password = configProp.getProperty("sm.core.db.pwd.dev");
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+        // Regista estado logo após obter a connection
+        if (dataSource instanceof HikariDataSource) {
+            HikariPoolMXBean mx = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+            if (mx != null) {
+                log.info("Hikari AFTER getConnection - total={}, active={}, idle={}, waiting={}",
+                        mx.getTotalConnections(), mx.getActiveConnections(),
+                        mx.getIdleConnections(), mx.getThreadsAwaitingConnection());
             }
         }
+
+        return con;
     }
 
     public void closeConnection(Connection con) {
         if (con != null) {
             try {
-                System.out.println("DBUtils | Fechar conexão");
-                con.close();
+                con.close(); // devolve a connection ao pool
             } catch (SQLException e) {
-                e.printStackTrace();
+                log.error("Erro ao fechar connection", e);
+            }
+        }
+
+        // Log do estado do pool após fechar
+        if (dataSource instanceof HikariDataSource) {
+            HikariPoolMXBean mx = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+            if (mx != null) {
+                log.info("Hikari AFTER closeConnection - total={}, active={}, idle={}, waiting={}",
+                        mx.getTotalConnections(), mx.getActiveConnections(),
+                        mx.getIdleConnections(), mx.getThreadsAwaitingConnection());
             }
         }
     }
 }
-

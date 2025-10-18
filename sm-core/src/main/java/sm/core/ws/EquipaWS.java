@@ -2,6 +2,7 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -30,6 +31,15 @@ import sm.core.helper.StaffHelper;
 @RequestMapping("/sm")
 public class EquipaWS {
 
+	@Autowired
+	private EquipaHelper equipaHelper;
+
+	@Autowired
+	private JogadorHelper jogadorHelper;
+
+	@Autowired
+	private StaffHelper staffHelper;
+
 	@CrossOrigin
 	@PutMapping("/getEquipa/{id}")
 	@ResponseBody
@@ -40,7 +50,7 @@ public class EquipaWS {
 		System.out.println("loadEquipabyID | Start");
 		System.out.println("loadEquipabyID | ID:" + id);
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		EquipaData equipaData = equipaHelper.getEquipaID(Integer.valueOf(id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -70,7 +80,7 @@ public class EquipaWS {
 		System.out.println("loadEquipabyIDLight | Start");
 		System.out.println("loadEquipabyIDLight | ID:" + id);
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		EquipaData equipaData = equipaHelper.getEquipaIDLight(Integer.valueOf(id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -108,7 +118,7 @@ public class EquipaWS {
 			allJogadores=true;
 		}
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		jogadores = jogadorHelper.getJogadorDisponiveis(Integer.valueOf(id), allJogadores, Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -140,7 +150,7 @@ public class EquipaWS {
 
 		ArrayList<ElementoSeleccao> jogadores = new ArrayList<ElementoSeleccao>();
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		jogadores = jogadorHelper.getAllJogadorAtivo(Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -172,7 +182,7 @@ public class EquipaWS {
 
 		ArrayList<ElementoSeleccao> staffs = new ArrayList<ElementoSeleccao>();
 
-		StaffHelper staffHelper = new StaffHelper();
+		
 		staffs = staffHelper.getAllStaffAtivo(Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -204,7 +214,7 @@ public class EquipaWS {
 
 		ArrayList<EquipaData> equipas = new ArrayList<EquipaData>();
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		equipas = equipaHelper.getAllEquipaLightEpocaAtual(Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -236,7 +246,7 @@ public class EquipaWS {
 
 		EpocaData epocaAtual = null;
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		epocaAtual = equipaHelper.getEpocaAtiva(Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -269,7 +279,7 @@ public class EquipaWS {
 
 		Boolean sucesso = null;
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		sucesso = equipaHelper.setEpocaAtual(Integer.valueOf(idepoca), Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -304,7 +314,7 @@ public class EquipaWS {
 
 		Boolean sucesso = null;
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		sucesso = equipaHelper.createEscalaoEpoca(parmEscalaoEpocaData, Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -339,7 +349,7 @@ public class EquipaWS {
 
 		Boolean sucesso = null;
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		sucesso = equipaHelper.deleteEscalaoEpoca(parmEscalaoEpocaData, Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -371,7 +381,7 @@ public class EquipaWS {
 
 		ArrayList<EpocaData> epocas = null;
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		epocas = equipaHelper.getAllEpocas(Integer.valueOf(tenant_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -402,7 +412,7 @@ public class EquipaWS {
 
 		ArrayList<EscalaoData> escaloes = null;
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		escaloes = equipaHelper.getAllEscaloes();
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -434,7 +444,7 @@ public class EquipaWS {
 
 		ArrayList<ElementoSeleccao> staffs = new ArrayList<ElementoSeleccao>();
 
-		StaffHelper staffHelper = new StaffHelper();
+		
 		staffs = staffHelper.getAllStaffAtivoDisponivel(Integer.valueOf(tenant_id), Integer.valueOf(idequipa));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -462,7 +472,7 @@ public class EquipaWS {
 		System.out.println("PresencaWS | updateJogador | Start");
 		System.out.println("PresencaWS | updateJogador | ID:" + idUtilizador);
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		resultado = jogadorHelper.updateJogador(jogadorData, Integer.parseInt(idUtilizador));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -483,7 +493,7 @@ public class EquipaWS {
 		System.out.println("EquipaWS | equipaAddJogador | Start");
 		System.out.println("EquipaWS | equipaAddJogador | Equipa:" + idEquipa);
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		resultado = equipaHelper.addJogadorEquipa(Integer.parseInt(idEquipa), jogadorData);
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -506,7 +516,7 @@ public class EquipaWS {
 		System.out.println("EquipaWS | addStaffEquipa | Staff:" + staffData.getId());
 		System.out.println("EquipaWS | addStaffEquipa | Tipo:" + staffData.getTipo());
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		resultado = equipaHelper.addStaffEquipa(Integer.parseInt(idEquipa), staffData);
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -527,7 +537,7 @@ public class EquipaWS {
 		boolean resultado = false;
 		System.out.println("EquipaWS | addStaff | Start");
 
-		StaffHelper staffHelper = new StaffHelper();
+		
 		resultado = staffHelper.addStaff(staffData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -548,7 +558,7 @@ public class EquipaWS {
 		boolean resultado = false;
 		System.out.println("EquipaWS | addJogador | Start");
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		resultado = jogadorHelper.addJogador(jogadorData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -569,7 +579,7 @@ public class EquipaWS {
 		System.out.println("EquipaWS | removeJogadorEquipa | Start");
 		System.out.println("EquipaWS | removeJogadorEquipa | Equipa:" + idEquipa);
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		resultado = equipaHelper.removeJogadorEquipa(Integer.parseInt(idEquipa), jogadorData);
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -591,7 +601,7 @@ public class EquipaWS {
 		System.out.println("EquipaWS | removeStaffEquipa | Equipa:" + idEquipa);
 		System.out.println("EquipaWS | removeStaffEquipa | Staff?id:" + staffData.getId());
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		resultado = equipaHelper.removeStaffEquipa(Integer.parseInt(idEquipa), staffData);
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -612,7 +622,7 @@ public class EquipaWS {
 		System.out.println("PresencaWS | updateStaff | Start");
 		System.out.println("PresencaWS | updateStaff | ID:" + idUtilizador);
 
-		StaffHelper staffHelper = new StaffHelper();
+		
 		resultado = staffHelper.updateStaff(staffData, Integer.parseInt(idUtilizador));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -635,7 +645,7 @@ public class EquipaWS {
 		System.out.println("loadJogadorbyID | Start");
 		System.out.println("loadJogadorbyID | ID:" + id);
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		JogadorData jogador = jogadorHelper.getJogadorbyID(Integer.parseInt(id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -665,7 +675,7 @@ public class EquipaWS {
 		System.out.println("getStaffbyID | Start");
 		System.out.println("getStaffbyID | ID:" + id);
 
-		StaffHelper staffHelper = new StaffHelper();
+		
 		StaffData staff = staffHelper.getStaffByID(Integer.parseInt(id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -695,7 +705,7 @@ public class EquipaWS {
 		System.out.println("getFaltasByJogador | Start");
 		System.out.println("getFaltasByJogador | ID:" + id);
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		ArrayList<FichaJogadorPresencasData> faltas = jogadorHelper.getFaltasByJogador(Integer.parseInt(id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -725,7 +735,7 @@ public class EquipaWS {
 		System.out.println("getEscalaoByEquipa | Start");
 		System.out.println("getEscalaoByEquipa | parmEquipaId:" + parmEquipaId);
 
-		EquipaHelper equipaHelper = new EquipaHelper();
+		
 		String escalao = equipaHelper.getEscalaoByEquipa(Integer.parseInt(parmEquipaId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -755,7 +765,7 @@ public class EquipaWS {
 		System.out.println("getPresencasByJogador | Start");
 		System.out.println("getPresencasByJogador | ID:" + id);
 
-		JogadorHelper jogadorHelper = new JogadorHelper();
+		
 		ArrayList<ContadorPresencaData> presencas = jogadorHelper.getPresencasByJogador(Integer.parseInt(id));
 
 		ObjectMapper mapper = new ObjectMapper();

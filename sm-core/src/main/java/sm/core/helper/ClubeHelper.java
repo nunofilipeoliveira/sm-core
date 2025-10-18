@@ -5,14 +5,21 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import sm.core.data.ClubeData;
-import sm.core.data.JogadorData;
+import org.springframework.stereotype.Component;
 
+import sm.core.data.ClubeData;
+
+@Component
 public class ClubeHelper {
+
+    private final DBUtils dbUtils;
+
+    public ClubeHelper(DBUtils dbUtils) {
+        this.dbUtils = dbUtils;
+    }
 
     public ClubeData getClubebyId(int parmClubeId) {
 
-        DBUtils dbUtils = new DBUtils();
         ClubeData clube = null;
 
         try {
@@ -44,10 +51,8 @@ public class ClubeHelper {
         return null;
     }
 
-
     public ArrayList<ClubeData> getAllClubes() {
 
-        DBUtils dbUtils = new DBUtils();
         ArrayList<ClubeData> clubes = new ArrayList<>();
 
         try {
@@ -66,8 +71,6 @@ public class ClubeHelper {
                 clubes.add(clube);
             }
 
-        
-
             dbUtils.closeConnection(preparedStatement.getConnection());
             return clubes;
 
@@ -79,16 +82,15 @@ public class ClubeHelper {
         return null;
     }
 
-
     public boolean updateClube(ClubeData parmClube) {
 
-		DBUtils dbUtils = new DBUtils();
-		try {
+        try {
 
-            if(parmClube.getId() == 0) {
+            if (parmClube.getId() == 0) {
                 // Inserir novo clube
                 PreparedStatement preparedStatement = dbUtils.getConnection()
-                        .prepareStatement("INSERT INTO clube (nome, pav_nome, pav_endereco, pav_link) VALUES (?, ?, ?, ?)");
+                        .prepareStatement(
+                                "INSERT INTO clube (nome, pav_nome, pav_endereco, pav_link) VALUES (?, ?, ?, ?)");
 
                 preparedStatement.setString(1, parmClube.getNome());
                 preparedStatement.setString(2, parmClube.getPav_nome());
@@ -102,33 +104,27 @@ public class ClubeHelper {
             } else {
                 // Atualizar clube existente
                 PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("UPDATE clube SET nome = ?, pav_nome = ?, pav_endereco = ?, pav_link = ? WHERE id = ?");
+                        .prepareStatement(
+                                "UPDATE clube SET nome = ?, pav_nome = ?, pav_endereco = ?, pav_link = ? WHERE id = ?");
 
-			preparedStatement.setString(1, parmClube.getNome());
-			preparedStatement.setString(2, parmClube.getPav_nome());
-			preparedStatement.setString(3, parmClube.getPav_endereco());
-			preparedStatement.setString(4, parmClube.getPav_link());
-			preparedStatement.setInt(5, parmClube.getId());
-			preparedStatement.executeUpdate();
+                preparedStatement.setString(1, parmClube.getNome());
+                preparedStatement.setString(2, parmClube.getPav_nome());
+                preparedStatement.setString(3, parmClube.getPav_endereco());
+                preparedStatement.setString(4, parmClube.getPav_link());
+                preparedStatement.setInt(5, parmClube.getId());
+                preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+                dbUtils.closeConnection(preparedStatement.getConnection());
 
-			return true;
-            }  
+                return true;
+            }
 
-			
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		return false;
-	}
-
-
-
+        return false;
+    }
 
 }
-
-				

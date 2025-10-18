@@ -1,14 +1,22 @@
 package sm.core.helper;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import org.springframework.stereotype.Component;
+
 import sm.core.data.Torneio_jogo;
 
+@Component
 public class Torneio_jogoHelper {
 
+    private final DBUtils dbUtils;
+    public Torneio_jogoHelper(DBUtils dbUtils) {
+        this.dbUtils = dbUtils;
+    }
     public static String getTableName() {
         return "torneio_jogo";
     }
@@ -17,10 +25,11 @@ public class Torneio_jogoHelper {
         ArrayList<Torneio_jogo> games = new ArrayList<>();
         // lógica para carregar todos os jogos do banco de dados
 
-        DBUtils dbUtils = new DBUtils();
+        
 
         try {
-            PreparedStatement preparedStatement = dbUtils.getConnection()
+            Connection conn = dbUtils.getConnection();
+            PreparedStatement preparedStatement = conn
                     .prepareStatement("select *From torneio_jogo order by id ");
 
             ResultSet rs = preparedStatement.executeQuery();
@@ -51,7 +60,7 @@ public class Torneio_jogoHelper {
 
             }
 
-            dbUtils.closeConnection(preparedStatement.getConnection());
+            dbUtils.closeConnection(conn);
 
         } catch (SQLException e) {
             // TODO Auto-generated catch block
@@ -63,9 +72,10 @@ public class Torneio_jogoHelper {
 
     public boolean saveMatch(Torneio_jogo match) {
         // lógica para salvar o jogo no banco de dados
-        DBUtils dbUtils = new DBUtils();
+        
         try {
-            PreparedStatement preparedStatement = dbUtils.getConnection()
+            Connection conn = dbUtils.getConnection();
+            PreparedStatement preparedStatement = conn
                     .prepareStatement(
                             "UPDATE torneio_jogo SET court = ?, time = ?, homeTeamId = ?, awayTeamId = ?, homeTeam = ?, awayTeam = ?, goalsHomeTeam = ?, goalsAwayTeam = ?, status = ?, result = ?, round = ? WHERE id = ?");
 
@@ -85,7 +95,7 @@ public class Torneio_jogoHelper {
 
             int rowsAffected = preparedStatement.executeUpdate();
 
-            dbUtils.closeConnection(preparedStatement.getConnection());
+           
 
             // vai realizar a ação definida para a equipa vencedora e vencida se o jogo
             // estiver
@@ -98,7 +108,7 @@ public class Torneio_jogoHelper {
 
             if (match.getGoalsHomeTeam() > match.getGoalsAwayTeam()) {
 
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set homeTeamId=?, homeTeam=?  where id= (select  SUBSTRING_INDEX(vitory_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(vitory_action, '.', -1)='H' )");
 
@@ -107,9 +117,9 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+            
 
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set awayTeamId=?, awayTeam=?  where id= (select  SUBSTRING_INDEX(vitory_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(vitory_action, '.', -1)='A' )");
 
@@ -118,11 +128,11 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+              
 
                 // Derrota away
 
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set homeTeamId=?, homeTeam=?  where id= (select  SUBSTRING_INDEX(lose_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(lose_action, '.', -1)='H' )");
 
@@ -131,10 +141,10 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+                
 
                 // Away
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set awayTeamId=?, awayTeam=?  where id= (select  SUBSTRING_INDEX(lose_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(lose_action, '.', -1)='A' )");
 
@@ -143,11 +153,11 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+              
 
             } else {
 
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set homeTeamId=?, homeTeam=?  where id= (select  SUBSTRING_INDEX(vitory_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(vitory_action, '.', -1)='H' )");
 
@@ -156,9 +166,9 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+     
 
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set awayTeamId=?, awayTeam=?  where id= (select  SUBSTRING_INDEX(vitory_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(vitory_action, '.', -1)='A' )");
 
@@ -167,11 +177,11 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+               
 
                 // Derrota away
 
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set homeTeamId=?, homeTeam=?  where id= (select  SUBSTRING_INDEX(lose_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(lose_action, '.', -1)='H' )");
 
@@ -180,10 +190,10 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+              
 
                 // Away
-                preparedStatement = dbUtils.getConnection()
+                preparedStatement = conn
                         .prepareStatement(
                                 "update torneio_jogo set awayTeamId=?, awayTeam=?  where id= (select  SUBSTRING_INDEX(lose_action, '.', 1) AS parte1   from torneio_jogo where id=? and SUBSTRING_INDEX(lose_action, '.', -1)='A' )");
 
@@ -192,10 +202,11 @@ public class Torneio_jogoHelper {
                 preparedStatement.setInt(3, match.getId());
 
                 rowsAffected = preparedStatement.executeUpdate();
-                dbUtils.closeConnection(preparedStatement.getConnection());
+             
 
             }
 
+            dbUtils.closeConnection(conn);
             return true;
 
         } catch (SQLException e) {
@@ -208,9 +219,10 @@ public class Torneio_jogoHelper {
 
     public boolean resetMatch(int matchId) {
         // lógica para resetar o jogo no banco de dados
-        DBUtils dbUtils = new DBUtils();
+        
         try {
-            PreparedStatement preparedStatement = dbUtils.getConnection()
+            Connection conn = dbUtils.getConnection();
+            PreparedStatement preparedStatement = conn
                     .prepareStatement(
                             "UPDATE torneio_jogo SET goalsHomeTeam = 0, goalsAwayTeam = 0, status = 'scheduled', result = '', hometeamid=0, awayteamid=0, hometeam=hometeamdefault, awayteam=awayteamdefault WHERE id = ?");
 
@@ -218,7 +230,7 @@ public class Torneio_jogoHelper {
 
             int rowsAffected = preparedStatement.executeUpdate();
 
-            dbUtils.closeConnection(preparedStatement.getConnection());
+            dbUtils.closeConnection(conn);
 
             return rowsAffected > 0;
 

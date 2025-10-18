@@ -31,7 +31,7 @@ import sm.core.ws.requesdata.LoginRequest;
 public class LoginWS {
 	
 	@Autowired
-	private LoginHelper loginHelper2; 
+	private LoginHelper loginHelper;
 
 	@CrossOrigin
 	@PutMapping("/login")
@@ -42,7 +42,7 @@ public class LoginWS {
 		System.out.println("login | Start");
 		System.out.println("login | User:" + loginRequest.getUser());
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		LoginData loginData = loginHelper.Dologin(loginRequest.getUser(), loginRequest.getPwd(),
 				loginRequest.getTenant_id());
 
@@ -86,7 +86,7 @@ public class LoginWS {
 				}
 			}
 
-			LoginHelper loginHelper = new LoginHelper();
+			
 			Boolean retorno = loginHelper.updateUserWithEscaloes(escalaoIds, Integer.parseInt(parmUserId));
 
 			System.out.println("updateUser WithEscaloes | End");
@@ -112,7 +112,7 @@ public class LoginWS {
 
 		try {
 
-			LoginHelper loginHelper = new LoginHelper();
+			
 			Boolean retorno = loginHelper.updateUser(Integer.parseInt(parmUserId), parmUtilizadorData);
 
 			System.out.println("updateUser| End");
@@ -134,7 +134,7 @@ public class LoginWS {
 		System.out.println("isAuthenticated | Start");
 		System.out.println("isAuthenticated | token:" + token.getToken());
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		return loginHelper.isAuthenticated(token.getToken());
 	}
 
@@ -145,7 +145,7 @@ public class LoginWS {
 		System.out.println("activateuser | Start");
 		System.out.println("activateuser | code:" + code);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		UtilizadorParaAtivarData utilizadorParaAtivarData = loginHelper.getUtilizadorParaAtivarByCode(code);
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -169,7 +169,7 @@ public class LoginWS {
 		System.out.println("getCode | Start");
 		System.out.println("getCode | code:" + parmCode);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		String code = loginHelper.getCodebyUser(parmCode);
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -193,7 +193,7 @@ public class LoginWS {
 		System.out.println("getAllUser | Start");
 		System.out.println("getAllUser | parmTenantId:" + parmTenantId);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		ArrayList<UtilizadorData> utilizadores = loginHelper.getAllUser(Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -217,7 +217,7 @@ public class LoginWS {
 		System.out.println("getAllUserWait | Start");
 		System.out.println("getAllUserWait | parmTenantId:" + parmTenantId);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		ArrayList<UtilizadorParaAtivarData> utilizadores = loginHelper.getAllUserWait(Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -241,7 +241,7 @@ public class LoginWS {
 		System.out.println("getEscaloesByUser | Start");
 		System.out.println("getEscaloesByUser | parmTenantId:" + parmUserId);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		ArrayList<EscalaoData> escaloes = loginHelper.getEscaloesByUser(Integer.parseInt(parmUserId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -266,7 +266,7 @@ public class LoginWS {
 		System.out.println("getUser | parmUserId:" + parmUserId);
 		System.out.println("getUser | parmTenantId:" + parmTenantId);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		UtilizadorData utilizador = loginHelper.getUser(Integer.parseInt(parmUserId), Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -292,7 +292,7 @@ public class LoginWS {
 		System.out.println("enableUser | parmUserId:" + parmUserId);
 	
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		Boolean resultado= loginHelper.enableUser(Integer.parseInt(parmUserId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -318,7 +318,7 @@ public class LoginWS {
 		System.out.println("resetPWD | parmUserId:" + parmUserId);
 	
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		Boolean resultado= loginHelper.resetPWD(Integer.parseInt(parmUserId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -345,7 +345,7 @@ public class LoginWS {
 		System.out.println("disableUser | parmUserId:" + parmUserId);
 	
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		Boolean resultado= loginHelper.disableUser(Integer.parseInt(parmUserId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -372,7 +372,7 @@ public class LoginWS {
 		System.out.println("getUser | parmUserId:" + parmUserName);
 		System.out.println("getUser | parmTenantId:" + parmTenantId);
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		UtilizadorData utilizador = loginHelper.getUserByUserName(parmUserName, Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -397,7 +397,7 @@ public class LoginWS {
 		System.out.println("LoginWS | createUser  | Start");
 		System.out.println("LoginWS | createUser  | user:" + parmLoginData.getUser());
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		resultado = loginHelper.createUtilizador(parmLoginData, Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -422,7 +422,7 @@ public class LoginWS {
 		System.out.println("LoginWS | createUtilizador  | Start");
 		System.out.println("LoginWS | createUtilizador  | user:" + parmUtilizadorData.getUser());
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		codigoGeradoUtilizador = loginHelper.createUtilizadorParaAtivar(parmUtilizadorData,
 				Integer.parseInt(parmTenantId));
 
@@ -449,7 +449,7 @@ public class LoginWS {
 		System.out.println("LoginWS | reenviarEmailAtivacao  | user:" + parmUtilizadorData.getUser());
 
 		
-		codigoGeradoUtilizador = loginHelper2.reenviarEmailAtivacao(parmUtilizadorData, Integer.parseInt(parmTenantId));
+		codigoGeradoUtilizador = loginHelper.reenviarEmailAtivacao(parmUtilizadorData, Integer.parseInt(parmTenantId));
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -480,7 +480,7 @@ public class LoginWS {
 		System.out.println("getHistoricoLogins | Start");
 		ArrayList<HistoricoLoginData> listaHistorico;
 
-		LoginHelper loginHelper = new LoginHelper();
+		
 		listaHistorico = loginHelper.getHistoricoLogins();
 
 		ObjectMapper mapper = new ObjectMapper();

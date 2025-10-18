@@ -1,5 +1,6 @@
 package sm.core.helper;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,23 +9,29 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 
+import org.springframework.stereotype.Component;
+
 import sm.core.data.ContadorPresencaData;
 import sm.core.data.ElementoSeleccao;
 import sm.core.data.FichaJogadorPresencasData;
 import sm.core.data.JogadorData;
 
+@Component
 public class JogadorHelper {
 
-	public JogadorHelper() {
+	private final DBUtils dbUtils;
 
+	public JogadorHelper(DBUtils dbUtils) {
+		this.dbUtils = dbUtils;
 	}
 
 	public JogadorData getJogadorbyID(int parmId) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		JogadorData jogadorData = null;
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("SELECT * FROM JOGADOR WHERE ID=?");
 
 			preparedStatement.setInt(1, parmId);
@@ -47,7 +54,7 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return jogadorData;
 
 		} catch (SQLException e) {
@@ -60,12 +67,13 @@ public class JogadorHelper {
 
 	public ArrayList<FichaJogadorPresencasData> getFaltasByJogador(int parmId) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		ArrayList<FichaJogadorPresencasData> faltas = new ArrayList<FichaJogadorPresencasData>();
 		FichaJogadorPresencasData tmpFalta = null;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select j.id, j.nome , ee.id, ee.nome , pj.estado , pj.motivo , p.`data` , p.hora from jogador j \r\n"
 							+ "inner join presenca_jogador pj on j.id=pj.id_jogador \r\n"
 							+ "inner join presencas p on pj.id_presenca =p.id\r\n"
@@ -90,7 +98,7 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return faltas;
 
 		} catch (SQLException e) {
@@ -103,12 +111,13 @@ public class JogadorHelper {
 
 	public ArrayList<ContadorPresencaData> getPresencasByJogador(int parmId) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		ArrayList<ContadorPresencaData> presencaPorEscalao = new ArrayList<ContadorPresencaData>();
 		ContadorPresencaData tmpContadorPorEscalao = null;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id_jogador, ee.nome, mid(data, 5, 2) mes, count(*) from presenca_jogador pj\r\n"
 							+ "inner join presencas p ON P.id =PJ.id_presenca\r\n"
 							+ "inner join escalao_epoca ee on EE.ID=P.id_equipa  \r\n"
@@ -194,7 +203,7 @@ public class JogadorHelper {
 			}
 			presencaPorEscalao.add(tmpContadorPorEscalao);
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return presencaPorEscalao;
 
 		} catch (SQLException e) {
@@ -208,17 +217,18 @@ public class JogadorHelper {
 	public ArrayList<ElementoSeleccao> getJogadorDisponiveis(int parmIdEscalao, boolean allJogadores,
 			int parmTenandId) {
 
-		DBUtils dbUtils = new DBUtils();
+		try {
 		ElementoSeleccao jogador = null;
+		Connection conn = dbUtils.getConnection();
 		PreparedStatement preparedStatement = null;
 		ArrayList<ElementoSeleccao> jogadoresDisponiveis = new ArrayList<ElementoSeleccao>();
-		try {
+		
 			if (!allJogadores) {
-				preparedStatement = dbUtils.getConnection()
-						.prepareStatement("select j.id, j.nome, ee.nome  from jogador j \r\n"
-								+ "inner join escalao_epoca_jogador eej on J.id =EEJ.id_jogador \r\n"
-								+ "inner join escalao_epoca ee ON EE.id =EEJ.id_escalao_epoca\r\n"
-								+ "inner join epoca e on e.id =ee.id_epoca where  e.Estado =1\r\n"
+				
+				preparedStatement = conn.prepareStatement("select j.id, j.nome, ee.nome  from jogador j \r\n"
+						+ "inner join escalao_epoca_jogador eej on J.id =EEJ.id_jogador \r\n"
+						+ "inner join escalao_epoca ee ON EE.id =EEJ.id_escalao_epoca\r\n"
+						+ "inner join epoca e on e.id =ee.id_epoca where  e.Estado =1\r\n"
 								+ "and not exists (select * from escalao_epoca_jogador X  where \r\n"
 								+ "X.id_jogador = EEJ.id_jogador AND X.id_escalao_epoca =?)\r\n"
 								+ "and j.Tenant_id =?");
@@ -239,8 +249,7 @@ public class JogadorHelper {
 				}
 			} else {
 
-				preparedStatement = dbUtils.getConnection()
-						.prepareStatement("select j.id, j.nome, \"\" from jogador j \r\n"
+				preparedStatement = conn.prepareStatement("select j.id, j.nome, \"\" from jogador j \r\n"
 								+ "where estado='1' and j.Tenant_id =?");
 
 				preparedStatement.setInt(1, parmTenandId);
@@ -259,7 +268,7 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return jogadoresDisponiveis;
 
 		} catch (SQLException e) {
@@ -272,11 +281,12 @@ public class JogadorHelper {
 
 	public ArrayList<ElementoSeleccao> getAllJogadorAtivo(int parmTenantID) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		ElementoSeleccao jogador = null;
 		ArrayList<ElementoSeleccao> jogadoresDisponiveis = new ArrayList<ElementoSeleccao>();
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("select *from JOGADOR where ESTADO='1' and TENANT_ID=? ");
 
 			preparedStatement.setInt(1, parmTenantID);
@@ -293,7 +303,7 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return jogadoresDisponiveis;
 
 		} catch (SQLException e) {
@@ -306,10 +316,11 @@ public class JogadorHelper {
 
 	public boolean updateJogador(JogadorData parmJogador, int parmIdUtilizador) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		JogadorData jogadorData = new JogadorData();
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("SELECT * FROM JOGADOR WHERE ID=?");
 
 			preparedStatement.setInt(1, parmJogador.getId());
@@ -328,88 +339,87 @@ public class JogadorHelper {
 
 			// Realiza a comparação campo a campo e regita no histórico.
 			if (!parmJogador.getNome().equals(jogadorData.getNome())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Nome", jogadorData.getNome(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Nome", jogadorData.getNome(),
 						parmJogador.getNome());
 
 			}
 			if (!parmJogador.getCC().equals(jogadorData.getCC())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "CC", jogadorData.getCC(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "CC", jogadorData.getCC(),
 						parmJogador.getCC());
 			}
 			if (!parmJogador.getCidade().equals(jogadorData.getCidade())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Cidade", jogadorData.getCidade(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Cidade", jogadorData.getCidade(),
 						parmJogador.getCidade());
 			}
 			if (!parmJogador.getCodigo_postal().equals(jogadorData.getCodigo_postal())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Código Postal",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Código Postal",
 						jogadorData.getCodigo_postal(), parmJogador.getCodigo_postal());
 			}
 			if (parmJogador.getData_nascimento() != jogadorData.getData_nascimento()) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Data Nascimento",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Data Nascimento",
 						String.valueOf(jogadorData.getData_nascimento()),
 						String.valueOf(parmJogador.getData_nascimento()));
 			}
 			if (!parmJogador.getEmail().equals(jogadorData.getEmail())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Email", jogadorData.getEmail(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Email", jogadorData.getEmail(),
 						parmJogador.getEmail());
 			}
 			if (parmJogador.getLicenca() != jogadorData.getLicenca()) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Licença",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Licença",
 						String.valueOf(jogadorData.getLicenca()), String.valueOf(parmJogador.getLicenca()));
 			}
 			if (!parmJogador.getMae_email().equals(jogadorData.getMae_email())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Mãe - Email",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Email",
 						jogadorData.getMae_email(), parmJogador.getMae_email());
 			}
 			if (!parmJogador.getMae_nome().equals(jogadorData.getMae_nome())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Mãe - Nome",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Nome",
 						jogadorData.getMae_nome(), parmJogador.getMae_nome());
 			}
 			if (!parmJogador.getMae_telemovel().equals(jogadorData.getMae_telemovel())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Mãe - Nome",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Nome",
 						jogadorData.getMae_telemovel(), parmJogador.getMae_telemovel());
 			}
 			if (!parmJogador.getPai_email().equals(jogadorData.getPai_email())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Pai - Email",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Email",
 						jogadorData.getPai_email(), parmJogador.getPai_email());
 			}
 			if (!parmJogador.getPai_nome().equals(jogadorData.getPai_nome())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Pai - Nome",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Nome",
 						jogadorData.getPai_nome(), parmJogador.getPai_nome());
 			}
 			if (!parmJogador.getPai_telemovel().equals(jogadorData.getPai_telemovel())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Pai - Nome",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Nome",
 						jogadorData.getPai_telemovel(), parmJogador.getPai_telemovel());
 			}
 			if (!parmJogador.getMorada().equals(jogadorData.getMorada())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Morada", jogadorData.getMorada(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Morada", jogadorData.getMorada(),
 						parmJogador.getMorada());
 			}
 			if (parmJogador.getNIF() != jogadorData.getNIF()) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "NIF",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "NIF",
 						String.valueOf(jogadorData.getNIF()), String.valueOf(parmJogador.getNIF()));
 			}
 			if (!parmJogador.getNome_completo().equals(jogadorData.getNome_completo())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Nome Completo",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Nome Completo",
 						jogadorData.getNome_completo(), parmJogador.getNome_completo());
 			}
 			if (!parmJogador.getNumero().equals(jogadorData.getNumero())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Numero", jogadorData.getNumero(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Numero", jogadorData.getNumero(),
 						parmJogador.getNumero());
 			}
 			if (!parmJogador.getObservacoes().equals(jogadorData.getObservacoes())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Observações",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Observações",
 						jogadorData.getObservacoes(), parmJogador.getObservacoes());
 			}
 			if (!parmJogador.getTelemovel().equals(jogadorData.getTelemovel())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Telemovel",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Telemovel",
 						jogadorData.getTelemovel(), parmJogador.getTelemovel());
 			}
 
 			// Atualiza a informação
 
-			preparedStatement = dbUtils.getConnection()
-					.prepareStatement("update\r\n" + "	jogador\r\n" + "set\r\n" + "	nome =? ,\r\n"
+			preparedStatement = conn.prepareStatement("update\r\n" + "	jogador\r\n" + "set\r\n" + "	nome =? ,\r\n"
 							+ "	data_nascimento =? ,\r\n" + "	email =? ,\r\n" + "	telemovel =? ,\r\n"
 							+ "	pai_nome =? ,\r\n" + "	pai_email =? ,\r\n" + "	pai_telemovel =? ,\r\n"
 							+ "	mae_nome =? ,\r\n" + "	mae_email =? ,\r\n" + "	mae_telemovel =? ,\r\n"
@@ -439,7 +449,7 @@ public class JogadorHelper {
 			preparedStatement.setInt(20, parmJogador.getId());
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -453,11 +463,12 @@ public class JogadorHelper {
 
 	public boolean addJogador(JogadorData parmJogador, int parmTenantID, int parmIdUtilizador) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		JogadorData jogadorData = new JogadorData();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO jogador(nome, data_nascimento, email, telemovel, pai_nome, pai_email, pai_telemovel, mae_nome, mae_email, mae_telemovel, morada, cidade, codigo_postal, observacoes, numero, nome_completo, NIF, CC, Licença,Tenant_id, estado) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
 					Statement.RETURN_GENERATED_KEYS);
@@ -499,62 +510,62 @@ public class JogadorHelper {
 
 						// Realiza a comparação campo a campo e regita no histórico.
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Nome", jogadorData.getNome(),
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Nome", jogadorData.getNome(),
 								parmJogador.getNome());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "CC", jogadorData.getCC(),
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "CC", jogadorData.getCC(),
 								parmJogador.getCC());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Cidade",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Cidade",
 								jogadorData.getCidade(), parmJogador.getCidade());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Código Postal",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Código Postal",
 								jogadorData.getCodigo_postal(), parmJogador.getCodigo_postal());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Data Nascimento",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Data Nascimento",
 								String.valueOf(jogadorData.getData_nascimento()),
 								String.valueOf(parmJogador.getData_nascimento()));
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Email",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Email",
 								jogadorData.getEmail(), parmJogador.getEmail());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Licença",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Licença",
 								String.valueOf(jogadorData.getLicenca()), String.valueOf(parmJogador.getLicenca()));
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Mãe - Email",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Email",
 								jogadorData.getMae_email(), parmJogador.getMae_email());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Mãe - Nome",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Nome",
 								jogadorData.getMae_nome(), parmJogador.getMae_nome());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Mãe - Nome",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Nome",
 								jogadorData.getMae_telemovel(), parmJogador.getMae_telemovel());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Pai - Email",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Email",
 								jogadorData.getPai_email(), parmJogador.getPai_email());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Pai - Nome",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Nome",
 								jogadorData.getPai_nome(), parmJogador.getPai_nome());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Pai - Nome",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Nome",
 								jogadorData.getPai_telemovel(), parmJogador.getPai_telemovel());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Morada",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Morada",
 								jogadorData.getMorada(), parmJogador.getMorada());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "NIF",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "NIF",
 								String.valueOf(jogadorData.getNIF()), String.valueOf(parmJogador.getNIF()));
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Nome Completo",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Nome Completo",
 								jogadorData.getNome_completo(), parmJogador.getNome_completo());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Numero",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Numero",
 								jogadorData.getNumero(), parmJogador.getNumero());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Observações",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Observações",
 								jogadorData.getObservacoes(), parmJogador.getObservacoes());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), dbUtils, "Telemovel",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Telemovel",
 								jogadorData.getTelemovel(), parmJogador.getTelemovel());
 
 					} else {
@@ -575,11 +586,10 @@ public class JogadorHelper {
 		return false;
 	}
 
-	private void registaHistorico(int parmIdUtilizador, int id_Jogador, DBUtils dbUtils, String campo,
+	private void registaHistorico(int parmIdUtilizador, int id_Jogador, Connection conn, String campo,
 			String valorAntigo, String valorNovo) throws SQLException {
 		PreparedStatement preparedStatement;
-		preparedStatement = dbUtils.getConnection()
-				.prepareStatement("insert into jogador_historico VALUES (?, ?, ?, ?, ?, ?)");
+		preparedStatement = conn.prepareStatement("insert into jogador_historico VALUES (?, ?, ?, ?, ?, ?)");
 
 		preparedStatement.setInt(1, id_Jogador);
 		preparedStatement.setString(2, campo);

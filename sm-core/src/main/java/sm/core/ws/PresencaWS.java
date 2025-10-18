@@ -16,13 +16,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.PresencaData;
-import sm.core.helper.LoginHelper;
 import sm.core.helper.PresencaHelper;
 
 @RestController
 @RequestMapping("/sm")
 public class PresencaWS {
 
+	
 	@Autowired
 	private PresencaHelper presencaHelper;
 

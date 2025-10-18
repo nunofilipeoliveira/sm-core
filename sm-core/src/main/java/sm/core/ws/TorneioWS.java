@@ -2,6 +2,7 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
 import org.springframework.web.bind.annotation.PutMapping;
@@ -18,7 +19,9 @@ import sm.core.helper.Torneio_jogoHelper;
 @RestController
 @RequestMapping("/sm")
 public class TorneioWS {
-    
+
+    @Autowired
+    private Torneio_jogoHelper torneio_jogoHelper;
 
     @CrossOrigin
     @PutMapping("/loadAllGames")
@@ -29,7 +32,7 @@ public class TorneioWS {
 
         System.out.println("loadAllGames | Start");
         
-        Torneio_jogoHelper torneio_jogoHelper = new Torneio_jogoHelper();
+        
         ArrayList<sm.core.data.Torneio_jogo> games = torneio_jogoHelper.loadAllGames();
 
         ObjectMapper mapper = new ObjectMapper();
@@ -55,7 +58,7 @@ public class TorneioWS {
     public String saveMatch(@RequestBody sm.core.data.Torneio_jogo match) {
         // Salvar o jogo
         System.out.println("saveMatch | Start");
-        Torneio_jogoHelper torneio_jogoHelper = new Torneio_jogoHelper();
+        
         boolean result = torneio_jogoHelper.saveMatch(match);
 
         ObjectMapper mapper = new ObjectMapper();
@@ -77,7 +80,7 @@ public class TorneioWS {
     public String resetMatch(@RequestBody sm.core.data.Torneio_jogo match) {
         // Reset o jogo
         System.out.println("resetMatch | Start");
-        Torneio_jogoHelper torneio_jogoHelper = new Torneio_jogoHelper();
+        
         boolean result = torneio_jogoHelper.resetMatch(match.getId());
 
         ObjectMapper mapper = new ObjectMapper();

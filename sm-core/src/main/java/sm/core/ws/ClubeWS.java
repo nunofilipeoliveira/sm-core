@@ -2,6 +2,7 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,6 +21,9 @@ import sm.core.helper.ClubeHelper;
 @RequestMapping("/sm")
 public class ClubeWS {
 
+    @Autowired
+    private ClubeHelper clubeHelper;
+
     @CrossOrigin
     @PutMapping("/getClube/{id}")
     @ResponseBody
@@ -30,7 +34,7 @@ public class ClubeWS {
         System.out.println("getClube | Start");
         System.out.println("getClube | ID:" + id);
 
-        ClubeHelper clubeHelper = new ClubeHelper();
+        
         ClubeData clubeData = clubeHelper.getClubebyId(Integer.valueOf(id));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -61,7 +65,7 @@ public class ClubeWS {
 
         System.out.println("getAllClubes | Start");
 
-        ClubeHelper clubeHelper = new ClubeHelper();
+        
         ArrayList<ClubeData> clubes = clubeHelper.getAllClubes();
 
         ObjectMapper mapper = new ObjectMapper();
@@ -92,7 +96,7 @@ public class ClubeWS {
         System.out.println("updateClube | Start");
         System.out.println("updateClube | ID:" + clubeData.getId());
 
-        ClubeHelper clubeHelper = new ClubeHelper();
+        
         boolean success = clubeHelper.updateClube(clubeData);
 
         ObjectMapper mapper = new ObjectMapper();

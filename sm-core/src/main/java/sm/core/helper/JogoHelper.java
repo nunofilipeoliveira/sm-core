@@ -1,5 +1,6 @@
 package sm.core.helper;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,22 +8,31 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
+import org.springframework.stereotype.Component;
+
 import sm.core.data.CompeticaoData;
 import sm.core.data.ConvocatoriaData;
 import sm.core.data.JogadorConvocado;
 import sm.core.data.JogadorJogo;
 import sm.core.data.JogoData;
 
+@Component
 public class JogoHelper {
 
+	private final DBUtils dbUtils;
+
+	public JogoHelper(DBUtils dbUtils) {
+		this.dbUtils = dbUtils;
+	}
 
 public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		ArrayList<JogoData> jogos = new ArrayList<>();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado, hora_concentracao, jogo.obs, jogo.numeroJogo \r\n" + //
 												"From jogo\r\n" + //
 												"inner join competicao c on c.id=competicao_id \r\n" + //
@@ -47,7 +57,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				jogos.add(jogo);
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return jogos;
 
 		} catch (SQLException e) {
@@ -61,11 +71,12 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public ArrayList<CompeticaoData> getAllCompeticoes() {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		ArrayList<CompeticaoData> competicoes = new ArrayList<>();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("select id,nome from competicao");
 
 			ResultSet rs = preparedStatement.executeQuery();
@@ -81,7 +92,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				competicoes.add(competicao);
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return competicoes;
 
 		} catch (SQLException e) {
@@ -94,9 +105,10 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public boolean createJogo(JogoData jogo) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("INSERT INTO jogo (epoca_id, equipa_id, tipoEquipa, Data, Hora, local, golos_equipa, equipa_adv_id, tipoEquipa_adv, golos_equipa_adv, tipo_local, competicao_id, arbitro_1, arbitro_2, estado, hora_concentracao, obs, numeroJogo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
 			preparedStatement.setInt(1, jogo.getEpoca_id());
@@ -120,7 +132,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			//obter ID quando realiza o insert
 			int rowsAffected = preparedStatement.executeUpdate();
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 			return rowsAffected > 0;
 
@@ -140,9 +152,10 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public boolean updateJogo(JogoData jogo) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("UPDATE jogo SET epoca_id = ?, equipa_id = ?, tipoEquipa = ?, Data = ?, Hora = ?, local = ?, golos_equipa = ?, equipa_adv_id = ?, tipoEquipa_adv = ?, golos_equipa_adv = ?, tipo_local = ?, competicao_id = ?, arbitro_1 = ?, arbitro_2 = ?, estado = ?, hora_concentracao = ?, obs = ?, numeroJogo=? WHERE id = ?");
 
 			preparedStatement.setInt(1, jogo.getEpoca_id());
@@ -166,16 +179,16 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			preparedStatement.setInt(19, jogo.getId());
 
 			int rowsAffected = preparedStatement.executeUpdate();
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			
 
 			if(jogo.getJogadores()!=null && jogo.getJogadores().size()>0) {
 				//Atualizar convocatória se existirem jogadores associados
-				preparedStatement = dbUtils.getConnection()
+				preparedStatement = conn
 						.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
 				preparedStatement.setInt(1, jogo.getId());
 				preparedStatement.executeUpdate();	
 				preparedStatement.close();
-				PreparedStatement insertStatement = dbUtils.getConnection()
+				PreparedStatement insertStatement = conn
 						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 				for(JogadorJogo jogador : jogo.getJogadores()) {
 					insertStatement.setInt(1, jogo.getId());
@@ -200,10 +213,10 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					insertStatement.executeUpdate();
 				}
 				insertStatement.close();
-				dbUtils.closeConnection(dbUtils.getConnection());
+				
 			}
 
-
+			dbUtils.closeConnection(conn);
 			return rowsAffected > 0;
 
 		} catch (SQLException e) {
@@ -216,15 +229,16 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public boolean deleteJogo(int id) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("DELETE FROM jogo WHERE id = ?");
 
 			preparedStatement.setInt(1, id);
 
 			int rowsAffected = preparedStatement.executeUpdate();
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return rowsAffected > 0;
 
 		} catch (SQLException e) {
@@ -237,11 +251,12 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public JogoData getJogoById(int id) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		JogoData jogo = null;
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("select jogo.id,epoca_id,equipa_id,tipoEquipa,Data,Hora,local,golos_equipa,equipa_adv_id, clube.nome , tipoEquipa_adv,golos_equipa_adv,tipo_local,competicao_id, c.nome, arbitro_1,arbitro_2,estado, hora_concentracao, obs, numeroJogo \r\n" + //
 												"From jogo\r\n" + //
 												"inner join competicao c on c.id=competicao_id \r\n" + //
@@ -262,14 +277,13 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getString("clube.nome"), rs.getInt("golos_equipa_adv"), rs.getString("tipo_local"), rs.getInt("competicao_id"),
 						rs.getString("c.nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"), rs.getString("hora_concentracao"), rs.getString("obs"), rs.getString("numeroJogo") );
 
-				dbUtils.closeConnection(preparedStatement.getConnection());
+			
 				
 			}
 
 			
 			
-			PreparedStatement psJogadores = dbUtils.getConnection()
-					.prepareStatement("SELECT jj.id_jogador, j.nome, jj.capitao, jj.numero, jj.amarelo, jj.azul, jj.vermelho, jj.golo_p, jj.golo_ld, jj.golo_pp, jj.golo_up, jj.golo_normal, jj.golo_s_p, jj.golo_s_ld, jj.golo_s_up, jj.golo_s_pp, jj.golo_s_normal, jj.estado, jj.obs " +
+			PreparedStatement psJogadores =conn.prepareStatement("SELECT jj.id_jogador, j.nome, jj.capitao, jj.numero, jj.amarelo, jj.azul, jj.vermelho, jj.golo_p, jj.golo_ld, jj.golo_pp, jj.golo_up, jj.golo_normal, jj.golo_s_p, jj.golo_s_ld, jj.golo_s_up, jj.golo_s_pp, jj.golo_s_normal, jj.estado, jj.obs " +
 									  "FROM jogo_jogador jj " +
 									  "INNER JOIN jogador j ON jj.id_jogador = j.id " +
 									  "WHERE jj.id_jogo = ?");
@@ -302,7 +316,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			}
 			
 			jogo.setJogadores(listaJogadores);
-			dbUtils.closeConnection(psJogadores.getConnection());
+			dbUtils.closeConnection(conn);
 
 			return jogo;
 
@@ -318,11 +332,11 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public boolean salvarConvocatoria(ConvocatoriaData convocatoriaData) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		try {
 			// Primeiro, eliminar convocatória existente para o jogo, se houver
-			PreparedStatement deleteStatement = dbUtils.getConnection()
-					.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement deleteStatement = conn.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
 			deleteStatement.setInt(1, convocatoriaData.getId());
 			deleteStatement.executeUpdate();
 			deleteStatement.close();
@@ -342,7 +356,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			int[] rowsAffected = insertStatement.executeBatch();
 			insertStatement.close();
-			dbUtils.closeConnection(dbUtils.getConnection());
+			dbUtils.closeConnection(conn);
 
 			
 
@@ -361,12 +375,12 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public ConvocatoriaData getConvocatoriaByJogoId(int jogoId) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		ArrayList<JogadorConvocado> jogadoresConvocados = new ArrayList<JogadorConvocado>();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("SELECT id_jogador, nome, jogo_jogador.estado, obs, licença FROM jogo_jogador inner join jogador on jogo_jogador.id_jogador = jogador.id WHERE id_jogo = ?");
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement("SELECT id_jogador, nome, jogo_jogador.estado, obs, licença FROM jogo_jogador inner join jogador on jogo_jogador.id_jogador = jogador.id WHERE id_jogo = ?");
 
 			preparedStatement.setInt(1, jogoId);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -379,7 +393,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				jogadoresConvocados.add(new JogadorConvocado(rs.getInt("id_jogador"), rs.getString("nome"), rs.getString("estado"), rs.getString("obs"), rs.getString("Licença")));
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return new ConvocatoriaData(jogoId, jogadoresConvocados);
 
 		} catch (SQLException e) {
@@ -392,17 +406,17 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public boolean updateEstadoJogo(int jogoId, String estado) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		try {
 			System.out.println("JogoHelper | updateEstadoJogo | jogoId: " + jogoId + ", estado: " + estado);
-			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("UPDATE jogo SET estado = ? WHERE id = ?");
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement("UPDATE jogo SET estado = ? WHERE id = ?");
 
 			preparedStatement.setString(1, estado);
 			preparedStatement.setInt(2, jogoId);
 
 			int rowsAffected = preparedStatement.executeUpdate();
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return rowsAffected > 0;
 
 		} catch (SQLException e) {
@@ -414,12 +428,12 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 	}	
 
 	public ArrayList<JogoData> getJogosByJogadorId(int jogadorId) {
-		DBUtils dbUtils = new DBUtils();
+		
 		ArrayList<JogoData> jogos = new ArrayList<>();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
-					.prepareStatement("SELECT j.id, j.epoca_id, j.equipa_id, j.tipoEquipa, j.Data, j.Hora, j.local, j.golos_equipa, j.equipa_adv_id, clube.nome AS clube_nome, j.tipoEquipa_adv, j.golos_equipa_adv, j.tipo_local, j.competicao_id, c.nome AS competicao_nome, j.arbitro_1, j.arbitro_2, j.estado, j.hora_concentracao, j.obs, j.numeroJogo, jj.*, jg.nome AS jogador_nome " +
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement("SELECT j.id, j.epoca_id, j.equipa_id, j.tipoEquipa, j.Data, j.Hora, j.local, j.golos_equipa, j.equipa_adv_id, clube.nome AS clube_nome, j.tipoEquipa_adv, j.golos_equipa_adv, j.tipo_local, j.competicao_id, c.nome AS competicao_nome, j.arbitro_1, j.arbitro_2, j.estado, j.hora_concentracao, j.obs, j.numeroJogo, jj.*, jg.nome AS jogador_nome " +
 										"FROM jogo_jogador jj " +
 										"INNER JOIN jogo j ON jj.id_jogo = j.id " +
 										"INNER JOIN JOGADOR jg ON jg.id = jj.id_jogador " +
@@ -457,7 +471,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				jogos.add(jogo);
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return jogos;
 
 		} catch (SQLException e) {

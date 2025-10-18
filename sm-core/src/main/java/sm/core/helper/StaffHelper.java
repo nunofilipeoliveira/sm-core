@@ -1,5 +1,6 @@
 package sm.core.helper;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,21 +9,27 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 
+import org.springframework.stereotype.Component;
+
 import sm.core.data.ElementoSeleccao;
 import sm.core.data.StaffData;
 
+@Component
 public class StaffHelper {
 
-	public StaffHelper() {
+	private final DBUtils dbUtils;
 
+	public StaffHelper(DBUtils dbUtils) {
+		this.dbUtils = dbUtils;
 	}
 
 	public StaffData getStaffByID(int parmId) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		StaffData staffData = null;
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select ID, NOME, NOME_COMPLETO, TELEMOVEL, EMAIL, MORADA, CODIGO_POSTAL, DATA_NASCIMENTO, ID_JOGADOR from staff where ID_JOGADOR=0 and ID=?\r\n"
 							+ "union\r\n"
 							+ "select STAFF.ID, J.NOME, J.NOME_COMPLETO, J.TELEMOVEL, J.EMAIL, J.MORADA, J.CODIGO_POSTAL, J.DATA_NASCIMENTO, ID_JOGADOR from staff\r\n"
@@ -45,7 +52,7 @@ public class StaffHelper {
 
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return staffData;
 
 		} catch (SQLException e) {
@@ -58,11 +65,12 @@ public class StaffHelper {
 
 	public boolean updateStaff(StaffData parmStaff, int parmIdUtilizador) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		StaffData staffData = new StaffData();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection()
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn
 					.prepareStatement("SELECT * FROM STAFF WHERE ID=?");
 
 			preparedStatement.setInt(1, parmStaff.getId());
@@ -77,41 +85,41 @@ public class StaffHelper {
 
 			// Realiza a comparação campo a campo e regita no histórico.
 			if (!parmStaff.getNome().equals(staffData.getNome())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Nome", staffData.getNome(),
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome", staffData.getNome(),
 						parmStaff.getNome());
 
 			}
 
 			if (!parmStaff.getCodigo_postal().equals(staffData.getCodigo_postal())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Código Postal",
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Código Postal",
 						parmStaff.getCodigo_postal(), staffData.getCodigo_postal());
 			}
 			if (parmStaff.getData_nascimento() != staffData.getData_nascimento()) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Data Nascimento",
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Data Nascimento",
 						String.valueOf(staffData.getData_nascimento()), String.valueOf(parmStaff.getData_nascimento()));
 			}
 			if (!parmStaff.getEmail().equals(staffData.getEmail())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Email", staffData.getEmail(),
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Email", staffData.getEmail(),
 						parmStaff.getEmail());
 			}
 			if (!parmStaff.getMorada().equals(staffData.getMorada())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Morada", staffData.getMorada(),
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Morada", staffData.getMorada(),
 						parmStaff.getMorada());
 			}
 
 			if (!parmStaff.getNome_completo().equals(staffData.getNome_completo())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Nome Completo",
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome Completo",
 						staffData.getNome_completo(), parmStaff.getNome_completo());
 			}
 
 			if (!parmStaff.getTelemovel().equals(staffData.getTelemovel())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Telemovel",
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Telemovel",
 						staffData.getTelemovel(), parmStaff.getTelemovel());
 			}
 
 			// Atualiza a informação
 
-			preparedStatement = dbUtils.getConnection()
+			preparedStatement = conn
 					.prepareStatement("update\r\n" + "	staff \r\n" + "set\r\n" + "	nome =? ,\r\n"
 							+ "	data_nascimento =? ,\r\n" + "	email =? ,\r\n" + "	telemovel =? ,\r\n"
 							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? \r\n" + "where\r\n"
@@ -127,7 +135,7 @@ public class StaffHelper {
 			preparedStatement.setInt(8, parmStaff.getId());
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -141,11 +149,12 @@ public class StaffHelper {
 
 	public boolean addStaff(StaffData parmStaff, int parmTenantID, int parmIdUtilizador) {
 
-		DBUtils dbUtils = new DBUtils();
+		
 		StaffData staffData = new StaffData();
 
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,Tenant_id) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,0,1,?)",
 					Statement.RETURN_GENERATED_KEYS);
@@ -172,26 +181,26 @@ public class StaffHelper {
 
 						// Realiza a comparação campo a campo e regita no histórico.
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Nome", staffData.getNome(),
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome", staffData.getNome(),
 								parmStaff.getNome());
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Código Postal",
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Código Postal",
 								parmStaff.getCodigo_postal(), staffData.getCodigo_postal());
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Data Nascimento",
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Data Nascimento",
 								String.valueOf(staffData.getData_nascimento()),
 								String.valueOf(parmStaff.getData_nascimento()));
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Email",
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Email",
 								staffData.getEmail(), parmStaff.getEmail());
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Morada",
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Morada",
 								staffData.getMorada(), parmStaff.getMorada());
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Nome Completo",
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome Completo",
 								staffData.getNome_completo(), parmStaff.getNome_completo());
 
-						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), dbUtils, "Telemovel",
+						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Telemovel",
 								staffData.getTelemovel(), parmStaff.getTelemovel());
 
 					} else {
@@ -200,7 +209,7 @@ public class StaffHelper {
 				}
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -212,11 +221,10 @@ public class StaffHelper {
 		return false;
 	}
 
-	private void registaHistoricoStaff(int parmIdUtilizador, int id_Staff, DBUtils dbUtils, String campo,
+	private void registaHistoricoStaff(int parmIdUtilizador, int id_Staff, Connection conn, String campo,
 			String valorAntigo, String valorNovo) throws SQLException {
 		PreparedStatement preparedStatement;
-		preparedStatement = dbUtils.getConnection()
-				.prepareStatement("insert into staff_historico VALUES (?, ?, ?, ?, ?, ?)");
+		preparedStatement = conn.prepareStatement("insert into staff_historico VALUES (?, ?, ?, ?, ?, ?)");
 
 		preparedStatement.setInt(1, id_Staff);
 		preparedStatement.setString(2, campo);
@@ -230,11 +238,12 @@ public class StaffHelper {
 
 	public ArrayList<ElementoSeleccao> getAllStaffAtivo(int parmTenantID) {
 	
-		DBUtils dbUtils = new DBUtils();
+		
 		ElementoSeleccao staff = null;
 		ArrayList<ElementoSeleccao> staffDisponiveis = new ArrayList<ElementoSeleccao>();
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement(
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id, nome from staff where ESTADO='1' and TENANT_ID=? and id_jogador =0\r\n" + "union\r\n"
 							+ "select s.id, j.nome from staff s \r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
 							+ "where s.ESTADO='1' and s.TENANT_ID=? and s.id_jogador <>0\r\n" + "order by 1 ");
@@ -253,8 +262,8 @@ public class StaffHelper {
 				staffDisponiveis.add(staff);
 	
 			}
-	
-			dbUtils.closeConnection(preparedStatement.getConnection());
+
+			dbUtils.closeConnection(conn);
 			return staffDisponiveis;
 	
 		} catch (SQLException e) {
@@ -267,11 +276,12 @@ public class StaffHelper {
 
 	public ArrayList<ElementoSeleccao> getAllStaffAtivoDisponivel(int parmTenantID, int parmIDEquipa) {
 	
-		DBUtils dbUtils = new DBUtils();
+		
 		ElementoSeleccao staff = null;
 		ArrayList<ElementoSeleccao> staffDisponiveis = new ArrayList<ElementoSeleccao>();
 		try {
-			PreparedStatement preparedStatement = dbUtils.getConnection().prepareStatement("select * from (\r\n"
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement("select * from (\r\n"
 					+ "select id, nome from staff where ESTADO='1' and TENANT_ID=? and id_jogador =0\r\n" + "union\r\n"
 					+ "select s.id, j.nome from staff s\r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
 					+ "where s.ESTADO='1' and s.TENANT_ID=? and s.id_jogador <>0\r\n" + "order by 1 \r\n" + ") a \r\n"
@@ -294,7 +304,7 @@ public class StaffHelper {
 	
 			}
 	
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			dbUtils.closeConnection(conn);
 			return staffDisponiveis;
 	
 		} catch (SQLException e) {
