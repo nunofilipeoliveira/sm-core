@@ -555,20 +555,20 @@ public class EquipaWS {
 	@ResponseBody
 	public String addJogador(@PathVariable String tenant_id, @PathVariable String utilizador_id,
 			@RequestBody JogadorData jogadorData) {
-		boolean resultado = false;
+		int jogadorId = 0;
 		System.out.println("EquipaWS | addJogador | Start");
 
-		
-		resultado = jogadorHelper.addJogador(jogadorData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
+
+		jogadorId = jogadorHelper.addJogador(jogadorData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | addJogador | End");
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+			System.out.println("EquipaWS | addJogador | End - Jogador criado com ID: " + jogadorId);
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogadorId);
 		} catch (JsonProcessingException e) {
-			resultado = false;
+			System.out.println("EquipaWS | addJogador | Error serializing response");
+			return "0";
 		}
-		return null;
 	}
 
 	@CrossOrigin

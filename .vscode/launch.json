@@ -9,6 +9,15 @@
             "projectName": "sm-core",
             "args": "DEV",
             "envFile": "${workspaceFolder}/.env"
+        },
+                {
+            "type": "java",
+            "name": "SM-CORE (PROD)",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "sm.core.Start_SMCore",
+            "projectName": "sm-core",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }

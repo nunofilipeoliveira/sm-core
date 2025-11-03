@@ -461,10 +461,11 @@ public class JogadorHelper {
 		return false;
 	}
 
-	public boolean addJogador(JogadorData parmJogador, int parmTenantID, int parmIdUtilizador) {
+	public int addJogador(JogadorData parmJogador, int parmTenantID, int parmIdUtilizador) {
 
-		
+
 		JogadorData jogadorData = new JogadorData();
+		int generatedId = 0;
 
 		try {
 			Connection conn = dbUtils.getConnection();
@@ -501,7 +502,7 @@ public class JogadorHelper {
 				// Obtém as chaves geradas
 				try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
 					if (generatedKeys.next()) {
-						int generatedId = generatedKeys.getInt(1); // Obtém o ID gerado
+						generatedId = generatedKeys.getInt(1); // Obtém o ID gerado
 						System.out.println("ID gerado: " + generatedId);
 
 						parmJogador.setId(generatedId);
@@ -576,14 +577,14 @@ public class JogadorHelper {
 
 			dbUtils.closeConnection(preparedStatement.getConnection());
 
-			return true;
+			return generatedId;
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		return false;
+		return 0;
 	}
 
 	private void registaHistorico(int parmIdUtilizador, int id_Jogador, Connection conn, String campo,
