@@ -439,7 +439,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 										"INNER JOIN JOGADOR jg ON jg.id = jj.id_jogador " +
 										"INNER JOIN competicao c ON c.id = j.competicao_id " +
 										"INNER JOIN clube ON clube.id = j.equipa_adv_id " +
-										"WHERE jj.id_jogador = ? " +
+										"WHERE jj.id_jogador = ? and jj.estado<>'INDISPONÍVEL'" +
 										"ORDER BY j.data, j.hora");
 
 			preparedStatement.setInt(1, jogadorId);

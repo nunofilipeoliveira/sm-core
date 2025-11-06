@@ -33,6 +33,7 @@ public class PresencaHelper {
 
 		PresencaData presencaData = null;
 		ArrayList<PresencaData> presencas = new ArrayList<PresencaData>();
+		Connection conn = null;
 
 		try {
 			// PreparedStatement preparedStatement =
@@ -47,7 +48,7 @@ public class PresencaHelper {
 			// + "order by\r\n"
 			// + " p.data,\r\n" + " p.hora,\r\n" + " p.id ");
 
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement("select * FROM(\r\n"
 					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as NOMEEQUIPA, p.datacriacao , p.utilizador_criacao , u.nome as NOMEUTILIZADOR, pj.id_jogador as id_Item, j.nome, pj.estado, pj.motivo, 'J' as TIPO\r\n"
 					+ "from PRESENCAS P inner join presenca_jogador pj on PJ.id_presenca = P.id\r\n"
@@ -130,6 +131,13 @@ public class PresencaHelper {
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 		}
 
 		return null;
@@ -138,9 +146,10 @@ public class PresencaHelper {
 	public PresencaData loadPresencasbyID(int id) {
 
 		PresencaData presencaData = null;
+		Connection conn = null;
 
 		try {
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select\r\n" + "	p.id,\r\n" + "	data,\r\n" + "	hora,\r\n" + "	id_equipa,\r\n"
 							+ "	ee.nome,\r\n" + "	datacriacao,\r\n" + "	utilizador_criacao,\r\n" + "	u.nome,\r\n"
@@ -200,6 +209,13 @@ public class PresencaHelper {
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 		}
 
 		return null;
@@ -208,9 +224,10 @@ public class PresencaHelper {
 	public boolean isPresencasbyEquipaDataHora(int idEquipa, int Data, String Hora) {
 
 		PresencaData presencaData = null;
+		Connection conn = null;
 
 		try {
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select *from presencas P inner join presenca_jogador pj on PJ.id_presenca =P.id \r\n"
 							+ "inner join escalao_epoca ee on ee.id =p.id_equipa \r\n"
@@ -246,6 +263,13 @@ public class PresencaHelper {
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 		}
 
 		return false;
@@ -254,9 +278,10 @@ public class PresencaHelper {
 	public int totalTrainings(int parmEquipaID) {
 
 		int numTreinos = 0;
+		Connection conn = null;
 
 		try {
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select count(*) from presencas where id_equipa =?");
 
@@ -276,6 +301,13 @@ public class PresencaHelper {
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 		}
 
 		return numTreinos;
@@ -284,9 +316,10 @@ public class PresencaHelper {
 	public int totalAthletesByEstado(int parmEquipaID, String parmEstado) {
 
 		int numTotalAthletesPresent = 0;
+		Connection conn = null;
 
 		try {
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select count(*) from presenca_jogador p inner join presencas on presencas.id=id_presenca where estado=? and id_equipa=?");
 
@@ -307,6 +340,13 @@ public class PresencaHelper {
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 		}
 
 		return numTotalAthletesPresent;
@@ -314,8 +354,9 @@ public class PresencaHelper {
 
 	public ArrayList<String> loadHistoricoByID(int id) {
 
+		Connection conn = null;
 		try {
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select concat( ph.`data`, '  ',  u.nome, '   ', ph.alteracao) as hist from presencas_historico ph \r\n"
 							+ "inner join utilizadores u on u.id=ph.id_utilizador \r\n" + "where ph.id_presenca =? ");
@@ -342,6 +383,13 @@ public class PresencaHelper {
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 		}
 
 		return null;
@@ -349,8 +397,9 @@ public class PresencaHelper {
 
 	public boolean createPresenca(PresencaData parmPresencaData, String parmTenantId) {
 
+		Connection conn = null;
 		try {
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"insert into PRESENCAS(DATA, HORA, ID_EQUIPA, DATACRIACAO, UTILIZADOR_CRIACAO)\r\n"
 							+ "values (?, ?, ?, NOW(), ?)",
@@ -395,6 +444,7 @@ public class PresencaHelper {
 			}
 
 			dbUtils.closeConnection(conn);
+			conn = null; // to avoid closing again in catch
 
 			// enviar email de registo presenca
 			sendEmailPresencaRegisto(parmPresencaData, parmTenantId);
@@ -402,6 +452,13 @@ public class PresencaHelper {
 			return true;
 
 		} catch (SQLException e) {
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 			return false;
 		}
 
@@ -410,6 +467,7 @@ public class PresencaHelper {
 	public boolean updatePresenca(PresencaData parmPresencaData, Integer parmIdUtilizador) {
 
 		PresencaData oldPresenca = loadPresencasbyID(parmPresencaData.getId());
+		Connection conn = null;
 
 		try {
 			// compara se o dia e/ou hora foram alterados:
@@ -474,7 +532,7 @@ public class PresencaHelper {
 								.equals(parmPresencaData.getStaffPresenca().get(z).getMotivo())) {
 							// regista alteração de motivo
 							registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
-									"Alteração do motivo do Jogador | "
+									"Alteração do motivo do Staff | "
 											+ parmPresencaData.getStaffPresenca().get(z).getnome_staff() + ": "
 											+ oldPresenca.getStaffPresenca().get(i).getMotivo() + " => "
 											+ parmPresencaData.getStaffPresenca().get(z).getMotivo());
@@ -485,7 +543,7 @@ public class PresencaHelper {
 
 			}
 
-			Connection conn = dbUtils.getConnection();
+			conn = dbUtils.getConnection();
 
 			for (int i = oldPresenca.getJogadoresPresenca().size(); i < parmPresencaData.getJogadoresPresenca()
 					.size(); i++) {
@@ -498,7 +556,6 @@ public class PresencaHelper {
 
 				// insere novo jogador na presenca
 
-				
 				PreparedStatement preparedStatement = conn.prepareStatement(
 						"insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo) VALUES(?,?,?,?)");
 
@@ -510,7 +567,7 @@ public class PresencaHelper {
 
 			}
 
-			
+
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("update PRESENCAS set DATA=?, HORA=?\r\n" + "where id=?");
 
@@ -545,10 +602,85 @@ public class PresencaHelper {
 
 			}
 
+			for (int i = oldPresenca.getStaffPresenca().size(); i < parmPresencaData.getStaffPresenca()
+					.size(); i++) {
+
+				// significa que é um staff novo na ficha. Registar no histórico
+				registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
+						"Novo Staff:" + parmPresencaData.getStaffPresenca().get(i).getnome_staff()
+								+ " | Estado:" + parmPresencaData.getStaffPresenca().get(i).getEstado() + " Motivo:"
+								+ parmPresencaData.getStaffPresenca().get(i).getMotivo());
+
+				// insere novo staff na presenca
+
+				preparedStatement = conn.prepareStatement(
+						"insert into  presenca_staff(id_presenca, id_staff, estado, motivo) VALUES(?,?,?,?)");
+
+				preparedStatement.setInt(1, parmPresencaData.getId());
+				preparedStatement.setInt(2, parmPresencaData.getStaffPresenca().get(i).getid_staff());
+				preparedStatement.setString(3, parmPresencaData.getStaffPresenca().get(i).getEstado());
+				preparedStatement.setString(4, parmPresencaData.getStaffPresenca().get(i).getMotivo());
+				preparedStatement.executeUpdate();
+
+			}
+
+			// Delete removed players
+			for (int i = 0; i < oldPresenca.getJogadoresPresenca().size(); i++) {
+				boolean found = false;
+				for (int z = 0; z < parmPresencaData.getJogadoresPresenca().size(); z++) {
+					if (oldPresenca.getJogadoresPresenca().get(i).getId_jogador() == parmPresencaData
+							.getJogadoresPresenca().get(z).getId_jogador()) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					// Delete from DB
+					preparedStatement = conn.prepareStatement(
+							"delete from presenca_jogador where id_presenca=? and id_jogador=?");
+					preparedStatement.setInt(1, parmPresencaData.getId());
+					preparedStatement.setInt(2, oldPresenca.getJogadoresPresenca().get(i).getId_jogador());
+					preparedStatement.executeUpdate();
+					// Log in history
+					registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
+							"Jogador removido: " + oldPresenca.getJogadoresPresenca().get(i).getNome_jogador());
+				}
+			}
+
+			// Delete removed staff
+			for (int i = 0; i < oldPresenca.getStaffPresenca().size(); i++) {
+				boolean found = false;
+				for (int z = 0; z < parmPresencaData.getStaffPresenca().size(); z++) {
+					if (oldPresenca.getStaffPresenca().get(i).getid_staff() == parmPresencaData.getStaffPresenca()
+							.get(z).getid_staff()) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					// Delete from DB
+					preparedStatement = conn.prepareStatement(
+							"delete from presenca_staff where id_presenca=? and id_staff=?");
+					preparedStatement.setInt(1, parmPresencaData.getId());
+					preparedStatement.setInt(2, oldPresenca.getStaffPresenca().get(i).getid_staff());
+					preparedStatement.executeUpdate();
+					// Log in history
+					registaHistorico(parmPresencaData.getId(), parmIdUtilizador,
+							"Staff removido: " + oldPresenca.getStaffPresenca().get(i).getnome_staff());
+				}
+			}
+
 			dbUtils.closeConnection(conn);
 			return true;
 
 		} catch (SQLException e) {
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
 			return false;
 		}
 
