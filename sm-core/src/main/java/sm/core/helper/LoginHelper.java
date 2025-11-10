@@ -537,7 +537,7 @@ public class LoginHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
+			
 
 			// insere os escaloes:
 
