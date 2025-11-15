@@ -342,8 +342,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			deleteStatement.close();
 
 			// Depois, inserir a nova convocatória
-			PreparedStatement insertStatement = dbUtils.getConnection()
-					.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, estado, obs, numero) select ?, ?, ?, ?, CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero FROM jogador where id= ?");
+			PreparedStatement insertStatement = conn.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, estado, obs, numero) select ?, ?, ?, ?, CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero FROM jogador where id= ?");
 
 			for (JogadorConvocado jogador : convocatoriaData.getJogadoresConvocatoria()) {
 				insertStatement.setInt(1, convocatoriaData.getId());
