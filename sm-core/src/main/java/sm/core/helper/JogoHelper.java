@@ -193,7 +193,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				for(JogadorJogo jogador : jogo.getJogadores()) {
 					insertStatement.setInt(1, jogo.getId());
 					insertStatement.setInt(2, jogador.getId_jogador());
-					insertStatement.setString(3, jogador.getCapitao());
+					insertStatement.setBoolean(3, jogador.getCapitao());
 					insertStatement.setInt(4, jogador.getNumero());
 					insertStatement.setInt(5, jogador.getAmarelo());
 					insertStatement.setInt(6, jogador.getAzul());
@@ -294,7 +294,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				JogadorJogo jogador = new JogadorJogo(
 					rsJogadores.getInt("id_jogador"),
 					rsJogadores.getString("nome"),
-					rsJogadores.getString("capitao"),
+					rsJogadores.getBoolean("capitao"),
 					rsJogadores.getInt("numero"),
 					rsJogadores.getInt("amarelo"),
 					rsJogadores.getInt("azul"),
@@ -457,7 +457,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getString("competicao_nome"), rs.getString("arbitro_1"), rs.getString("arbitro_2"), rs.getString("estado"),
 						rs.getString("hora_concentracao"), rs.getString("obs"), rs.getString("numeroJogo"));
 
-				JogadorJogo jogadorNoJogo = new JogadorJogo(rs.getInt("id_jogador"), rs.getString("jogador_nome"), rs.getString("capitao"), rs.getInt("numero"),
+				JogadorJogo jogadorNoJogo = new JogadorJogo(rs.getInt("id_jogador"), rs.getString("jogador_nome"), rs.getBoolean("capitao"), rs.getInt("numero"),
 						rs.getInt("amarelo"), rs.getInt("azul"), rs.getInt("vermelho"), rs.getInt("golo_p"),
 						rs.getInt("golo_ld"), rs.getInt("golo_pp"), rs.getInt("golo_up"), rs.getInt("golo_normal"),
 						rs.getInt("golo_s_p"), rs.getInt("golo_s_ld"), rs.getInt("golo_s_up"), rs.getInt("golo_s_pp"),

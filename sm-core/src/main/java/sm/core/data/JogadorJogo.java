@@ -4,7 +4,7 @@ public class JogadorJogo {
     
 private int id_jogador;
 private String nome;
-private String capitao;
+private boolean capitao;
 private int numero;
 private int amarelo;
 private int azul;
@@ -22,7 +22,7 @@ private int golos_s_normal;
 private String estado;
 private String obs;
 
-public JogadorJogo(int id_jogador, String nome, String capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
+public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
         int golos_pp, int golos_up, int golos_normal, int golos_s_p, int golos_s_ld, int golos_s_up, int golos_s_pp,
         int golos_s_normal, String estado, String obs) {
     this.id_jogador = id_jogador;
@@ -88,11 +88,11 @@ public void setNome(String nome) {
     this.nome = nome;
 }
 
-public String getCapitao() {
+public boolean getCapitao() {
     return capitao;
 }
 
-public void setCapitao(String capitao) {
+public void setCapitao(boolean capitao) {
     this.capitao = capitao;
 }
 
