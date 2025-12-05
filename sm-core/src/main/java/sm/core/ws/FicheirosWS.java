@@ -230,6 +230,12 @@ public class FicheirosWS {
 				inputStream = new FileInputStream(firstLocalFile);	
 				done = ftpClient.storeFile(firstRemoteFile, inputStream);	
 
+				//cis é o tenantId = 3
+				firstRemoteFile = "/httpdocs/cis/assets/img/clubes/" + nomeFoto + ".png";
+				System.out.println("FicheirosWS | uploadfoto | firstRemoteFile:" + firstRemoteFile);
+				inputStream = new FileInputStream(firstLocalFile);	
+				done = ftpClient.storeFile(firstRemoteFile, inputStream);	
+
 
 				inputStream.close();
 				if (done) {
