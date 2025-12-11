@@ -68,6 +68,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ steps.img.outputs.IMAGE_NAME }}:latest
 
       # 9️⃣ Deploy to Render
       - name: Trigger Render Deploy via Hook
