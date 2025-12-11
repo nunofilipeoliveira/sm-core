@@ -75,20 +75,20 @@ jobs:
           echo "Deploying image: nfoliveira/smcorews:$VERSION"
       
           JSON_PAYLOAD=$(cat <<EOF
-      {
-        "clearCache": true,
-        "image": "nfoliveira/smcorews:$VERSION"
-      }
-      EOF
-      )
-      
-          echo "Payload JSON:"
-          echo "$JSON_PAYLOAD"
-      
-          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            --data-raw "$JSON_PAYLOAD"
-
-
-
+          {
+            "clearCache": true,
+            "image": "nfoliveira/smcorews:$VERSION"
+          }
+          EOF
+          )
+          
+              echo "Payload JSON:"
+              echo "$JSON_PAYLOAD"
+          
+              curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+                -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+                -H "Content-Type: application/json" \
+                --data-raw "$JSON_PAYLOAD"
+    
+    
+    
