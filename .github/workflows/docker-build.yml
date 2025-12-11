@@ -55,6 +55,11 @@ jobs:
           commit_message: "chore: bump version to ${{ steps.version.outputs.version }}"
           file_pattern: VERSION
 
+
+      - name: Build JAR
+        working-directory: ./sm-core
+        run: mvn clean package -DskipTests
+
       - name: Build e Push da imagem Docker
         uses: docker/build-push-action@v5
         with:
