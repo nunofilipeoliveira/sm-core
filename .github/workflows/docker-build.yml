@@ -69,6 +69,11 @@ jobs:
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
 
-      - name: Trigger Render Deploy
-        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Deploy to Render with versioned image
+        run: |
+          curl -X POST \
+          -H "Content-Type: application/json" \
+          -d '{"image":"nfoliveira/smcorews:${{ steps.version.outputs.version }}"}' \
+          "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
 
