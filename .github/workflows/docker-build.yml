@@ -69,5 +69,6 @@ jobs:
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
 
-       - name: Trigger Render Deploy
+      - name: Trigger Render Deploy
         run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
