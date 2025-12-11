@@ -65,6 +65,9 @@ jobs:
         with:
           context: ./sm-core
           file: ./sm-core/Dockerfile
+
+      - name: Trigger Render Deploy
+        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
           push: true
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
