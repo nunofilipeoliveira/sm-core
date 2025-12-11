@@ -67,5 +67,4 @@ jobs:
           file: ./sm-core/Dockerfile
           push: true
           tags: |
-            ${{ steps.img.outputs.IMAGE_NAME }}:latest
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
