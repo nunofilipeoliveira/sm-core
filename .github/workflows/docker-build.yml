@@ -2,6 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
+  workflow_dispatch:
     branches: [ "master" ]   # ❗ Se você usar master, troque para "master"
 
 permissions:
