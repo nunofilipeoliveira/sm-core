@@ -69,11 +69,15 @@ jobs:
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
 
-      - name: Deploy to Render with versioned image
+      - name: Deploy new image to Render
         run: |
-          curl -X POST \
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{"image":"nfoliveira/smcorews:${{ steps.version.outputs.version }}"}' \
-          "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          -d '{
+              "clearCache": true,
+              "image": "nfoliveira/smcorews:${{ steps.version.outputs.version }}"
+            }'
+
 
 
