@@ -81,10 +81,13 @@ public class LoginHelper {
 					// regista histórico de acesso
 
 					PreparedStatement preparedStatement2 = conn
-							.prepareStatement("insert into logins values (?, now(), ?)");
+							.prepareStatement("insert into logins values (?, now(), ?,?)");
 
 					preparedStatement2.setInt(1, loginData.getId());
 					preparedStatement2.setString(2, parmUser);
+					// extrai o tenant name
+					preparedStatement2.setString(3,
+							tenantProperties.getTenant_id().get(String.valueOf(parmTenant_id)).get("name"));
 					preparedStatement2.executeUpdate();
 				
 				}
@@ -496,7 +499,7 @@ public class LoginHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select user, data from logins order by data desc LIMIT 500");
+					.prepareStatement("select * from logins order by data desc LIMIT 500");
 
 			ResultSet rs = preparedStatement.executeQuery();
 
@@ -506,7 +509,7 @@ public class LoginHelper {
 
 			while (rs.next()) {
 
-				hosHistoricoLoginData = new HistoricoLoginData(rs.getString("user"), rs.getTimestamp("data"));
+				hosHistoricoLoginData = new HistoricoLoginData(rs.getString("user"), rs.getTimestamp("data"), rs.getString("tenant_name"));
 				listaHistorico.add(hosHistoricoLoginData);
 			}
 
