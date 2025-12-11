@@ -75,18 +75,13 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           echo "Deploying image nfoliveira/smcorews:$VERSION to Render"
       
-          JSON_PAYLOAD=$(cat <<EOF
-          {
-          "clearCache": true,
-          "image": "nfoliveira/smcorews:$VERSION"
-          }
-          EOF
-          )
+          JSON_PAYLOAD=$(printf '{"clearCache": true, "image": "nfoliveira/smcorews:%s"}' "$VERSION")
       
           echo "Payload JSON:"
           echo "$JSON_PAYLOAD"
+      
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data-raw "$JSON_PAYLOAD"
 
-    curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-      -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-      -H "Content-Type: application/json" \
-      --data-raw "$JSON_PAYLOAD"
