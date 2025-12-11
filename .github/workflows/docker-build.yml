@@ -91,4 +91,6 @@ EOF
             -H "Content-Type: application/json" \
             --data-raw "$JSON_PAYLOAD"
 
+            --data-raw "$JSON_PAYLOAD"
+
 
