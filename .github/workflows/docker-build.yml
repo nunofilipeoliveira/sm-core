@@ -20,7 +20,7 @@ jobs:
       # 🔧 Configure o nome da sua imagem Docker Hub AQUI
       - name: Set image name
         id: img
-        run: echo "IMAGE_NAME=nunofilipeoliveira/seu-app" >> $GITHUB_OUTPUT
+        run: echo "IMAGE_NAME=nfoliveira/smcorews" >> $GITHUB_OUTPUT
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
