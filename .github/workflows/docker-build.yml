@@ -69,13 +69,14 @@ jobs:
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
 
-      - name: Deploy new image to Render
+      - name: Deploy new image to Render a funcionar
         run: |
-          VERSION="${{ steps.version.outputs.version }}"  # ex: V1.38.12
+          VERSION="${{ steps.version.outputs.version }}"  # ex: V1.38.13
           echo "Deploying image: nfoliveira/smcorews:$VERSION"
       
           curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
-            --data-raw '{"clearCache": true, "image": "'"nfoliveira/smcorews:$VERSION"'"}'
+            --data-raw "{\"clearCache\": true, \"image\": \"nfoliveira/smcorews:$VERSION\"}"
+
 
