@@ -19,6 +19,7 @@ public class Start_SMCore {
             env = args[0].trim().equalsIgnoreCase("DEV") ? "DEV" : "PROD";
         }
 
+        System.out.println("Ambiente: " + env);
         // Define profile Spring antes de executar a aplicação
         SpringApplication app = new SpringApplication(Start_SMCore.class);
         if ("DEV".equalsIgnoreCase(env)) {
