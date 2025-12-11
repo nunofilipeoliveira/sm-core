@@ -70,18 +70,9 @@ jobs:
             ${{ steps.img.outputs.IMAGE_NAME }}:${{ steps.version.outputs.version }}
 
       # 9️⃣ Deploy to Render
-      - name: Deploy new image to Render
+      - name: Trigger Render Deploy via Hook
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          echo "Deploying image nfoliveira/smcorews:$VERSION to Render"
-      
-          JSON_PAYLOAD=$(printf '{"clearCache": true, "image": "nfoliveira/smcorews:%s"}' "$VERSION")
-      
-          echo "Payload JSON:"
-          echo "$JSON_PAYLOAD"
-      
-          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            --data-raw "$JSON_PAYLOAD"
+          echo "Triggering Render deploy via hook"
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
 
