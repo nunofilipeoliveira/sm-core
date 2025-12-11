@@ -71,16 +71,10 @@ jobs:
 
       - name: Deploy new image to Render
         run: |
-            VERSION="${{ steps.version.outputs.version }}"  # ex: V1.38.9
-            echo "Deploying image: nfoliveira/smcorews:$VERSION"
-
-            curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+          VERSION="${{ steps.version.outputs.version }}"  # ex: V1.38.10
+          echo "Deploying image: nfoliveira/smcorews:$VERSION"
+      
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
-            --data-raw "$(cat <<EOF
-            {
-              "clearCache": true,
-              "image": "nfoliveira/smcorews:$VERSION"
-            }
-            EOF
-            )"
+            --data-raw "{\"clearCache\": true, \"image\": \"nfoliveira/smcorews:$VERSION\"}"
