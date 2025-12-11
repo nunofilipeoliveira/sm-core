@@ -58,7 +58,8 @@ jobs:
       - name: Build e Push da imagem Docker
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./sm-core
+          file: ./sm-core/Dockerfile
           push: true
           tags: |
             ${{ steps.img.outputs.IMAGE_NAME }}:latest
