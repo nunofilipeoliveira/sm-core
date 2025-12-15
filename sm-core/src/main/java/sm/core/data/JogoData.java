@@ -28,6 +28,8 @@ public class JogoData {
     private String numeroJogo;
 
 
+
+
     
 
     public String getHora_concentracao() {

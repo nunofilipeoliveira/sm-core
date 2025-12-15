@@ -191,7 +191,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				preparedStatement.executeUpdate();	
 				preparedStatement.close();
 				PreparedStatement insertStatement = conn
-						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 				for(JogadorJogo jogador : jogo.getJogadores()) {
 					insertStatement.setInt(1, jogo.getId());
 					insertStatement.setInt(2, jogador.getId_jogador());
@@ -212,6 +212,15 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					insertStatement.setInt(17, jogador.getGolos_s_normal());
 					insertStatement.setString(18, jogador.getEstado());
 					insertStatement.setString(19, jogador.getObs());
+					insertStatement.setInt(20, jogador.getFaltas());
+					insertStatement.setInt(21, jogador.getAssistencias());
+					insertStatement.setInt(22, jogador.getRecuperacoes_bola());
+					insertStatement.setInt(23, jogador.getPerdas_bola());
+					insertStatement.setInt(24, jogador.getRemates());
+					insertStatement.setInt(25, jogador.getPenalty_falhado());
+					insertStatement.setInt(26, jogador.getPenalty_defesa());
+					insertStatement.setInt(27, jogador.getLd_falhado());
+					insertStatement.setInt(28, jogador.getLd_defesa());
 					insertStatement.executeUpdate();
 				}
 				insertStatement.close();
@@ -284,7 +293,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			
 			
-			PreparedStatement psJogadores =conn.prepareStatement("SELECT jj.id_jogador, j.nome, jj.capitao, jj.numero, jj.amarelo, jj.azul, jj.vermelho, jj.golo_p, jj.golo_ld, jj.golo_pp, jj.golo_up, jj.golo_normal, jj.golo_s_p, jj.golo_s_ld, jj.golo_s_up, jj.golo_s_pp, jj.golo_s_normal, jj.estado, jj.obs " +
+			PreparedStatement psJogadores =conn.prepareStatement("SELECT *" +
 									  "FROM jogo_jogador jj " +
 									  "INNER JOIN jogador j ON jj.id_jogador = j.id " +
 									  "WHERE jj.id_jogo = ?");
@@ -311,7 +320,16 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					rsJogadores.getInt("golo_s_pp"),
 					rsJogadores.getInt("golo_s_normal"),
 					rsJogadores.getString("estado"),
-					rsJogadores.getString("obs")
+					rsJogadores.getString("obs"),
+					rsJogadores.getInt("faltas"),
+					rsJogadores.getInt("assistencias"),
+					rsJogadores.getInt("recuperacoes_bola"),
+					rsJogadores.getInt("perdas_bola"),
+					rsJogadores.getInt("remates"),
+					rsJogadores.getInt("penalty_falhado"),
+					rsJogadores.getInt("penalty_defesa"),
+					rsJogadores.getInt("ld_falhado"),
+					rsJogadores.getInt("ld_defesa")
 				);
 				listaJogadores.add(jogador);
 			}
@@ -461,7 +479,9 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getInt("amarelo"), rs.getInt("azul"), rs.getInt("vermelho"), rs.getInt("golo_p"),
 						rs.getInt("golo_ld"), rs.getInt("golo_pp"), rs.getInt("golo_up"), rs.getInt("golo_normal"),
 						rs.getInt("golo_s_p"), rs.getInt("golo_s_ld"), rs.getInt("golo_s_up"), rs.getInt("golo_s_pp"),
-						rs.getInt("golo_s_normal"), rs.getString("estado"), rs.getString("obs"));
+						rs.getInt("golo_s_normal"), rs.getString("estado"), rs.getString("obs"), rs.getInt("faltas"), rs.getInt("assistencias"),
+						rs.getInt("recuperacoes_bola"), rs.getInt("perdas_bola"), rs.getInt("remates"), rs.getInt("penalty_falhado"), rs.getInt("penalty_defesa"),
+						rs.getInt("ld_falhado"), rs.getInt("ld_defesa"));
 
 				ArrayList<JogadorJogo> jogadores = new ArrayList<>();
 				jogadores.add(jogadorNoJogo);

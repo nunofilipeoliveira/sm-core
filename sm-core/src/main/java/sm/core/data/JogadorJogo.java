@@ -21,10 +21,19 @@ private int golos_s_pp;
 private int golos_s_normal;
 private String estado;
 private String obs;
+    private int faltas;
+    private int assistencias;
+    private int recuperacoes_bola;
+    private int perdas_bola;
+    private int remates;
+private int penalty_falhado;
+private int penalty_defesa;
+private int ld_falhado;
+private int ld_defesa;
 
 public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
         int golos_pp, int golos_up, int golos_normal, int golos_s_p, int golos_s_ld, int golos_s_up, int golos_s_pp,
-        int golos_s_normal, String estado, String obs) {
+        int golos_s_normal, String estado, String obs, int faltas, int assistencias, int recuperacoes_bola, int perdas_bola, int remates, int penalty_falhado, int penalty_defesa, int ld_falhado, int ld_defesa) {
     this.id_jogador = id_jogador;
     this.nome = nome;
     this.capitao = capitao;
@@ -44,9 +53,164 @@ public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int
     this.golos_s_normal = golos_s_normal;
     this.estado = estado;
     this.obs = obs;
+    this.faltas = faltas;
+    this.assistencias = assistencias;
+    this.recuperacoes_bola = recuperacoes_bola;
+    this.perdas_bola = perdas_bola;
+    this.remates = remates;
+    this.penalty_falhado = penalty_falhado;
+    this.penalty_defesa = penalty_defesa;
+    this.ld_falhado = ld_falhado;
+    this.ld_defesa = ld_defesa;
         }
 
-    
+
+        
+
+
+public int getPenalty_falhado() {
+    return penalty_falhado;
+}
+
+
+
+
+
+public void setPenalty_falhado(int penalty_falhado) {
+    this.penalty_falhado = penalty_falhado;
+}
+
+
+
+
+
+public int getPenalty_defesa() {
+    return penalty_defesa;
+}
+
+
+
+
+
+public void setPenalty_defesa(int penalty_defesa) {
+    this.penalty_defesa = penalty_defesa;
+}
+
+
+
+
+
+public int getLd_falhado() {
+    return ld_falhado;
+}
+
+
+
+
+
+public void setLd_falhado(int ld_falhado) {
+    this.ld_falhado = ld_falhado;
+}
+
+
+
+
+
+public int getLd_defesa() {
+    return ld_defesa;
+}
+
+
+
+
+
+public void setLd_defesa(int ld_defesa) {
+    this.ld_defesa = ld_defesa;
+}
+
+
+
+
+
+public int getFaltas() {
+    return faltas;
+}
+
+
+
+
+
+public void setFaltas(int faltas) {
+    this.faltas = faltas;
+}
+
+
+
+
+
+public int getAssistencias() {
+    return assistencias;
+}
+
+
+
+
+
+public void setAssistencias(int assistencias) {
+    this.assistencias = assistencias;
+}
+
+
+
+
+
+public int getRecuperacoes_bola() {
+    return recuperacoes_bola;
+}
+
+
+
+
+
+public void setRecuperacoes_bola(int recuperacoes_bola) {
+    this.recuperacoes_bola = recuperacoes_bola;
+}
+
+
+
+
+
+public int getPerdas_bola() {
+    return perdas_bola;
+}
+
+
+
+
+
+public void setPerdas_bola(int perdas_bola) {
+    this.perdas_bola = perdas_bola;
+}
+
+
+
+
+
+public int getRemates() {
+    return remates;
+}
+
+
+
+
+
+public void setRemates(int remates) {
+    this.remates = remates;
+}
+
+
+
+
 
 public String getEstado() {
     return estado;
