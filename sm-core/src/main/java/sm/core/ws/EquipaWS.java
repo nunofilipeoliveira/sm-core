@@ -2,6 +2,8 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +33,8 @@ import sm.core.helper.StaffHelper;
 @RequestMapping("/sm")
 public class EquipaWS {
 
+	private static final Logger log = LoggerFactory.getLogger(EquipaWS.class);
+
 	@Autowired
 	private EquipaHelper equipaHelper;
 
@@ -47,8 +51,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("loadEquipabyID | Start");
-		System.out.println("loadEquipabyID | ID:" + id);
+		log.info("loadEquipabyID | Start");
+		log.info("loadEquipabyID | ID:" + id);
 
 		
 		EquipaData equipaData = equipaHelper.getEquipaID(Integer.valueOf(id));
@@ -57,7 +61,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("loadEquipabyID | End" + id);
+			log.info("loadEquipabyID | End" + id);
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(equipaData);
 
 			// return mapper.writeValueAsString(loginData);
@@ -66,7 +70,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("loadEquipabyID | Error End");
+		log.error("loadEquipabyID | Error End");
 		return "";
 	}
 
@@ -77,8 +81,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("loadEquipabyIDLight | Start");
-		System.out.println("loadEquipabyIDLight | ID:" + id);
+		log.info("loadEquipabyIDLight | Start");
+		log.info("loadEquipabyIDLight | ID:" + id);
 
 		
 		EquipaData equipaData = equipaHelper.getEquipaIDLight(Integer.valueOf(id));
@@ -87,7 +91,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("loadEquipabyIDLight | End" + id);
+			log.info("loadEquipabyIDLight | End" + id);
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(equipaData);
 
 			// return mapper.writeValueAsString(loginData);
@@ -96,7 +100,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("loadEquipabyIDLight | Error End");
+		log.error("loadEquipabyIDLight | Error End");
 		return "";
 	}
 
@@ -107,9 +111,9 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getJogadoresDisponiveis | Start");
-		System.out.println("getJogadoresDisponiveis | ID:" + id);
-		System.out.println("getJogadoresDisponiveis | ID:" + tenant_id);
+		log.info("getJogadoresDisponiveis | Start");
+		log.info("getJogadoresDisponiveis | ID:" + id);
+		log.info("getJogadoresDisponiveis | ID:" + tenant_id);
 
 		ArrayList<ElementoSeleccao> jogadores = new ArrayList<ElementoSeleccao>();
 		
@@ -125,7 +129,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getJogadoresDisponiveis | End");
+			log.info("getJogadoresDisponiveis | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogadores);
 
 			// return mapper.writeValueAsString(loginData);
@@ -134,7 +138,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getJogadoresDisponiveis | Error End");
+		log.error("getJogadoresDisponiveis | Error End");
 		return "";
 	}
 
@@ -145,8 +149,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getAllJogadores | Start");
-		System.out.println("getAllJogadores | tenant_ID:" + tenant_id);
+		log.info("getAllJogadores | Start");
+		log.info("getAllJogadores | tenant_ID:" + tenant_id);
 
 		ArrayList<ElementoSeleccao> jogadores = new ArrayList<ElementoSeleccao>();
 
@@ -157,7 +161,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getAllJogadores | End");
+			log.info("getAllJogadores | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogadores);
 
 			// return mapper.writeValueAsString(loginData);
@@ -166,7 +170,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getAllJogadores | Error End");
+		log.error("getAllJogadores | Error End");
 		return "";
 	}
 
@@ -177,8 +181,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getAllStaff | Start");
-		System.out.println("getAllStaff | tenant_ID:" + tenant_id);
+		log.info("getAllStaff | Start");
+		log.info("getAllStaff | tenant_ID:" + tenant_id);
 
 		ArrayList<ElementoSeleccao> staffs = new ArrayList<ElementoSeleccao>();
 
@@ -189,7 +193,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getAllStaff | End");
+			log.info("getAllStaff | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(staffs);
 
 			// return mapper.writeValueAsString(loginData);
@@ -198,7 +202,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getAllStaff | Error End");
+		log.error("getAllStaff | Error End");
 		return "";
 	}
 
@@ -209,8 +213,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getAllEquipasEpocaAtual | Start");
-		System.out.println("getAllEquipasEpocaAtual | tenant_ID:" + tenant_id);
+		log.info("getAllEquipasEpocaAtual | Start");
+		log.info("getAllEquipasEpocaAtual | tenant_ID:" + tenant_id);
 
 		ArrayList<EquipaData> equipas = new ArrayList<EquipaData>();
 
@@ -221,7 +225,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getAllEquipasEpocaAtual | End");
+			log.info("getAllEquipasEpocaAtual | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(equipas);
 
 			// return mapper.writeValueAsString(loginData);
@@ -230,7 +234,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getAllEquipasEpocaAtual | Error End");
+		log.error("getAllEquipasEpocaAtual | Error End");
 		return "";
 	}
 
@@ -241,8 +245,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getEpocaAtual | Start");
-		System.out.println("getEpocaAtual | tenant_ID:" + tenant_id);
+		log.info("getEpocaAtual | Start");
+		log.info("getEpocaAtual | tenant_ID:" + tenant_id);
 
 		EpocaData epocaAtual = null;
 
@@ -253,7 +257,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getEpocaAtual | End");
+			log.info("getEpocaAtual | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(epocaAtual);
 
 			// return mapper.writeValueAsString(loginData);
@@ -262,7 +266,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getAllStaff | Error End");
+		log.error("getEpocaAtual | Error End");
 		return "";
 	}
 
@@ -273,9 +277,9 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("setEpocaAtual | Start");
-		System.out.println("setEpocaAtual | idepoca:" + idepoca);
-		System.out.println("setEpocaAtual | tenant_ID:" + tenant_id);
+		log.info("setEpocaAtual | Start");
+		log.info("setEpocaAtual | idepoca:" + idepoca);
+		log.info("setEpocaAtual | tenant_ID:" + tenant_id);
 
 		Boolean sucesso = null;
 
@@ -286,7 +290,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("setEpocaAtual | End");
+			log.info("setEpocaAtual | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(sucesso);
 
 			// return mapper.writeValueAsString(loginData);
@@ -295,7 +299,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("setEpocaAtual | Error End");
+		log.error("setEpocaAtual | Error End");
 		return "";
 	}
 
@@ -307,10 +311,10 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("createEscalaoEpoca | Start");
+		log.info("createEscalaoEpoca | Start");
 
-		System.out.println("createEscalaoEpoca | tenant_ID:" + tenant_id);
-		System.out.println("createEscalaoEpoca | parmEscalaoEpocaData:" + parmEscalaoEpocaData);
+		log.info("createEscalaoEpoca | tenant_ID:" + tenant_id);
+		log.info("createEscalaoEpoca | parmEscalaoEpocaData:" + parmEscalaoEpocaData);
 
 		Boolean sucesso = null;
 
@@ -321,7 +325,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("createEscalaoEpoca | End");
+			log.info("createEscalaoEpoca | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(sucesso);
 
 			// return mapper.writeValueAsString(loginData);
@@ -330,7 +334,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("createEscalaoEpoca | Error End");
+		log.error("createEscalaoEpoca | Error End");
 		return "";
 	}
 
@@ -342,10 +346,10 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("deleteEscalaoEpoca | Start");
+		log.info("deleteEscalaoEpoca | Start");
 
-		System.out.println("deleteEscalaoEpoca | tenant_ID:" + tenant_id);
-		System.out.println("deleteEscalaoEpoca | parmEscalaoEpocaData:" + parmEscalaoEpocaData);
+		log.info("deleteEscalaoEpoca | tenant_ID:" + tenant_id);
+		log.info("deleteEscalaoEpoca | parmEscalaoEpocaData:" + parmEscalaoEpocaData);
 
 		Boolean sucesso = null;
 
@@ -356,7 +360,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("deleteEscalaoEpoca | End");
+			log.info("deleteEscalaoEpoca | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(sucesso);
 
 			// return mapper.writeValueAsString(loginData);
@@ -365,7 +369,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("deleteEscalaoEpoca | Error End");
+		log.error("deleteEscalaoEpoca | Error End");
 		return "";
 	}
 
@@ -376,8 +380,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getAllEpocas | Start");
-		System.out.println("getAllEpocas | tenant_ID:" + tenant_id);
+		log.info("getAllEpocas | Start");
+		log.info("getAllEpocas | tenant_ID:" + tenant_id);
 
 		ArrayList<EpocaData> epocas = null;
 
@@ -388,7 +392,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getAllEpocas | End");
+			log.info("getAllEpocas | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(epocas);
 
 			// return mapper.writeValueAsString(loginData);
@@ -397,7 +401,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getAllStaff | Error End");
+		log.error("getAllEpocas | Error End");
 		return "";
 	}
 
@@ -408,7 +412,7 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getEscaloes | Start");
+		log.info("getEscaloes | Start");
 
 		ArrayList<EscalaoData> escaloes = null;
 
@@ -419,7 +423,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getEscaloes | End");
+			log.info("getEscaloes | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(escaloes);
 
 			// return mapper.writeValueAsString(loginData);
@@ -428,7 +432,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getEscaloes | Error End");
+		log.error("getEscaloes | Error End");
 		return "";
 	}
 
@@ -439,8 +443,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getAllStaffDisponivel | Start");
-		System.out.println("getAllStaffDisponivel | tenant_ID:" + tenant_id);
+		log.info("getAllStaffDisponivel | Start");
+		log.info("getAllStaffDisponivel | tenant_ID:" + tenant_id);
 
 		ArrayList<ElementoSeleccao> staffs = new ArrayList<ElementoSeleccao>();
 
@@ -451,7 +455,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getAllStaffDisponivel | End");
+			log.info("getAllStaffDisponivel | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(staffs);
 
 			// return mapper.writeValueAsString(loginData);
@@ -460,7 +464,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getAllStaffDisponivel | Error End");
+		log.error("getAllStaffDisponivel | Error End");
 		return "";
 	}
 
@@ -469,15 +473,15 @@ public class EquipaWS {
 	@ResponseBody
 	public String updateJogador(@PathVariable String idUtilizador, @RequestBody JogadorData jogadorData) {
 		boolean resultado = false;
-		System.out.println("PresencaWS | updateJogador | Start");
-		System.out.println("PresencaWS | updateJogador | ID:" + idUtilizador);
+		log.info("updateJogador | Start");
+		log.info("updateJogador | ID:" + idUtilizador);
 
 		
 		resultado = jogadorHelper.updateJogador(jogadorData, Integer.parseInt(idUtilizador));
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("PresencaWS | updateJogador | End");
+			log.info("updateJogador | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -490,15 +494,15 @@ public class EquipaWS {
 	@ResponseBody
 	public String addJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
 		boolean resultado = false;
-		System.out.println("EquipaWS | equipaAddJogador | Start");
-		System.out.println("EquipaWS | equipaAddJogador | Equipa:" + idEquipa);
+		log.info("equipaAddJogador | Start");
+		log.info("equipaAddJogador | Equipa:" + idEquipa);
 
 		
 		resultado = equipaHelper.addJogadorEquipa(Integer.parseInt(idEquipa), jogadorData);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | equipaAddJogador | End");
+			log.info("equipaAddJogador | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -511,17 +515,17 @@ public class EquipaWS {
 	@ResponseBody
 	public String addStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
 		boolean resultado = false;
-		System.out.println("EquipaWS | addStaffEquipa | Start");
-		System.out.println("EquipaWS | addStaffEquipa | Equipa:" + idEquipa);
-		System.out.println("EquipaWS | addStaffEquipa | Staff:" + staffData.getId());
-		System.out.println("EquipaWS | addStaffEquipa | Tipo:" + staffData.getTipo());
+		log.info("addStaffEquipa | Start");
+		log.info("addStaffEquipa | Equipa:" + idEquipa);
+		log.info("addStaffEquipa | Staff:" + staffData.getId());
+		log.info("addStaffEquipa | Tipo:" + staffData.getTipo());
 
 		
 		resultado = equipaHelper.addStaffEquipa(Integer.parseInt(idEquipa), staffData);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | addStaffEquipa | End");
+			log.info("addStaffEquipa | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -535,14 +539,14 @@ public class EquipaWS {
 	public String addStaff(@PathVariable String tenant_id, @PathVariable String utilizador_id,
 			@RequestBody StaffData staffData) {
 		boolean resultado = false;
-		System.out.println("EquipaWS | addStaff | Start");
+		log.info("addStaff | Start");
 
 		
 		resultado = staffHelper.addStaff(staffData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | addStaff | End");
+			log.info("addStaff | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -556,17 +560,17 @@ public class EquipaWS {
 	public String addJogador(@PathVariable String tenant_id, @PathVariable String utilizador_id,
 			@RequestBody JogadorData jogadorData) {
 		int jogadorId = 0;
-		System.out.println("EquipaWS | addJogador | Start");
+		log.info("addJogador | Start");
 
 
 		jogadorId = jogadorHelper.addJogador(jogadorData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | addJogador | End - Jogador criado com ID: " + jogadorId);
+			log.info("addJogador | End - Jogador criado com ID: " + jogadorId);
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogadorId);
 		} catch (JsonProcessingException e) {
-			System.out.println("EquipaWS | addJogador | Error serializing response");
+			log.error("addJogador | Error serializing response");
 			return "0";
 		}
 	}
@@ -576,15 +580,15 @@ public class EquipaWS {
 	@ResponseBody
 	public String removeJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
 		boolean resultado = false;
-		System.out.println("EquipaWS | removeJogadorEquipa | Start");
-		System.out.println("EquipaWS | removeJogadorEquipa | Equipa:" + idEquipa);
+		log.info("removeJogadorEquipa | Start");
+		log.info("removeJogadorEquipa | Equipa:" + idEquipa);
 
 		
 		resultado = equipaHelper.removeJogadorEquipa(Integer.parseInt(idEquipa), jogadorData);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | removeJogadorEquipa | End");
+			log.info("removeJogadorEquipa | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -597,16 +601,16 @@ public class EquipaWS {
 	@ResponseBody
 	public String removeStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
 		boolean resultado = false;
-		System.out.println("EquipaWS | removeStaffEquipa | Start");
-		System.out.println("EquipaWS | removeStaffEquipa | Equipa:" + idEquipa);
-		System.out.println("EquipaWS | removeStaffEquipa | Staff?id:" + staffData.getId());
+		log.info("removeStaffEquipa | Start");
+		log.info("removeStaffEquipa | Equipa:" + idEquipa);
+		log.info("removeStaffEquipa | Staff?id:" + staffData.getId());
 
 		
 		resultado = equipaHelper.removeStaffEquipa(Integer.parseInt(idEquipa), staffData);
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("EquipaWS | removeStaffEquipa | End");
+			log.info("removeStaffEquipa | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -619,15 +623,15 @@ public class EquipaWS {
 	@ResponseBody
 	public String updateStaff(@PathVariable String idUtilizador, @RequestBody StaffData staffData) {
 		boolean resultado = false;
-		System.out.println("PresencaWS | updateStaff | Start");
-		System.out.println("PresencaWS | updateStaff | ID:" + idUtilizador);
+		log.info("updateStaff | Start");
+		log.info("updateStaff | ID:" + idUtilizador);
 
 		
 		resultado = staffHelper.updateStaff(staffData, Integer.parseInt(idUtilizador));
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			System.out.println("PresencaWS | updateStaff | End");
+			log.info("updateStaff | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			resultado = false;
@@ -642,8 +646,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("loadJogadorbyID | Start");
-		System.out.println("loadJogadorbyID | ID:" + id);
+		log.info("loadJogadorbyID | Start");
+		log.info("loadJogadorbyID | ID:" + id);
 
 		
 		JogadorData jogador = jogadorHelper.getJogadorbyID(Integer.parseInt(id));
@@ -652,7 +656,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("loadJogadorbyID | End");
+			log.info("loadJogadorbyID | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogador);
 
 			// return mapper.writeValueAsString(loginData);
@@ -661,7 +665,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("loadJogadorbyID | Error End");
+		log.error("loadJogadorbyID | Error End");
 		return "";
 	}
 
@@ -672,8 +676,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getStaffbyID | Start");
-		System.out.println("getStaffbyID | ID:" + id);
+		log.info("getStaffbyID | Start");
+		log.info("getStaffbyID | ID:" + id);
 
 		
 		StaffData staff = staffHelper.getStaffByID(Integer.parseInt(id));
@@ -682,7 +686,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getStaffbyID | End");
+			log.info("getStaffbyID | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(staff);
 
 			// return mapper.writeValueAsString(loginData);
@@ -691,7 +695,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getStaffbyID | Error End");
+		log.error("getStaffbyID | Error End");
 		return "";
 	}
 
@@ -702,8 +706,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getFaltasByJogador | Start");
-		System.out.println("getFaltasByJogador | ID:" + id);
+		log.info("getFaltasByJogador | Start");
+		log.info("getFaltasByJogador | ID:" + id);
 
 		
 		ArrayList<FichaJogadorPresencasData> faltas = jogadorHelper.getFaltasByJogador(Integer.parseInt(id));
@@ -712,7 +716,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getFaltasByJogador | End");
+			log.info("getFaltasByJogador | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(faltas);
 
 			// return mapper.writeValueAsString(loginData);
@@ -721,7 +725,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("loadJogadorbyID | Error End");
+		log.error("getFaltasByJogador | Error End");
 		return "";
 	}
 
@@ -732,8 +736,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getEscalaoByEquipa | Start");
-		System.out.println("getEscalaoByEquipa | parmEquipaId:" + parmEquipaId);
+		log.info("getEscalaoByEquipa | Start");
+		log.info("getEscalaoByEquipa | parmEquipaId:" + parmEquipaId);
 
 		
 		String escalao = equipaHelper.getEscalaoByEquipa(Integer.parseInt(parmEquipaId));
@@ -742,7 +746,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getEscalaoByEquipa | End");
+			log.info("getEscalaoByEquipa | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(escalao);
 
 			// return mapper.writeValueAsString(loginData);
@@ -751,7 +755,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getEscalaoByEquipa | Error End");
+		log.error("getEscalaoByEquipa | Error End");
 		return "";
 	}
 
@@ -762,8 +766,8 @@ public class EquipaWS {
 
 		// Carregar equipa
 
-		System.out.println("getPresencasByJogador | Start");
-		System.out.println("getPresencasByJogador | ID:" + id);
+		log.info("getPresencasByJogador | Start");
+		log.info("getPresencasByJogador | ID:" + id);
 
 		
 		ArrayList<ContadorPresencaData> presencas = jogadorHelper.getPresencasByJogador(Integer.parseInt(id));
@@ -772,7 +776,7 @@ public class EquipaWS {
 
 		try {
 
-			System.out.println("getPresencasByJogador | End");
+			log.info("getPresencasByJogador | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presencas);
 
 			// return mapper.writeValueAsString(loginData);
@@ -781,7 +785,7 @@ public class EquipaWS {
 			e.printStackTrace();
 		}
 
-		System.out.println("getPresencasByJogador | Error End");
+		log.error("getPresencasByJogador | Error End");
 		return "";
 	}
 

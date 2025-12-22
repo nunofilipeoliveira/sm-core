@@ -78,6 +78,16 @@
     		<groupId>org.springframework.boot</groupId>
     		<artifactId>spring-boot-starter-jdbc</artifactId>
 		</dependency>
+		<!-- SLF4J API -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+    	<!-- Logback (implementação do SLF4J) -->
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

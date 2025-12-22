@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Random;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +24,8 @@ import sm.core.utils.TokenValidator;
 
 @Component
 public class LoginHelper {
+
+	private static final Logger log = LoggerFactory.getLogger(LoginHelper.class);
 
 	@Autowired
 	private TenantProperties tenantProperties;
@@ -41,10 +45,10 @@ public class LoginHelper {
 
 		boolean isValid = TokenValidator.isTokenValid(token);
 		if (isValid) {
-			System.out.println("O token é válido.");
+			log.info("O token e valido.");
 			return true;
 		} else {
-			System.out.println("O token é inválido.");
+			log.info("O token e invalido.");
 			return false;
 		}
 
@@ -101,8 +105,7 @@ public class LoginHelper {
 			return loginData;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em Dologin: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -136,8 +139,7 @@ public class LoginHelper {
 			return utilizadorParaAtivarData;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro ao obter utilizador para ativação por código: " + parmCode, e);
 		}
 
 		return null;
@@ -197,8 +199,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getUtilizadorParaAtivarByCode: " + e.getMessage(), e);
 		}
 
 		return false;
@@ -243,8 +244,7 @@ public class LoginHelper {
 			return code;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em createUtilizador: " + e.getMessage(), e);
 		}
 
 		return "";
@@ -276,8 +276,7 @@ public class LoginHelper {
 			return code;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em createUtilizadorParaAtivar: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -312,8 +311,7 @@ public class LoginHelper {
 			return utilizadores;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getCodebyUser: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -349,8 +347,7 @@ public class LoginHelper {
 			return utilizadores;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getAllUser: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -384,8 +381,7 @@ public class LoginHelper {
 			return escaloes;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getAllUserWait: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -421,8 +417,7 @@ public class LoginHelper {
 			return utilizadorData;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getEscaloesByUser: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -484,8 +479,7 @@ public class LoginHelper {
 			return utilizadorData;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getUser: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -517,8 +511,7 @@ public class LoginHelper {
 			return listaHistorico;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro em getUserByUserName: " + e.getMessage(), e);
 		}
 
 		return null;
@@ -564,8 +557,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro no método: " + e.getMessage(), e);
 			return false;
 		}
 	}
@@ -592,8 +584,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro no método: " + e.getMessage(), e);
 			return false;
 		}
 	}
@@ -618,8 +609,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro no método: " + e.getMessage(), e);
 			return false;
 		}
 	}
@@ -643,8 +633,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro no método: " + e.getMessage(), e);
 			return false;
 		}
 	}
@@ -689,8 +678,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro no método: " + e.getMessage(), e);
 			return false;
 		}
 	}
@@ -714,8 +702,7 @@ public class LoginHelper {
 			return true;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("Erro no método: " + e.getMessage(), e);
 			return false;
 		}
 	}

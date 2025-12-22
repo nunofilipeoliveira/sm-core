@@ -2,6 +2,8 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +24,8 @@ import sm.core.helper.PresencaHelper;
 @RequestMapping("/sm")
 public class PresencaWS {
 
+	private static final Logger log = LoggerFactory.getLogger(PresencaWS.class);
+
 	
 	@Autowired
 	private PresencaHelper presencaHelper;
@@ -32,9 +36,9 @@ public class PresencaWS {
 		// Faz o login e obtem informação do utilizador
 
 		boolean resultado = false;
-		System.out.println("PresencaWS | createPresenca | Start");
-		System.out.println("PresencaWS | createPresenca | Escalao:" + presencaData.getEscalao_descricao());
-		System.out.println("PresencaWS | createPresenca | Dia:" + presencaData.getData());
+		log.info("PresencaWS | createPresenca | Start");
+		log.info("PresencaWS | createPresenca | Escalao:" + presencaData.getEscalao_descricao());
+		log.info("PresencaWS | createPresenca | Dia:" + presencaData.getData());
 
 	
 		resultado = presencaHelper.createPresenca(presencaData, parmTenantId);
@@ -43,12 +47,12 @@ public class PresencaWS {
 
 		try {
 
-			System.out.println("PresencaWS | createPresenca | End");
+			log.info("PresencaWS | createPresenca | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("PresencaWS | createPresenca | Error End");
+			log.error("PresencaWS | createPresenca | Error End");
 		}
 
 		return "";
@@ -62,9 +66,9 @@ public class PresencaWS {
 		// Faz o login e obtem informação do utilizador
 
 		boolean resultado = false;
-		System.out.println("PresencaWS | updatePresenca | Start");
-		System.out.println("PresencaWS | updatePresenca | IdUtilizador:" + idUtilizador);
-		System.out.println("PresencaWS | updatePresenca | IdPresenca:" + presencaData.getId());
+		log.info("PresencaWS | updatePresenca | Start");
+		log.info("PresencaWS | updatePresenca | IdUtilizador:" + idUtilizador);
+		log.info("PresencaWS | updatePresenca | IdPresenca:" + presencaData.getId());
 
 		
 		resultado = presencaHelper.updatePresenca(presencaData, Integer.parseInt(idUtilizador));
@@ -72,12 +76,12 @@ public class PresencaWS {
 		ObjectMapper mapper = new ObjectMapper();
 
 		try {
-			System.out.println("PresencaWS | updatePresenca | End");
+			log.info("PresencaWS | updatePresenca | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("PresencaWS | updatePresenca | Error End");
+			log.error("PresencaWS | updatePresenca | Error End");
 		}
 
 		return "";
@@ -90,7 +94,7 @@ public class PresencaWS {
 	public String getPresenca() {
 		// Faz o login e obtem informação do utilizador
 
-		System.out.println("PresencaWS | getPresenca default() -> 1 | Start");
+		log.info("PresencaWS | getPresenca default() -> 1 | Start");
 
 		ObjectMapper mapper = new ObjectMapper();
 		PresencaData presenca = new PresencaData(1, 1, "15:00", 1, "Sub-7", "20240815", 1, "Nuno");
@@ -98,7 +102,7 @@ public class PresencaWS {
 		presenca.addJogador(1, "Antonio", "", "");
 
 		try {
-			System.out.println("PresencaWS | getPresenca | End");
+			log.info("PresencaWS | getPresenca | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presenca);
 
 			// return mapper.writeValueAsString(loginData);
@@ -117,14 +121,14 @@ public class PresencaWS {
 	public String getTotalTrainings(@PathVariable String parmEquipaID) {
 		// Faz o login e obtem informação do utilizador
 
-		System.out.println("PresencaWS | dashboard/totalTrainings | Start");
-		System.out.println("PresencaWS | dashboard/totalTrainings | parmEquipaID:" + parmEquipaID);
+		log.info("PresencaWS | dashboard/totalTrainings | Start");
+		log.info("PresencaWS | dashboard/totalTrainings | parmEquipaID:" + parmEquipaID);
 
 		ObjectMapper mapper = new ObjectMapper();
 		int numTreinos = presencaHelper.totalTrainings(Integer.parseInt(parmEquipaID));
 
 		try {
-			System.out.println("PresencaWS | dashboard/totalTrainings | End");
+			log.info("PresencaWS | dashboard/totalTrainings | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(numTreinos);
 
 			// return mapper.writeValueAsString(loginData);
@@ -143,8 +147,8 @@ public class PresencaWS {
 	public String getAverageAthletes(@PathVariable String parmEquipaID) {
 		// Faz o login e obtem informação do utilizador
 
-		System.out.println("PresencaWS | dashboard/getAverageAthletes | Start");
-		System.out.println("PresencaWS | dashboard/getAverageAthletes | parmEquipaID:" + parmEquipaID);
+		log.info("PresencaWS | dashboard/getAverageAthletes | Start");
+		log.info("PresencaWS | dashboard/getAverageAthletes | parmEquipaID:" + parmEquipaID);
 
 		ObjectMapper mapper = new ObjectMapper();
 		int numTreinos = presencaHelper.totalTrainings(Integer.parseInt(parmEquipaID));
@@ -155,7 +159,7 @@ public class PresencaWS {
 		}
 
 		try {
-			System.out.println("PresencaWS | dashboard/getAverageAthletes | End");
+			log.info("PresencaWS | dashboard/getAverageAthletes | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(numMedia);
 
 			// return mapper.writeValueAsString(loginData);
@@ -174,8 +178,8 @@ public class PresencaWS {
 	public String getAbsencePercentage(@PathVariable String parmEquipaID) {
 		// Faz o login e obtem informação do utilizador
 
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | Start");
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | parmEquipaID:" + parmEquipaID);
+		log.info("PresencaWS | dashboard/getAbsencePercentage | Start");
+		log.info("PresencaWS | dashboard/getAbsencePercentage | parmEquipaID:" + parmEquipaID);
 
 		ObjectMapper mapper = new ObjectMapper();
 		
@@ -188,11 +192,11 @@ public class PresencaWS {
 		int numTotalAthletes_FL = presencaHelper.totalAthletesByEstado(Integer.parseInt(parmEquipaID),
 				"Lesão");
 		double numMedia = 0;
-		System.out.println(
+		log.info(
 				"PresencaWS | dashboard/getAbsencePercentage | numTotalAthletesPresent :" + numTotalAthletesPresent);
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FJ :" + numTotalAthletes_FJ);
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FI :" + numTotalAthletes_FI);
-		System.out.println("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FL :" + numTotalAthletes_FL);
+		log.info("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FJ :" + numTotalAthletes_FJ);
+		log.info("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FI :" + numTotalAthletes_FI);
+		log.info("PresencaWS | dashboard/getAbsencePercentage | numTotalAthletes_FL :" + numTotalAthletes_FL);
 
 		int total = numTotalAthletesPresent + numTotalAthletes_FJ + numTotalAthletes_FI + numTotalAthletes_FL;
 
@@ -200,11 +204,11 @@ public class PresencaWS {
 			numMedia = ((double) (numTotalAthletes_FJ + numTotalAthletes_FI + numTotalAthletes_FL) / total) * 100.0;
 			numMedia = Math.round(numMedia * 100.0) / 100.0;
 
-			System.out.println("PresencaWS | dashboard/getAbsencePercentage | numMedia :" + numMedia);
+			log.info("PresencaWS | dashboard/getAbsencePercentage | numMedia :" + numMedia);
 		}
 
 		try {
-			System.out.println("PresencaWS | dashboard/getAbsencePercentage | End");
+			log.info("PresencaWS | dashboard/getAbsencePercentage | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(numMedia);
 
 			// return mapper.writeValueAsString(loginData);
@@ -224,8 +228,8 @@ public class PresencaWS {
 
 		// Carregar equipa
 
-		System.out.println("getPresencaByDatas | Start");
-		System.out.println("getPresencaByDatas | datas e id :" + datas);
+		log.info("getPresencaByDatas | Start");
+		log.info("getPresencaByDatas | datas e id :" + datas);
 
 		String[] tmpDatas = datas.split("_");
 
@@ -236,17 +240,17 @@ public class PresencaWS {
 
 		try {
 
-			System.out.println("getPresencaByDatas | End");
+			log.info("getPresencaByDatas | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presencas);
 
 			// return mapper.writeValueAsString(loginData);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("getPresencaByDatas | Error End");
+			log.error("getPresencaByDatas | Error End");
 		}
 
-		System.out.println("getPresencaByDatas | Error End");
+		log.error("getPresencaByDatas | Error End");
 		return "";
 	}
 
@@ -257,8 +261,8 @@ public class PresencaWS {
 
 		// Carregar equipa
 
-		System.out.println("isPresencabyEquipaDataHora | Start");
-		System.out.println("isPresencabyEquipaDataHora | data e hora:" + datas);
+		log.info("isPresencabyEquipaDataHora | Start");
+		log.info("isPresencabyEquipaDataHora | data e hora:" + datas);
 
 		String[] tmpDatas = datas.split("_");
 
@@ -269,17 +273,17 @@ public class PresencaWS {
 
 		try {
 
-			System.out.println("isPresencabyEquipaDataHora | End");
+			log.info("isPresencabyEquipaDataHora | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presencas);
 
 			// return mapper.writeValueAsString(loginData);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("isPresencabyEquipaDataHora | Error End");
+			log.error("isPresencabyEquipaDataHora | Error End");
 		}
 
-		System.out.println("isPresencabyEquipaDataHora | Error End");
+		log.error("isPresencabyEquipaDataHora | Error End");
 		return "";
 	}
 
@@ -290,8 +294,8 @@ public class PresencaWS {
 
 		// Carregar equipa
 
-		System.out.println("getPresencasbyId | Start");
-		System.out.println("getPresencasbyId | id:" + id);
+		log.info("getPresencasbyId | Start");
+		log.info("getPresencasbyId | id:" + id);
 
 		PresencaData presenca = presencaHelper.loadPresencasbyID(Integer.parseInt(id));
 
@@ -299,17 +303,17 @@ public class PresencaWS {
 
 		try {
 
-			System.out.println("getPresencasbyId | End");
+			log.info("getPresencasbyId | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presenca);
 
 			// return mapper.writeValueAsString(loginData);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("getPresencasbyId | Error End");
+			log.error("getPresencasbyId | Error End");
 		}
 
-		System.out.println("getPresencasbyId | Error End");
+		log.error("getPresencasbyId | Error End");
 		return "";
 	}
 
@@ -320,8 +324,8 @@ public class PresencaWS {
 
 		// Carregar equipa
 
-		System.out.println("getHistoricobyId | Start");
-		System.out.println("getHistoricobyId | id:" + id);
+		log.info("getHistoricobyId | Start");
+		log.info("getHistoricobyId | id:" + id);
 
 		ArrayList<String> presenca = presencaHelper.loadHistoricoByID(Integer.parseInt(id));
 
@@ -329,17 +333,17 @@ public class PresencaWS {
 
 		try {
 
-			System.out.println("getHistoricobyId | End");
+			log.info("getHistoricobyId | End");
 			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(presenca);
 
 			// return mapper.writeValueAsString(loginData);
 		} catch (JsonProcessingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("getHistoricobyId | Error End");
+			log.error("getHistoricobyId | Error End");
 		}
 
-		System.out.println("getHistoricobyId | Error End");
+		log.error("getHistoricobyId | Error End");
 		return "";
 	}
 

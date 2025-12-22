@@ -30,7 +30,7 @@ public class DBUtils {
         if (dataSource instanceof HikariDataSource) {
             HikariPoolMXBean mx = ((HikariDataSource) dataSource).getHikariPoolMXBean();
             if (mx != null) {
-                log.info("Hikari BEFORE getConnection - total={}, active={}, idle={}, waiting={}",
+                log.debug("Hikari BEFORE getConnection - total={}, active={}, idle={}, waiting={}",
                         mx.getTotalConnections(), mx.getActiveConnections(),
                         mx.getIdleConnections(), mx.getThreadsAwaitingConnection());
             }
@@ -44,7 +44,7 @@ public class DBUtils {
         if (dataSource instanceof HikariDataSource) {
             HikariPoolMXBean mx = ((HikariDataSource) dataSource).getHikariPoolMXBean();
             if (mx != null) {
-                log.info("Hikari AFTER getConnection - total={}, active={}, idle={}, waiting={}",
+                log.debug("Hikari AFTER getConnection - total={}, active={}, idle={}, waiting={}",
                         mx.getTotalConnections(), mx.getActiveConnections(),
                         mx.getIdleConnections(), mx.getThreadsAwaitingConnection());
             }
@@ -66,7 +66,7 @@ public class DBUtils {
         if (dataSource instanceof HikariDataSource) {
             HikariPoolMXBean mx = ((HikariDataSource) dataSource).getHikariPoolMXBean();
             if (mx != null) {
-                log.info("Hikari AFTER closeConnection - total={}, active={}, idle={}, waiting={}",
+                log.debug("Hikari AFTER closeConnection - total={}, active={}, idle={}, waiting={}",
                         mx.getTotalConnections(), mx.getActiveConnections(),
                         mx.getIdleConnections(), mx.getThreadsAwaitingConnection());
             }

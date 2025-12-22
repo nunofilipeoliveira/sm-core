@@ -4,6 +4,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -12,9 +15,12 @@ import io.jsonwebtoken.SignatureException;
 
 public class TokenValidator {
 
+	    private static final Logger log =
+            LoggerFactory.getLogger(TokenValidator.class);
+
 	private static final String SECRET_KEY = "chave_SM_login"; // A mesma chave usada para gerar o token
-	private static final long EXTENSION_TIME = 5 * 60 * 1000; // 5 minutos em milissegundos
-	private static final long RECENT_EXPIRATION_TIME = 3 * 60 * 1000; // 3 minutos anteriores
+	private static final long EXTENSION_TIME = 15 * 60 * 1000; // 15 minutos em milissegundos
+	private static final long RECENT_EXPIRATION_TIME = 5 * 60 * 1000; // 5 minutos anteriores
 
 	public static boolean isTokenValid(String token) {
 		try {
@@ -23,13 +29,18 @@ public class TokenValidator {
 
 			// Se o token for válido, você pode acessar os dados do token, como o assunto
 			String username = claims.getSubject();
-			System.out.println("Token válido para o usuário: " + username);
+			// despejar em log informacoes do token
+			log.info("Token valido para o usuario: " + username);
+
+			String dateExpiration=claims.getExpiration().toString();
+			log.info("Data de Expiracao do Token: " + dateExpiration);
+
 			return true; // O token é válido
 		} catch (SignatureException e) {
-			System.out.println("Token inválido: " + e.getMessage());
+			log.error("Token invalido: " + e.getMessage());
 			return false; // O token não é válido
 		} catch (Exception e) {
-			System.out.println("Erro ao validar o token: " + e.getMessage());
+			log.error("Erro ao validar o token: " + e.getMessage());
 			return false; // O token não é válido
 		}
 	}
@@ -47,7 +58,7 @@ public class TokenValidator {
 				return generateNewToken(claims);
 			}
 		} catch (ExpiredJwtException e) {
-			System.out.println("Token expirado: " + e.getMessage());
+			log.error("Token expirado: " + e.getMessage());
 
 			Date expirationDate = e.getClaims().getExpiration();
 
@@ -55,12 +66,15 @@ public class TokenValidator {
 			long timeSinceExpiration = currentTime - expirationDate.getTime();
 			// Se o token expirou recentemente, gere um novo token
 			if (timeSinceExpiration >= 0 && timeSinceExpiration <= RECENT_EXPIRATION_TIME) {
-				return generateNewToken(e.getClaims());
+				log.info("Token expirado recentemente, gerando um novo token.");
+				String newToken = generateNewToken(e.getClaims());
+				log.info("Novo token gerado: " + newToken);
+				return newToken;
 			}
 
 			// Aqui você pode implementar a lógica para gerar um novo token
 		} catch (Exception e) {
-			System.out.println("Erro ao decodificar o token: " + e.getMessage());
+			log.error("Erro ao decodificar o token: " + e.getMessage());
 		}
 		return ""; // Retorna vazio se não for possível estender a sessão
 	}

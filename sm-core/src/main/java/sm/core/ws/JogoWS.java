@@ -2,6 +2,8 @@ package sm.core.ws;
 
 import java.util.ArrayList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RequestMapping("/sm")
 public class JogoWS {
 
+    private static final Logger log = LoggerFactory.getLogger(JogoWS.class);
+
     @Autowired
     private JogoHelper jogoHelper;
 
@@ -33,8 +37,8 @@ public class JogoWS {
 
         // Carregar jogos por equipa
 
-        System.out.println("getAllJogosByEquipa | Start");
-        System.out.println("getAllJogosByEquipa | ID:" + id);
+        log.info("getAllJogosByEquipa | Start");
+        log.info("getAllJogosByEquipa | ID:" + id);
 
         
         ArrayList<JogoData> jogos = jogoHelper.getAllJogosByEquipa(Integer.valueOf(id));
@@ -43,7 +47,7 @@ public class JogoWS {
 
         try {
 
-            System.out.println("getAllJogosByEquipa | End" + id);
+            log.info("getAllJogosByEquipa | End" + id);
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogos);
 
             // return mapper.writeValueAsString(loginData);
@@ -52,7 +56,7 @@ public class JogoWS {
             e.printStackTrace();
         }
 
-        System.out.println("getAllJogosByEquipa | Error End");
+        log.error("getAllJogosByEquipa | Error End");
         return "";
     }
 
@@ -63,7 +67,7 @@ public class JogoWS {
 
         // Carregar todas as competições
 
-        System.out.println("getAllCompeticoes | Start");
+        log.info("getAllCompeticoes | Start");
 
         
         ArrayList<CompeticaoData> competicoes = jogoHelper.getAllCompeticoes();
@@ -80,7 +84,7 @@ public class JogoWS {
             e.printStackTrace();
         }
 
-        System.out.println("getAllCompeticoes | Error End");
+        log.error("getAllCompeticoes | Error End");
         return "";
     }
 
@@ -88,14 +92,14 @@ public class JogoWS {
     @PutMapping("/createJogo")
     @ResponseBody
     public String createJogo(@RequestBody JogoData entity) {
-        System.out.println("createJogo | Start");
+        log.info("createJogo | Start");
         // TODO: process PUT request
-        System.out.println("createJogo | Jogo:" + entity.toString());
+        log.info("createJogo | Jogo:" + entity.toString());
 
         
         jogoHelper.createJogo(entity);
 
-        System.out.println("createJogo | End");
+        log.info("createJogo | End");
 
         ObjectMapper mapper = new ObjectMapper();
         try {
@@ -112,10 +116,10 @@ public class JogoWS {
     @PutMapping("/updateJogo")
     @ResponseBody
     public String updateJogo(@RequestBody JogoData entity) {
-        System.out.println("updateJogo | Start");
+        log.info("updateJogo | Start");
         
         jogoHelper.updateJogo(entity);
-        System.out.println("updateJogo | End");
+        log.info("updateJogo | End");
         ObjectMapper mapper = new ObjectMapper();
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(entity);
@@ -131,13 +135,13 @@ public class JogoWS {
     @PutMapping("/deleteJogo/{id}")
     @ResponseBody
     public String deleteJogo(@PathVariable String id) {
-        System.out.println("deleteJogo | Start");
-        System.out.println("deleteJogo | ID:" + id);
+        log.info("deleteJogo | Start");
+        log.info("deleteJogo | ID:" + id);
 
         
         boolean deleted = jogoHelper.deleteJogo(Integer.valueOf(id));
 
-        System.out.println("deleteJogo | End");
+        log.info("deleteJogo | End");
         ObjectMapper mapper = new ObjectMapper();
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(deleted);
@@ -153,8 +157,8 @@ public class JogoWS {
     @PutMapping("getJogoById/{id}")
     @ResponseBody
     public String getJogoById(@PathVariable String id) {    
-        System.out.println("getJogoById | Start");
-        System.out.println("getJogoById | ID:" + id);
+        log.info("getJogoById | Start");
+        log.info("getJogoById | ID:" + id);
 
         
         JogoData jogo = jogoHelper.getJogoById(Integer.valueOf(id));
@@ -163,7 +167,7 @@ public class JogoWS {
 
         try {
 
-            System.out.println("getJogoById | End" + id);
+            log.info("getJogoById | End" + id);
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogo);
 
             // return mapper.writeValueAsString(loginData);
@@ -172,7 +176,7 @@ public class JogoWS {
             e.printStackTrace();
         }
 
-        System.out.println("getJogoById | Error End");
+        log.error("getJogoById | Error End");
         return "";
     }    
 
@@ -180,13 +184,13 @@ public class JogoWS {
     @PutMapping("/salvarConvocatoria")
     @ResponseBody
     public String salvarConvocatoria(@RequestBody ConvocatoriaData convocatoriaData) {
-        System.out.println("salvarConvocatoria | Start");
+        log.info("salvarConvocatoria | Start");
      
 
         
         boolean saved = jogoHelper.salvarConvocatoria(convocatoriaData);
 
-        System.out.println("salvarConvocatoria | End");
+        log.info("salvarConvocatoria | End");
         ObjectMapper mapper = new ObjectMapper();
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(saved);
@@ -203,8 +207,8 @@ public class JogoWS {
     @PutMapping("/getConvocatoriaByJogoId/{id}")
     @ResponseBody
     public String getConvocatoriaByJogoId(@PathVariable String id) {
-        System.out.println("getConvocatoriaByJogoId | Start");
-        System.out.println("getConvocatoriaByJogoId | ID Jogo:" + id);
+        log.info("getConvocatoriaByJogoId | Start");
+        log.info("getConvocatoriaByJogoId | ID Jogo:" + id);
 
         
         ConvocatoriaData convocatoria = jogoHelper.getConvocatoriaByJogoId(Integer.valueOf(id));
@@ -213,7 +217,7 @@ public class JogoWS {
 
         try {
 
-            System.out.println("getConvocatoriaByJogoId | End" + id);
+            log.info("getConvocatoriaByJogoId | End" + id);
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(convocatoria);
 
             // return mapper.writeValueAsString(loginData);
@@ -222,7 +226,7 @@ public class JogoWS {
             e.printStackTrace();
         }
 
-        System.out.println("getConvocatoriaByJogoId | Error End");
+        log.error("getConvocatoriaByJogoId | Error End");
         return "";
     }
 
@@ -230,10 +234,10 @@ public class JogoWS {
     @PutMapping("/atualizarJogo")
     @ResponseBody
     public String atualizarJogo(@RequestBody JogoData entity) {
-        System.out.println("atualizarJogo | Start");
+        log.info("atualizarJogo | Start");
         
         jogoHelper.updateJogo(entity);
-        System.out.println("atualizarJogo | End");
+        log.info("atualizarJogo | End");
         ObjectMapper mapper = new ObjectMapper();
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(entity);
@@ -248,8 +252,8 @@ public class JogoWS {
     @PutMapping("/getJogosByJogadorId/{id}")
     @ResponseBody
     public String getJogosByJogadorId(@PathVariable String id) {
-        System.out.println("getJogosByJogadorId | Start");
-        System.out.println("getJogosByJogadorId | ID Jogador:" + id);
+        log.info("getJogosByJogadorId | Start");
+        log.info("getJogosByJogadorId | ID Jogador:" + id);
 
         
         ArrayList<JogoData> jogos = jogoHelper.getJogosByJogadorId(Integer.valueOf(id));
@@ -258,7 +262,7 @@ public class JogoWS {
 
         try {
 
-            System.out.println("getJogosByJogadorId | End" + id);
+            log.info("getJogosByJogadorId | End" + id);
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jogos);
 
             // return mapper.writeValueAsString(loginData);
@@ -267,7 +271,7 @@ public class JogoWS {
             e.printStackTrace();
         }
 
-        System.out.println("getJogosByJogadorId | Error End");
+        log.error("getJogosByJogadorId | Error End");
         return "";
     }
     

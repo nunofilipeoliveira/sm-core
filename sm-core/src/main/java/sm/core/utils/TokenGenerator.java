@@ -8,7 +8,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 public class TokenGenerator {
 
 	private static final String SECRET_KEY = "chave_SM_login"; // Mantenha isso seguro
-	private static final long EXPIRATION_TIME = 30 * 60 * 1000;; // 30 minutos
+	private static final long EXPIRATION_TIME = 15 * 60 * 1000; // 15 minutos em milissegundos
 
 	public static String generateToken(String username) {
 		return Jwts.builder().setSubject(username).setIssuedAt(new Date())
