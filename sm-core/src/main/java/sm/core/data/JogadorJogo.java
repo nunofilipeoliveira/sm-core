@@ -30,10 +30,11 @@ private int penalty_falhado;
 private int penalty_defesa;
 private int ld_falhado;
 private int ld_defesa;
+private String licenca;
 
 public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
         int golos_pp, int golos_up, int golos_normal, int golos_s_p, int golos_s_ld, int golos_s_up, int golos_s_pp,
-        int golos_s_normal, String estado, String obs, int faltas, int assistencias, int recuperacoes_bola, int perdas_bola, int remates, int penalty_falhado, int penalty_defesa, int ld_falhado, int ld_defesa) {
+        int golos_s_normal, String estado, String obs, int faltas, int assistencias, int recuperacoes_bola, int perdas_bola, int remates, int penalty_falhado, int penalty_defesa, int ld_falhado, int ld_defesa, String licenca) {
     this.id_jogador = id_jogador;
     this.nome = nome;
     this.capitao = capitao;
@@ -62,6 +63,7 @@ public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int
     this.penalty_defesa = penalty_defesa;
     this.ld_falhado = ld_falhado;
     this.ld_defesa = ld_defesa;
+    this.licenca = licenca;
         }
 
 
@@ -370,6 +372,14 @@ public int getGolos_s_normal() {
 
 public void setGolos_s_normal(int golos_s_normal) {
     this.golos_s_normal = golos_s_normal;
+}
+
+public String getLicenca() {
+    return licenca;
+}
+
+public void setLicenca(String licenca) {
+    this.licenca = licenca;
 }
 
 

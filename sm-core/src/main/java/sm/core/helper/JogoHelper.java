@@ -329,7 +329,8 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					rsJogadores.getInt("penalty_falhado"),
 					rsJogadores.getInt("penalty_defesa"),
 					rsJogadores.getInt("ld_falhado"),
-					rsJogadores.getInt("ld_defesa")
+					rsJogadores.getInt("ld_defesa"),
+					rsJogadores.getString("Licença")	
 				);
 				listaJogadores.add(jogador);
 			}
@@ -481,7 +482,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getInt("golo_s_p"), rs.getInt("golo_s_ld"), rs.getInt("golo_s_up"), rs.getInt("golo_s_pp"),
 						rs.getInt("golo_s_normal"), rs.getString("estado"), rs.getString("obs"), rs.getInt("faltas"), rs.getInt("assistencias"),
 						rs.getInt("recuperacoes_bola"), rs.getInt("perdas_bola"), rs.getInt("remates"), rs.getInt("penalty_falhado"), rs.getInt("penalty_defesa"),
-						rs.getInt("ld_falhado"), rs.getInt("ld_defesa"));
+						rs.getInt("ld_falhado"), rs.getInt("ld_defesa"), rs.getString("Licença"));
 
 				ArrayList<JogadorJogo> jogadores = new ArrayList<>();
 				jogadores.add(jogadorNoJogo);
