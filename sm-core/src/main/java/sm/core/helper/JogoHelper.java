@@ -452,7 +452,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		try {
 			Connection conn = dbUtils.getConnection();
-			PreparedStatement preparedStatement = conn.prepareStatement("SELECT j.id, j.epoca_id, j.equipa_id, j.tipoEquipa, j.Data, j.Hora, j.local, j.golos_equipa, j.equipa_adv_id, clube.nome AS clube_nome, j.tipoEquipa_adv, j.golos_equipa_adv, j.tipo_local, j.competicao_id, competicao_descritivo AS competicao_nome, j.arbitro_1, j.arbitro_2, j.estado, j.hora_concentracao, j.obs, j.numeroJogo, jj.*, jg.nome AS jogador_nome " +
+			PreparedStatement preparedStatement = conn.prepareStatement("SELECT j.id, j.epoca_id, j.equipa_id, j.tipoEquipa, j.Data, j.Hora, j.local, j.golos_equipa, j.equipa_adv_id, clube.nome AS clube_nome, j.tipoEquipa_adv, j.golos_equipa_adv, j.tipo_local, j.competicao_id, competicao_descritivo AS competicao_nome, j.arbitro_1, j.arbitro_2, j.estado, j.hora_concentracao, j.obs, j.numeroJogo, jj.*, jg.nome AS jogador_nome, jg.Licença " +
 										"FROM jogo_jogador jj " +
 										"INNER JOIN jogo j ON jj.id_jogo = j.id " +
 										"INNER JOIN JOGADOR jg ON jg.id = jj.id_jogador " +
@@ -496,6 +496,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
+			e.printStackTrace();
 		} 
 		return null;
 	}
