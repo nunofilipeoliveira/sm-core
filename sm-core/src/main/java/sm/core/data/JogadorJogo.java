@@ -31,10 +31,11 @@ private int penalty_defesa;
 private int ld_falhado;
 private int ld_defesa;
 private String licenca;
+private boolean gr;
 
 public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
         int golos_pp, int golos_up, int golos_normal, int golos_s_p, int golos_s_ld, int golos_s_up, int golos_s_pp,
-        int golos_s_normal, String estado, String obs, int faltas, int assistencias, int recuperacoes_bola, int perdas_bola, int remates, int penalty_falhado, int penalty_defesa, int ld_falhado, int ld_defesa, String licenca) {
+        int golos_s_normal, String estado, String obs, int faltas, int assistencias, int recuperacoes_bola, int perdas_bola, int remates, int penalty_falhado, int penalty_defesa, int ld_falhado, int ld_defesa, String licenca, boolean gr) {
     this.id_jogador = id_jogador;
     this.nome = nome;
     this.capitao = capitao;
@@ -64,6 +65,7 @@ public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int
     this.ld_falhado = ld_falhado;
     this.ld_defesa = ld_defesa;
     this.licenca = licenca;
+    this.gr = gr;
         }
 
 
@@ -382,7 +384,13 @@ public void setLicenca(String licenca) {
     this.licenca = licenca;
 }
 
+public boolean isGr() {
+    return gr;
+}
 
+public void setGr(boolean gr) {
+    this.gr = gr;
+}
 
         
 }

@@ -191,7 +191,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 				preparedStatement.executeUpdate();	
 				preparedStatement.close();
 				PreparedStatement insertStatement = conn
-						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 				for(JogadorJogo jogador : jogo.getJogadores()) {
 					insertStatement.setInt(1, jogo.getId());
 					insertStatement.setInt(2, jogador.getId_jogador());
@@ -221,6 +221,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					insertStatement.setInt(26, jogador.getPenalty_defesa());
 					insertStatement.setInt(27, jogador.getLd_falhado());
 					insertStatement.setInt(28, jogador.getLd_defesa());
+					insertStatement.setBoolean(29, jogador.isGr());
 					insertStatement.executeUpdate();
 				}
 				insertStatement.close();
@@ -330,7 +331,8 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					rsJogadores.getInt("penalty_defesa"),
 					rsJogadores.getInt("ld_falhado"),
 					rsJogadores.getInt("ld_defesa"),
-					rsJogadores.getString("Licença")	
+					rsJogadores.getString("Licença"),
+					rsJogadores.getBoolean("gr")	
 				);
 				listaJogadores.add(jogador);
 			}
@@ -482,7 +484,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getInt("golo_s_p"), rs.getInt("golo_s_ld"), rs.getInt("golo_s_up"), rs.getInt("golo_s_pp"),
 						rs.getInt("golo_s_normal"), rs.getString("estado"), rs.getString("obs"), rs.getInt("faltas"), rs.getInt("assistencias"),
 						rs.getInt("recuperacoes_bola"), rs.getInt("perdas_bola"), rs.getInt("remates"), rs.getInt("penalty_falhado"), rs.getInt("penalty_defesa"),
-						rs.getInt("ld_falhado"), rs.getInt("ld_defesa"), rs.getString("Licença"));
+						rs.getInt("ld_falhado"), rs.getInt("ld_defesa"), rs.getString("Licença"), rs.getBoolean("gr"));
 
 				ArrayList<JogadorJogo> jogadores = new ArrayList<>();
 				jogadores.add(jogadorNoJogo);
