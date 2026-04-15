@@ -272,13 +272,13 @@ public class EquipaHelper {
 			// ler staff
 
 			PreparedStatement preparedStatement2 = conn.prepareStatement(
-					"select	ee.id as id,	e2.Descritivo, 	e.Nome, 	j.id,	j.nome as nome,	j.data_nascimento,	eej.tipo, 0 as id_Jogador\r\n"
+					"select	ee.id as id,	e2.Descritivo, 	e.Nome, 	j.id,	j.nome as nome,	j.data_nascimento,	eej.tipo, 0 as id_Jogador, j.Licença\r\n"
 							+ "from	escalao_epoca ee\r\n" + "inner join escalao e on	e.id = ee.id_escalao\r\n"
 							+ "inner join epoca e2 on ee.id_epoca=e2.id	\r\n"
 							+ "inner join escalao_epoca_staff eej on eej.id_escalao_epoca = ee.id\r\n"
 							+ "inner join staff j on j.id = eej.id_staff\r\n"
 							+ "where	ee.id = ? and j.id_jogador = 0\r\n" + "union\r\n"
-							+ "select 	ee.id as id,	e2.Descritivo,	e.Nome,	j.id,	j2.nome as nome,	j2.data_nascimento,	eej.tipo, id_jogador\r\n"
+							+ "select 	ee.id as id,	e2.Descritivo,	e.Nome,	j.id,	j2.nome as nome,	j2.data_nascimento,	eej.tipo, id_jogador, j.Licença\r\n"
 							+ "from escalao_epoca ee\r\n" + "inner join escalao e on	e.id = ee.id_escalao\r\n"
 							+ "inner join epoca e2 on	ee.id_epoca=e2.id\r\n"
 							+ "inner join escalao_epoca_staff eej on	eej.id_escalao_epoca = ee.id\r\n"
@@ -295,6 +295,7 @@ public class EquipaHelper {
 				// ler jogadores
 
 				tmpStaff = new StaffData(rs.getInt(4), rs.getString(5), rs.getString("tipo"), rs.getInt("id_Jogador"));
+				tmpStaff.setLicenca(rs.getString("Licença"));
 				equipaData.addStaff(tmpStaff);
 
 			}

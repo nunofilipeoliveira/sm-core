@@ -12,9 +12,10 @@ public class StaffData {
 	private int data_nascimento;
 	private int id_jogador;
 	private String tipo;
+	private String licenca;
 
 	public StaffData(int id, String nome, String nome_completo, String telemovel, String email, String morada,
-			String codigo_postal, int data_nascimento, int id_jogador, String tipo) {
+			String codigo_postal, int data_nascimento, int id_jogador, String tipo, String licenca) {
 		super();
 		this.id = id;
 		this.nome = nome;
@@ -26,6 +27,7 @@ public class StaffData {
 		this.data_nascimento = data_nascimento;
 		this.id_jogador = id_jogador;
 		this.tipo = tipo;
+		this.licenca = licenca;
 	}
 
 	public StaffData(int id, String nome, String nome_completo, String telemovel, String email, String morada,
@@ -39,6 +41,7 @@ public class StaffData {
 		this.morada = morada;
 		this.codigo_postal = codigo_postal;
 		this.data_nascimento = data_nascimento;
+		this.licenca = "";
 
 	}
 
@@ -51,7 +54,14 @@ public class StaffData {
 	}
 
 	public StaffData() {
-
+		this.nome = "";
+		this.nome_completo = "";
+		this.telemovel = "";
+		this.email = "";
+		this.morada = "";
+		this.codigo_postal = "";
+		this.tipo = "";
+		this.licenca = "";
 	}
 
 	public int getId() {
@@ -132,6 +142,14 @@ public class StaffData {
 
 	public void setTipo(String tipo) {
 		this.tipo = tipo;
+	}
+
+	public String getLicenca() {
+		return licenca;
+	}
+
+	public void setLicenca(String licenca) {
+		this.licenca = licenca;
 	}
 
 }

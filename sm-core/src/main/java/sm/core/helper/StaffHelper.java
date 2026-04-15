@@ -30,9 +30,9 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"select ID, NOME, NOME_COMPLETO, TELEMOVEL, EMAIL, MORADA, CODIGO_POSTAL, DATA_NASCIMENTO, ID_JOGADOR from staff where ID_JOGADOR=0 and ID=?\r\n"
+					"select ID, NOME, NOME_COMPLETO, TELEMOVEL, EMAIL, MORADA, CODIGO_POSTAL, DATA_NASCIMENTO, ID_JOGADOR, LICENÇA from staff where ID_JOGADOR=0 and ID=?\r\n"
 							+ "union\r\n"
-							+ "select STAFF.ID, J.NOME, J.NOME_COMPLETO, J.TELEMOVEL, J.EMAIL, J.MORADA, J.CODIGO_POSTAL, J.DATA_NASCIMENTO, ID_JOGADOR from staff\r\n"
+							+ "select STAFF.ID, J.NOME, J.NOME_COMPLETO, J.TELEMOVEL, J.EMAIL, J.MORADA, J.CODIGO_POSTAL, J.DATA_NASCIMENTO, ID_JOGADOR, STAFF.LICENÇA from staff\r\n"
 							+ "inner join jogador j on J.ID=id_jogador \r\n" + "where ID_JOGADOR<>0 and STAFF.ID=?");
 
 			preparedStatement.setInt(1, parmId);
@@ -47,7 +47,8 @@ public class StaffHelper {
 				if (staffData == null) {
 					staffData = new StaffData(rs.getInt("id"), rs.getString("nome"), rs.getString("nome_completo"),
 							rs.getString("telemovel"), rs.getString("email"), rs.getString("morada"),
-							rs.getString("Codigo_postal"), rs.getInt("data_nascimento"), rs.getInt("Id_jogador"), "");
+							rs.getString("Codigo_postal"), rs.getInt("data_nascimento"), rs.getInt("Id_jogador"), "",
+							rs.getString("licença"));
 				}
 
 			}
@@ -80,41 +81,55 @@ public class StaffHelper {
 				staffData = new StaffData(rs.getInt("id"), rs.getString("nome"), rs.getString("nome_completo"),
 						rs.getString("telemovel"), rs.getString("email"), rs.getString("morada"),
 						rs.getString("codigo_postal"), rs.getInt("data_nascimento"));
+				staffData.setLicenca(rs.getString("Licença"));
 
 			}
 
 			// Realiza a comparação campo a campo e regita no histórico.
-			if (!parmStaff.getNome().equals(staffData.getNome())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome", staffData.getNome(),
+			String nomeAtual = staffData.getNome() != null ? staffData.getNome() : "";
+			if (!parmStaff.getNome().equals(nomeAtual)) {
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome", nomeAtual,
 						parmStaff.getNome());
 
 			}
 
-			if (!parmStaff.getCodigo_postal().equals(staffData.getCodigo_postal())) {
+			String codigoPostalAtual = staffData.getCodigo_postal() != null ? staffData.getCodigo_postal() : "";
+			if (!parmStaff.getCodigo_postal().equals(codigoPostalAtual)) {
 				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Código Postal",
-						parmStaff.getCodigo_postal(), staffData.getCodigo_postal());
+						codigoPostalAtual, parmStaff.getCodigo_postal());
 			}
 			if (parmStaff.getData_nascimento() != staffData.getData_nascimento()) {
 				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Data Nascimento",
 						String.valueOf(staffData.getData_nascimento()), String.valueOf(parmStaff.getData_nascimento()));
 			}
-			if (!parmStaff.getEmail().equals(staffData.getEmail())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Email", staffData.getEmail(),
+			String emailAtual = staffData.getEmail() != null ? staffData.getEmail() : "";
+			if (!parmStaff.getEmail().equals(emailAtual)) {
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Email", emailAtual,
 						parmStaff.getEmail());
 			}
-			if (!parmStaff.getMorada().equals(staffData.getMorada())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Morada", staffData.getMorada(),
+			String moradaAtual = staffData.getMorada() != null ? staffData.getMorada() : "";
+			if (!parmStaff.getMorada().equals(moradaAtual)) {
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Morada", moradaAtual,
 						parmStaff.getMorada());
 			}
 
-			if (!parmStaff.getNome_completo().equals(staffData.getNome_completo())) {
+			String nomeCompletoAtual = staffData.getNome_completo() != null ? staffData.getNome_completo() : "";
+			if (!parmStaff.getNome_completo().equals(nomeCompletoAtual)) {
 				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Nome Completo",
-						staffData.getNome_completo(), parmStaff.getNome_completo());
+						nomeCompletoAtual, parmStaff.getNome_completo());
 			}
 
-			if (!parmStaff.getTelemovel().equals(staffData.getTelemovel())) {
-				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Telemovel",
-						staffData.getTelemovel(), parmStaff.getTelemovel());
+			String telemovelAtual = staffData.getTelemovel() != null ? staffData.getTelemovel() : "";
+			if (!parmStaff.getTelemovel().equals(telemovelAtual)) {
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Telemovel", telemovelAtual,
+						parmStaff.getTelemovel());
+			}
+
+			String licencaAtual = staffData.getLicenca() != null ? staffData.getLicenca() : "";
+			String licencaNova = parmStaff.getLicenca() != null ? parmStaff.getLicenca() : "";
+			if (!licencaAtual.equals(licencaNova)) {
+				registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Licença",
+						licencaAtual, licencaNova);
 			}
 
 			// Atualiza a informação
@@ -122,7 +137,8 @@ public class StaffHelper {
 			preparedStatement = conn
 					.prepareStatement("update\r\n" + "	staff \r\n" + "set\r\n" + "	nome =? ,\r\n"
 							+ "	data_nascimento =? ,\r\n" + "	email =? ,\r\n" + "	telemovel =? ,\r\n"
-							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? \r\n" + "where\r\n"
+							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? ,\r\n"
+							+ "	Licença =? \r\n" + "where\r\n"
 							+ "	ID =?");
 
 			preparedStatement.setString(1, parmStaff.getNome());
@@ -132,7 +148,9 @@ public class StaffHelper {
 			preparedStatement.setString(5, parmStaff.getMorada());
 			preparedStatement.setString(6, parmStaff.getCodigo_postal());
 			preparedStatement.setString(7, parmStaff.getNome_completo());
-			preparedStatement.setInt(8, parmStaff.getId());
+			String licencaValue = parmStaff.getLicenca();
+			preparedStatement.setString(8, licencaValue == null || licencaValue.isEmpty() ? null : licencaValue);
+			preparedStatement.setInt(9, parmStaff.getId());
 			preparedStatement.executeUpdate();
 
 			dbUtils.closeConnection(conn);
@@ -155,8 +173,8 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,Tenant_id) VALUES\r\n"
-							+ "	 (?,?,?,?,?,?,?,0,1,?)",
+					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,Tenant_id, Licença) VALUES\r\n"
+							+ "	 (?,?,?,?,?,?,?,0,1,?,?)",
 					Statement.RETURN_GENERATED_KEYS);
 
 			preparedStatement.setString(1, parmStaff.getNome());
@@ -167,6 +185,8 @@ public class StaffHelper {
 			preparedStatement.setString(6, parmStaff.getCodigo_postal());
 			preparedStatement.setInt(7, parmStaff.getData_nascimento());
 			preparedStatement.setInt(8, parmTenantID);
+			String licencaValue = parmStaff.getLicenca();
+			preparedStatement.setString(9, licencaValue == null || licencaValue.isEmpty() ? null : licencaValue);
 			int affectedRows = preparedStatement.executeUpdate();
 
 			// Verifica se a inserção foi bem-sucedida
