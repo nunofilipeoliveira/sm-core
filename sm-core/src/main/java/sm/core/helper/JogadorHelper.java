@@ -49,7 +49,7 @@ public class JogadorHelper {
 							rs.getString("mae_nome"), rs.getString("mae_email"), rs.getString("mae_telemovel"),
 							rs.getString("morada"), rs.getString("cidade"), rs.getString("codigo_postal"),
 							rs.getString("observacoes"), rs.getString("numero"), rs.getString("CC"), rs.getInt("NIF"),
-							rs.getInt("licença"));
+							rs.getInt("licença"), rs.getInt("tenant_id"));
 				}
 
 			}
@@ -333,7 +333,7 @@ public class JogadorHelper {
 						rs.getString("mae_nome"), rs.getString("mae_email"), rs.getString("mae_telemovel"),
 						rs.getString("morada"), rs.getString("cidade"), rs.getString("codigo_postal"),
 						rs.getString("observacoes"), rs.getString("numero"), rs.getString("CC"), rs.getInt("NIF"),
-						rs.getInt("licença"));
+						rs.getInt("licença"), rs.getInt("tenant_id"));
 
 			}
 

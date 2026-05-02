@@ -73,7 +73,7 @@ public class JogadorData {
 	public JogadorData(int id, String nome, String nome_completo, int data_nascimento, String email, String telemovel,
 			String pai_nome, String pai_email, String pai_telemovel, String mae_nome, String mae_email,
 			String mae_telemovel, String morada, String cidade, String codigo_postal, String observacoes, String numero,
-			String cc, int nif, int licenca) {
+			String cc, int nif, int licenca, int tenant_id) {
 		this.nome = "";
 		this.nome_completo = "";
 		this.data_nascimento = 0;
@@ -94,6 +94,8 @@ public class JogadorData {
 		this.NIF = 0;
 		this.licenca = 0;
 		this.id = id;
+		this.tenant_id=0;
+		
 		if (nome != null)
 			this.nome = nome;
 		if (nome_completo != null)
@@ -130,6 +132,7 @@ public class JogadorData {
 			this.CC = cc;
 		this.NIF = nif;
 		this.licenca = licenca;
+		this.tenant_id=tenant_id;
 	}
 
 	public JogadorData() {
@@ -239,6 +242,16 @@ public class JogadorData {
 	private int NIF;
 	private String CC;
 	private int licenca;
+	private int tenant_id;
+
+
+	public int getTenant_id(){
+		return tenant_id;
+	}
+
+	public void setTenant_id(int tenant_id){
+		this.tenant_id=tenant_id;
+	}
 
 	public int getNIF() {
 		return NIF;
