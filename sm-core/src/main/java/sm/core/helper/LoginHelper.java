@@ -61,11 +61,11 @@ public class LoginHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"select uti.user, uti.id, uti.password, uti.Nome nome, uti.perfil, ee.id IDEscalao_Epoca, ee.nome  DesctivoEscalao from UTILIZADORES Uti\r\n"
-							+ "inner join utilizadores_escalao UE on ue.id_utilizador=Uti.id\r\n"
+					"select uti.user, uti.id, uti.password, uti.nome nome, uti.perfil, ee.id idescalao_epoca, ee.nome  desctivoescalao from utilizadores uti\r\n"
+							+ "inner join utilizadores_escalao UE on ue.id_utilizador=uti.id\r\n"
 							+ "inner join escalao_epoca ee on ue.id_escalao_epoca=ee.id \r\n"
 							+ "inner join epoca e on e.id =ee.id_epoca\r\n"
-							+ "inner join escalao e2 on ee.id_escalao =e2.id \r\n" + "where e.Estado ='1' and uti.estado='1'\r\n"
+							+ "inner join escalao e2 on ee.id_escalao =e2.id \r\n" + "where e.estado ='1' and uti.estado='1'\r\n"
 							+ "and uti.user=? and uti.password =? and uti.tenant_id=?");
 
 			preparedStatement.setString(1, parmUser);
@@ -96,7 +96,7 @@ public class LoginHelper {
 				
 				}
 
-				loginData.adicionarEscalaoEpoca(rs.getInt("IDEscalao_Epoca"), rs.getString("DesctivoEscalao"));
+				loginData.adicionarEscalaoEpoca(rs.getInt("idescalao_epoca"), rs.getString("desctivoescalao"));
 
 			}
 
@@ -118,7 +118,7 @@ public class LoginHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select *from utilizadores_ativar ua where ESTADO='0' and CODE=?");
+					.prepareStatement("select *from utilizadores_ativar ua where estado='0' and code=?");
 
 			preparedStatement.setString(1, parmCode);
 
@@ -160,7 +160,7 @@ public class LoginHelper {
 
 			
 				preparedStatement = conn.prepareStatement(
-						"insert into utilizadores(nome, user, password, perfil, Tenant_id, estado) values(?, ?, ?, ?, ?, 1)",
+						"insert into utilizadores(nome, user, password, perfil, tenant_id, estado) values(?, ?, ?, ?, ?, 1)",
 						PreparedStatement.RETURN_GENERATED_KEYS);
 
 				preparedStatement.setString(1, parmLoginData.getNome());
@@ -257,7 +257,7 @@ public class LoginHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select code from utilizadores_ativar ua where ESTADO='0' and user=?");
+					.prepareStatement("select code from utilizadores_ativar ua where estado='0' and user=?");
 
 			preparedStatement.setString(1, parmUser);
 
@@ -302,7 +302,7 @@ public class LoginHelper {
 
 			while (rs.next()) {
 
-				utilizadorData = new UtilizadorData(rs.getInt("id"), rs.getString("Nome"), rs.getString("user"),
+				utilizadorData = new UtilizadorData(rs.getInt("id"), rs.getString("nome"), rs.getString("user"),
 						rs.getString("perfil"), rs.getString("email"), rs.getString("estado"));
 				utilizadores.add(utilizadorData);
 			}
@@ -408,7 +408,7 @@ public class LoginHelper {
 
 			while (rs.next()) {
 
-				utilizadorData = new UtilizadorData(rs.getInt("id"), rs.getString("Nome"), rs.getString("user"),
+				utilizadorData = new UtilizadorData(rs.getInt("id"), rs.getString("nome"), rs.getString("user"),
 						rs.getString("perfil"), rs.getString("email"), rs.getString("estado"));
 
 			}
@@ -444,7 +444,7 @@ public class LoginHelper {
 
 			while (rs.next()) {
 
-				utilizadorData = new UtilizadorData(rs.getInt("id"), rs.getString("Nome"), rs.getString("user"),
+				utilizadorData = new UtilizadorData(rs.getInt("id"), rs.getString("nome"), rs.getString("user"),
 						rs.getString("perfil"), rs.getString("email"), rs.getString("estado"));
 
 			}
@@ -467,7 +467,7 @@ public class LoginHelper {
 
 				while (rs.next()) {
 
-					utilizadorData = new UtilizadorData(0, rs.getString("Nome"), rs.getString("user"),
+					utilizadorData = new UtilizadorData(0, rs.getString("nome"), rs.getString("user"),
 							rs.getString("perfil"), rs.getString("email"), "0");
 
 				}
@@ -526,8 +526,8 @@ public class LoginHelper {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("delete from utilizadores_escalao  where  id_utilizador =?\r\n"
-							+ "and exists (select *from escalao_epoca inner join EPOCA on ID_EPOCA=EPOCA.ID\r\n"
-							+ "where ESTADO='1' and escalao_epoca.id=ID_ESCALAO_EPOCA\r\n" + " )");
+							+ "and exists (select *from escalao_epoca inner join epoca on id_epoca=epoca.id\r\n"
+							+ "where estado='1' and escalao_epoca.id=id_escalao_epoca\r\n" + " )");
 
 			preparedStatement.setInt(1, parmUserId);
 
@@ -570,7 +570,7 @@ public class LoginHelper {
 			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("update UTILIZADORES SET NOME=?, PERFIL=?, EMAIL=? where ID=?");
+					.prepareStatement("update utilizadores SET nome=?, perfil=?, email=? where id=?");
 
 			preparedStatement.setString(1, parmUserData.getNome());
 			preparedStatement.setString(2, parmUserData.getPerfil());
@@ -597,7 +597,7 @@ public class LoginHelper {
 			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("update UTILIZADORES SET password=? where ID=?");
+					.prepareStatement("update utilizadores SET password=? where id=?");
 
 			preparedStatement.setString(1, parmPWD);
 			preparedStatement.setInt(2, parmUserId);
@@ -622,7 +622,7 @@ public class LoginHelper {
 			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("update UTILIZADORES SET estado='1' where ID=?");
+					.prepareStatement("update utilizadores SET estado='1' where id=?");
 
 			preparedStatement.setInt(1, parmUserId);
 
@@ -647,7 +647,7 @@ public class LoginHelper {
 			// COLOCA UTILIZADOR NUM ESTADO DE AGUARDA PWD
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("update UTILIZADORES SET estado='2' where ID=?");
+					.prepareStatement("update utilizadores SET estado='2' where id=?");
 
 			preparedStatement.setInt(1, parmUserId);
 
@@ -655,7 +655,7 @@ public class LoginHelper {
 
 			// APAGA POSSIVEIS REGISTOS EM ATIVAÇÃO
 
-			preparedStatement = dbUtils.getConnection().prepareStatement("SELECT * FROM UTILIZADORES WHERE ID=?");
+			preparedStatement = dbUtils.getConnection().prepareStatement("SELECT * FROM utilizadores WHERE id=?");
 
 			preparedStatement.setInt(1, parmUserId);
 
@@ -668,8 +668,8 @@ public class LoginHelper {
 			while (rs.next()) {
 
 				tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", "",
-						rs.getString("Nome"), rs.getString("email"), rs.getString("perfil"), "");
-				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("Tenant_id"));
+						rs.getString("nome"), rs.getString("email"), rs.getString("perfil"), "");
+				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("tenant_id"));
 
 			}
 
@@ -691,7 +691,7 @@ public class LoginHelper {
 			// PRIMEIRO APAGA OS ESCALOES DA EPOCA ATUAL
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("update UTILIZADORES SET estado='0' where ID=?");
+					.prepareStatement("update utilizadores SET estado='0' where id=?");
 
 			preparedStatement.setInt(1, parmUserId);
 

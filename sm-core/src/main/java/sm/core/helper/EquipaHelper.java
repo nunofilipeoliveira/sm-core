@@ -34,7 +34,7 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select ee.id, e2.Descritivo , e.Nome from escalao_epoca ee\r\n"
+					.prepareStatement("select ee.id, e2.descritivo , e.nome from escalao_epoca ee\r\n"
 							+ "inner join escalao e on e.id=ee.id_escalao \r\n"
 							+ "inner join epoca e2 on ee.id_epoca=e2.id \r\n" + "where ee.id =?");
 
@@ -47,7 +47,7 @@ public class EquipaHelper {
 
 			while (rs.next()) {
 				if (equipaData == null) {
-					equipaData = new EquipaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Nome"));
+					equipaData = new EquipaData(rs.getInt("id"), rs.getString("descritivo"), rs.getString("nome"));
 				}
 
 			}
@@ -198,8 +198,8 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select *from ESCALAO_EPOCA inner join \r\n"
-							+ " EPOCA ON ESTADO='1' and TENANT_ID=? and EPOCA.ID=ESCALAO_EPOCA.ID_EPOCA");
+					.prepareStatement("select *from escalao_epoca inner join \r\n"
+							+ " epoca ON estado='1' and tenant_id=? and epoca.id=escalao_epoca.id_epoca");
 
 			preparedStatement.setInt(1, parmTenantID);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -212,8 +212,7 @@ public class EquipaHelper {
 
 				tmpIdEquipa = rs.getInt("id");
 
-				equipaData = new EquipaData(tmpIdEquipa, rs.getString("EPOCA.DESCRITIVO"),
-						rs.getString("ESCALAO_EPOCA.NOME"));
+				equipaData = new EquipaData(tmpIdEquipa, rs.getString("epoca.descritivo"), rs.getString("escalao_epoca.nome"));
 
 				equipas.add(equipaData);
 
@@ -265,7 +264,7 @@ public class EquipaHelper {
 				tmpJogador.setNome(rs.getString("j.nome"));
 				tmpJogador.setNumero(rs.getString("j.numero"));
 				tmpJogador.setData_nascimento(rs.getInt("j.data_nascimento"));
-				tmpJogador.setTenant_id(rs.getInt("Tenant_id"));
+				tmpJogador.setTenant_id(rs.getInt("tenant_id"));
 				equipaData.addJogador(tmpJogador);
 
 			}
@@ -273,13 +272,13 @@ public class EquipaHelper {
 			// ler staff
 
 			PreparedStatement preparedStatement2 = conn.prepareStatement(
-					"select	ee.id as id,	e2.Descritivo, 	e.Nome, 	j.id,	j.nome as nome,	j.data_nascimento,	eej.tipo, 0 as id_Jogador, j.Licença, j.Tenant_id\r\n"
+					"select	ee.id as id,	e2.descritivo, 	e.nome, 	j.id,	j.nome as nome,	j.data_nascimento,	eej.tipo, 0 as id_Jogador, j.licença, j.tenant_id\r\n"
 							+ "from	escalao_epoca ee\r\n" + "inner join escalao e on	e.id = ee.id_escalao\r\n"
 							+ "inner join epoca e2 on ee.id_epoca=e2.id	\r\n"
 							+ "inner join escalao_epoca_staff eej on eej.id_escalao_epoca = ee.id\r\n"
 							+ "inner join staff j on j.id = eej.id_staff\r\n"
 							+ "where	ee.id = ? and j.id_jogador = 0\r\n" + "union\r\n"
-							+ "select 	ee.id as id,	e2.Descritivo,	e.Nome,	j.id,	j2.nome as nome,	j2.data_nascimento,	eej.tipo, id_jogador, j.Licença, j.Tenant_id\r\n"
+							+ "select 	ee.id as id,	e2.descritivo,	e.nome,	j.id,	j2.nome as nome,	j2.data_nascimento,	eej.tipo, id_jogador, j.licença, j.tenant_id\r\n"
 							+ "from escalao_epoca ee\r\n" + "inner join escalao e on	e.id = ee.id_escalao\r\n"
 							+ "inner join epoca e2 on	ee.id_epoca=e2.id\r\n"
 							+ "inner join escalao_epoca_staff eej on	eej.id_escalao_epoca = ee.id\r\n"
@@ -296,7 +295,7 @@ public class EquipaHelper {
 				// ler jogadores
 
 				tmpStaff = new StaffData(rs.getInt(4), rs.getString(5), rs.getString("tipo"), rs.getInt("id_Jogador"));
-				tmpStaff.setLicenca(rs.getString("Licença"));
+				tmpStaff.setLicenca(rs.getString("licença"));
 				equipaData.addStaff(tmpStaff);
 
 			}
@@ -320,7 +319,7 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select *from epoca where estado='1' and TENANT_ID=? ");
+					.prepareStatement("select *from epoca where estado='1' and tenant_id=? ");
 
 			preparedStatement.setInt(1, parmTenantID);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -331,8 +330,8 @@ public class EquipaHelper {
 
 			while (rs.next()) {
 
-				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Estado"),
-						rs.getInt("AnoInicio"));
+				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("descritivo"), rs.getString("estado"),
+						rs.getInt("anoinicio"));
 
 			}
 
@@ -354,7 +353,7 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("UPDATE EPOCA SET ESTADO='1' WHERE TENANT_ID=? AND ID=?");
+					.prepareStatement("update epoca set estado='1' where tenant_id=? and id=?");
 
 			preparedStatement.setInt(1, parmTenantID);
 			preparedStatement.setInt(2, idepoca);
@@ -364,7 +363,7 @@ public class EquipaHelper {
 			
 
 			preparedStatement = conn
-					.prepareStatement("UPDATE EPOCA SET ESTADO='0' WHERE TENANT_ID=? AND ID<>?");
+					.prepareStatement("update epoca set estado='0' where tenant_id=? and id<>?");
 
 			preparedStatement.setInt(1, parmTenantID);
 			preparedStatement.setInt(2, idepoca);
@@ -393,7 +392,7 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("INSERT INTO ESCALAO_EPOCA(ID_ESCALAO, ID_EPOCA, NOME) VALUES (?, ?, ?)");
+					.prepareStatement("insert into escalao_epoca(id_escalao, id_epoca, nome) values (?, ?, ?)");
 
 			preparedStatement.setInt(1, parmEscalaoEpocaData.getId_escalao_epoca());
 			preparedStatement.setInt(2, epoca.getId());
@@ -419,7 +418,7 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("DELETE FROM ESCALAO_EPOCA WHERE ID=?");
+					.prepareStatement("delete from escalao_epoca where id=?");
 
 			preparedStatement.setInt(1, parmEscalaoEpocaData.getId_escalao_epoca());
 
@@ -445,7 +444,7 @@ public class EquipaHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select *from epoca where TENANT_ID=? ");
+					.prepareStatement("select *from epoca where tenant_id=? ");
 
 			preparedStatement.setInt(1, parmTenantID);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -456,8 +455,8 @@ public class EquipaHelper {
 
 			while (rs.next()) {
 
-				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("Descritivo"), rs.getString("Estado"),
-						rs.getInt("AnoInicio"));
+				epocaAtual = new EpocaData(rs.getInt("id"), rs.getString("descritivo"), rs.getString("estado"),
+						rs.getInt("anoinicio"));
 				epocas.add(epocaAtual);
 
 			}
@@ -481,7 +480,7 @@ public class EquipaHelper {
 
 		try {
 			Connection conn = dbUtils.getConnection();
-			PreparedStatement preparedStatement = conn.prepareStatement("select *from ESCALAO ");
+			PreparedStatement preparedStatement = conn.prepareStatement("select *from escalao ");
 
 			ResultSet rs = preparedStatement.executeQuery();
 
@@ -491,7 +490,7 @@ public class EquipaHelper {
 
 			while (rs.next()) {
 
-				escalao = new EscalaoData(rs.getInt("id"), rs.getString("Nome"));
+				escalao = new EscalaoData(rs.getInt("id"), rs.getString("nome"));
 				escaloes.add(escalao);
 
 			}

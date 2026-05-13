@@ -32,7 +32,7 @@ public class JogadorHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("SELECT * FROM JOGADOR WHERE ID=?");
+					.prepareStatement("SELECT * FROM jogador WHERE id=?");
 
 			preparedStatement.setInt(1, parmId);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -48,7 +48,7 @@ public class JogadorHelper {
 							rs.getString("pai_nome"), rs.getString("pai_email"), rs.getString("pai_telemovel"),
 							rs.getString("mae_nome"), rs.getString("mae_email"), rs.getString("mae_telemovel"),
 							rs.getString("morada"), rs.getString("cidade"), rs.getString("codigo_postal"),
-							rs.getString("observacoes"), rs.getString("numero"), rs.getString("CC"), rs.getInt("NIF"),
+							rs.getString("observacoes"), rs.getString("numero"), rs.getString("cc"), rs.getInt("nif"),
 							rs.getInt("licença"), rs.getInt("tenant_id"));
 				}
 
@@ -79,7 +79,7 @@ public class JogadorHelper {
 							+ "inner join presencas p on pj.id_presenca =p.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id =p.id_equipa\r\n"
 							+ "inner join epoca e on e.id=ee.id_epoca \r\n"
-							+ "where e.Estado =1 and (pj.estado like 'Ausente%' or pj.estado like 'Lesão') " + "and j.id=?\r\n"
+							+ "where e.estado =1 and (pj.estado like 'Ausente%' or pj.estado like 'Lesão') " + "and j.id=?\r\n"
 							+ "order by data, hora");
 
 			preparedStatement.setInt(1, parmId);
@@ -120,8 +120,8 @@ public class JogadorHelper {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id_jogador, ee.nome, mid(data, 5, 2) mes, count(*) from presenca_jogador pj\r\n"
 							+ "inner join presencas p ON P.id =PJ.id_presenca\r\n"
-							+ "inner join escalao_epoca ee on EE.ID=P.id_equipa  \r\n"
-							+ "inner join epoca e on e.id=ee.id_epoca and e.Estado ='1'\r\n" + "where id_jogador =?\r\n"
+							+ "inner join escalao_epoca ee on EE.id=P.id_equipa  \r\n"
+							+ "inner join epoca e on e.id=ee.id_epoca and e.estado ='1'\r\n" + "where id_jogador =?\r\n"
 							+ "and pj.estado='Presente' \r\n" + "group by ee.nome, mid(data, 5, 2)\r\n"
 							+ "order by 1, 2, 3");
 
@@ -228,10 +228,10 @@ public class JogadorHelper {
 				preparedStatement = conn.prepareStatement("select j.id, j.nome, ee.nome  from jogador j \r\n"
 						+ "inner join escalao_epoca_jogador eej on J.id =EEJ.id_jogador \r\n"
 						+ "inner join escalao_epoca ee ON EE.id =EEJ.id_escalao_epoca\r\n"
-						+ "inner join epoca e on e.id =ee.id_epoca where  e.Estado =1\r\n"
+						+ "inner join epoca e on e.id =ee.id_epoca where  e.estado =1\r\n"
 								+ "and not exists (select * from escalao_epoca_jogador X  where \r\n"
 								+ "X.id_jogador = EEJ.id_jogador AND X.id_escalao_epoca =?)\r\n"
-								+ "and j.Tenant_id =?");
+								+ "and j.tenant_id =?");
 
 				preparedStatement.setInt(1, parmIdEscalao);
 				preparedStatement.setInt(2, parmTenandId);
@@ -250,7 +250,7 @@ public class JogadorHelper {
 			} else {
 
 				preparedStatement = conn.prepareStatement("select j.id, j.nome, \"\" from jogador j \r\n"
-								+ "where estado='1' and j.Tenant_id =?");
+								+ "where estado='1' and j.tenant_id =?");
 
 				preparedStatement.setInt(1, parmTenandId);
 				ResultSet rs = preparedStatement.executeQuery();
@@ -287,7 +287,7 @@ public class JogadorHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("select *from JOGADOR where ESTADO='1' and TENANT_ID=? ");
+					.prepareStatement("select *from jogador where estado='1' and tenant_id=? ");
 
 			preparedStatement.setInt(1, parmTenantID);
 			ResultSet rs = preparedStatement.executeQuery();
@@ -321,7 +321,7 @@ public class JogadorHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("SELECT * FROM JOGADOR WHERE ID=?");
+					.prepareStatement("SELECT * FROM jogador WHERE id=?");
 
 			preparedStatement.setInt(1, parmJogador.getId());
 			ResultSet rs = preparedStatement.executeQuery();
@@ -332,40 +332,40 @@ public class JogadorHelper {
 						rs.getString("pai_nome"), rs.getString("pai_email"), rs.getString("pai_telemovel"),
 						rs.getString("mae_nome"), rs.getString("mae_email"), rs.getString("mae_telemovel"),
 						rs.getString("morada"), rs.getString("cidade"), rs.getString("codigo_postal"),
-						rs.getString("observacoes"), rs.getString("numero"), rs.getString("CC"), rs.getInt("NIF"),
+						rs.getString("observacoes"), rs.getString("numero"), rs.getString("cc"), rs.getInt("nif"),
 						rs.getInt("licença"), rs.getInt("tenant_id"));
 
 			}
 
 			// Realiza a comparação campo a campo e regita no histórico.
 			if (!parmJogador.getNome().equals(jogadorData.getNome())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Nome", jogadorData.getNome(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "nome", jogadorData.getNome(),
 						parmJogador.getNome());
 
 			}
 			if (!parmJogador.getCC().equals(jogadorData.getCC())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "CC", jogadorData.getCC(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "cc", jogadorData.getCC(),
 						parmJogador.getCC());
 			}
 			if (!parmJogador.getCidade().equals(jogadorData.getCidade())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Cidade", jogadorData.getCidade(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "cidade", jogadorData.getCidade(),
 						parmJogador.getCidade());
 			}
 			if (!parmJogador.getCodigo_postal().equals(jogadorData.getCodigo_postal())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Código Postal",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "código postal",
 						jogadorData.getCodigo_postal(), parmJogador.getCodigo_postal());
 			}
 			if (parmJogador.getData_nascimento() != jogadorData.getData_nascimento()) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Data Nascimento",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "data nascimento",
 						String.valueOf(jogadorData.getData_nascimento()),
 						String.valueOf(parmJogador.getData_nascimento()));
 			}
 			if (!parmJogador.getEmail().equals(jogadorData.getEmail())) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Email", jogadorData.getEmail(),
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "email", jogadorData.getEmail(),
 						parmJogador.getEmail());
 			}
 			if (parmJogador.getLicenca() != jogadorData.getLicenca()) {
-				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Licença",
+				registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "licença",
 						String.valueOf(jogadorData.getLicenca()), String.valueOf(parmJogador.getLicenca()));
 			}
 			if (!parmJogador.getMae_email().equals(jogadorData.getMae_email())) {
@@ -425,7 +425,7 @@ public class JogadorHelper {
 							+ "	mae_nome =? ,\r\n" + "	mae_email =? ,\r\n" + "	mae_telemovel =? ,\r\n"
 							+ "	morada =? ,\r\n" + "	cidade =? ,\r\n" + "	codigo_postal =? ,\r\n"
 							+ "	observacoes =? ,\r\n" + "	numero =? ,\r\n" + "	nome_completo =? ,\r\n"
-							+ "	NIF =? ,\r\n" + "	CC =? ,\r\n" + "	Licença =?\r\n" + "where\r\n" + "	ID =?");
+							+ "	nif =? ,\r\n" + "	cc =? ,\r\n" + "	licença =?\r\n" + "where\r\n" + "	id =?");
 
 			preparedStatement.setString(1, parmJogador.getNome());
 			preparedStatement.setInt(2, parmJogador.getData_nascimento());
@@ -470,7 +470,7 @@ public class JogadorHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"INSERT INTO jogador(nome, data_nascimento, email, telemovel, pai_nome, pai_email, pai_telemovel, mae_nome, mae_email, mae_telemovel, morada, cidade, codigo_postal, observacoes, numero, nome_completo, NIF, CC, Licença,Tenant_id, estado) VALUES\r\n"
+					"INSERT INTO jogador(nome, data_nascimento, email, telemovel, pai_nome, pai_email, pai_telemovel, mae_nome, mae_email, mae_telemovel, morada, cidade, codigo_postal, observacoes, numero, nome_completo, nif, cc, licença, tenant_id, estado) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
 					Statement.RETURN_GENERATED_KEYS);
 

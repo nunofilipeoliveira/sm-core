@@ -50,26 +50,26 @@ public class PresencaHelper {
 
 			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement("select * FROM(\r\n"
-					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as NOMEEQUIPA, p.datacriacao , p.utilizador_criacao , u.nome as NOMEUTILIZADOR, pj.id_jogador as id_Item, j.nome, pj.estado, pj.motivo, 'J' as TIPO\r\n"
-					+ "from PRESENCAS P inner join presenca_jogador pj on PJ.id_presenca = P.id\r\n"
+					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, pj.id_jogador as id_item, j.nome, pj.estado, pj.motivo, 'J' as tipo\r\n"
+					+ "from presencas P inner join presenca_jogador pj on PJ.id_presenca = P.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
 					+ "inner join utilizadores u on 	u.id = p.utilizador_criacao\r\n"
 					+ "inner join jogador j on j.id = pj.id_jogador where 	ee.id =?\r\n"
 					+ "and  ((?=1 and ?=1) or  P.`data` between ? and ?) \r\n" + "union\r\n"
-					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as NOMEEQUIPA, p.datacriacao , p.utilizador_criacao , u.nome as NOMEUTILIZADOR, ps.id_staff  as id_Item, j.nome, ps.estado, ps.motivo, 'S' as TIPO \r\n"
-					+ "from PRESENCAS P inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
+					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, ps.id_staff  as id_item, j.nome, ps.estado, ps.motivo, 'S' as tipo \r\n"
+					+ "from presencas P inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
 					+ "inner join utilizadores u on 	u.id = p.utilizador_criacao\r\n"
 					+ "inner join staff j on j.id = ps.id_staff where 	ee.id =? and j.id_jogador=0\r\n"
 					+ "and  ((?=1 and ?=1) or  P.`data` between ? and ?) \r\n" + "union\r\n"
-					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as NOMEEQUIPA, p.datacriacao , p.utilizador_criacao , u.nome as NOMEUTILIZADOR, ps.id_staff  as id_Item, j.nome, ps.estado, ps.motivo, 'S' as TIPO \r\n"
-					+ "from PRESENCAS P inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
+					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, ps.id_staff  as id_item, j.nome, ps.estado, ps.motivo, 'S' as tipo \r\n"
+					+ "from presencas P inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
 					+ "inner join utilizadores u on 	u.id = p.utilizador_criacao\r\n"
 					+ "inner join staff s on s.id = ps.id_staff \r\n"
 					+ "inner join jogador j on j.id = s.id_jogador where 	ee.id =? and s.id_jogador<>0\r\n"
 					+ "and  ((?=1 and ?=1) or  P.`data` between ? and ?) \r\n" + ") A \r\n"
-					+ "order by data, hora, id, TIPO");
+					+ "order by data, hora, id, tipo");
 
 			preparedStatement.setInt(1, equipaID);
 			preparedStatement.setInt(2, DataInicio);
@@ -97,27 +97,27 @@ public class PresencaHelper {
 			while (rs.next()) {
 				if (presencaData == null) {
 					presencaData = new PresencaData(rs.getInt("id"), rs.getInt("data"), rs.getString("hora"),
-							rs.getInt("id_equipa"), rs.getString("NOMEEQUIPA"), rs.getString("datacriacao"),
-							rs.getInt("utilizador_criacao"), rs.getString("NOMEUTILIZADOR"));
+							rs.getInt("id_equipa"), rs.getString("nomeequipa"), rs.getString("datacriacao"),
+							rs.getInt("utilizador_criacao"), rs.getString("nomeutilizador"));
 
 				} else {
 					if (presencaData.getId() != rs.getInt("id")) {
 						presencas.add(presencaData);
 						presencaData = new PresencaData(rs.getInt("id"), rs.getInt("data"), rs.getString("hora"),
-								rs.getInt("id_equipa"), rs.getString("NOMEEQUIPA"), rs.getString("datacriacao"),
-								rs.getInt("utilizador_criacao"), rs.getString("NOMEUTILIZADOR"));
+								rs.getInt("id_equipa"), rs.getString("nomeequipa"), rs.getString("datacriacao"),
+								rs.getInt("utilizador_criacao"), rs.getString("nomeutilizador"));
 
 					}
 
 				}
 
-				if (rs.getString("Tipo").equals("J")) {
-					presencaData.addJogador(rs.getInt("id_Item"), rs.getString("nome"), rs.getString("estado"),
+				if (rs.getString("tipo").equals("J")) {
+					presencaData.addJogador(rs.getInt("id_item"), rs.getString("nome"), rs.getString("estado"),
 							rs.getString("motivo"));
 				}
 
-				if (rs.getString("Tipo").equals("S")) {
-					presencaData.addStaff(rs.getInt("id_Item"), rs.getString("nome"), rs.getString("estado"),
+				if (rs.getString("tipo").equals("S")) {
+					presencaData.addStaff(rs.getInt("id_item"), rs.getString("nome"), rs.getString("estado"),
 							rs.getString("motivo"));
 				}
 
@@ -154,7 +154,7 @@ public class PresencaHelper {
 					.prepareStatement("select\r\n" + "	p.id,\r\n" + "	data,\r\n" + "	hora,\r\n" + "	id_equipa,\r\n"
 							+ "	ee.nome,\r\n" + "	datacriacao,\r\n" + "	utilizador_criacao,\r\n" + "	u.nome,\r\n"
 							+ "	pj.id_jogador,\r\n" + "	j.nome,\r\n" + "	pj.estado,\r\n" + "	pj.motivo\r\n"
-							+ "from\r\n" + "	PRESENCAS P\r\n" + "inner join presenca_jogador pj on\r\n"
+							+ "from\r\n" + "	presencas P\r\n" + "inner join presenca_jogador pj on\r\n"
 							+ "	PJ.id_presenca = P.id\r\n" + "inner join escalao_epoca ee on\r\n"
 							+ "	ee.id = p.id_equipa\r\n" + "inner join utilizadores u on\r\n"
 							+ "	u.id = p.utilizador_criacao\r\n" + "inner join jogador j on\r\n"
@@ -181,13 +181,13 @@ public class PresencaHelper {
 			}
 
 			preparedStatement = conn
-					.prepareStatement("select ps.id_staff, s.nome, ps.estado, ps.motivo\r\n" + "from PRESENCAS P\r\n"
+					.prepareStatement("select ps.id_staff, s.nome, ps.estado, ps.motivo\r\n" + "from presencas P\r\n"
 							+ "inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
 							+ "inner join utilizadores u on u.id = p.utilizador_criacao\r\n"
 							+ "inner join staff s on s.id = ps.id_staff \r\n" + "where p.id = ? and s.id_jogador =0\r\n"
 							+ "union\r\n" + "select ps.id_staff, j.nome, ps.estado, ps.motivo\r\n"
-							+ "from PRESENCAS P\r\n" + "inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
+							+ "from presencas P\r\n" + "inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
 							+ "inner join utilizadores u on u.id = p.utilizador_criacao\r\n"
 							+ "inner join staff s on s.id = ps.id_staff \r\n"
@@ -401,7 +401,7 @@ public class PresencaHelper {
 		try {
 			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"insert into PRESENCAS(DATA, HORA, ID_EQUIPA, DATACRIACAO, UTILIZADOR_CRIACAO)\r\n"
+					"insert into presencas(data, hora, id_equipa, datacriacao, utilizador_criacao)\r\n"
 							+ "values (?, ?, ?, NOW(), ?)",
 					PreparedStatement.RETURN_GENERATED_KEYS);
 
@@ -569,7 +569,7 @@ public class PresencaHelper {
 
 
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("update PRESENCAS set DATA=?, HORA=?\r\n" + "where id=?");
+					.prepareStatement("update presencas set data=?, hora=?\r\n" + "where id=?");
 
 			preparedStatement.setInt(1, parmPresencaData.getData());
 			preparedStatement.setString(2, parmPresencaData.getHora());
@@ -690,7 +690,7 @@ public class PresencaHelper {
 
 		Connection conn = dbUtils.getConnection();
 		PreparedStatement preparedStatement = conn
-				.prepareStatement("insert PRESENCAS_historico values (?, now(), ?, ?)");
+				.prepareStatement("insert presencas_historico values (?, now(), ?, ?)");
 
 		preparedStatement.setInt(1, idPresenca);
 		preparedStatement.setInt(2, idUtilizador);

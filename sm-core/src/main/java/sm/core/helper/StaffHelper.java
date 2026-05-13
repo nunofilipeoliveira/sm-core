@@ -30,10 +30,10 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"select ID, NOME, NOME_COMPLETO, TELEMOVEL, EMAIL, MORADA, CODIGO_POSTAL, DATA_NASCIMENTO, ID_JOGADOR, LICENÇA from staff where ID_JOGADOR=0 and ID=?\r\n"
+					"select id, nome, nome_completo, telemovel, email, morada, codigo_postal, data_nascimento, id_jogador, licenca from staff where id_jogador=0 and id=?\r\n"
 							+ "union\r\n"
-							+ "select STAFF.ID, J.NOME, J.NOME_COMPLETO, J.TELEMOVEL, J.EMAIL, J.MORADA, J.CODIGO_POSTAL, J.DATA_NASCIMENTO, ID_JOGADOR, STAFF.LICENÇA from staff\r\n"
-							+ "inner join jogador j on J.ID=id_jogador \r\n" + "where ID_JOGADOR<>0 and STAFF.ID=?");
+							+ "select staff.id, j.nome, j.nome_completo, j.telemovel, j.email, j.morada, j.codigo_postal, j.data_nascimento, id_jogador, staff.licenca from staff\r\n"
+							+ "inner join jogador j on j.id=staff.id_jogador \r\n" + "where id_jogador<>0 and staff.id=?");
 
 			preparedStatement.setInt(1, parmId);
 			preparedStatement.setInt(2, parmId);
@@ -47,7 +47,7 @@ public class StaffHelper {
 				if (staffData == null) {
 					staffData = new StaffData(rs.getInt("id"), rs.getString("nome"), rs.getString("nome_completo"),
 							rs.getString("telemovel"), rs.getString("email"), rs.getString("morada"),
-							rs.getString("Codigo_postal"), rs.getInt("data_nascimento"), rs.getInt("Id_jogador"), "",
+							rs.getString("codigo_postal"), rs.getInt("data_nascimento"), rs.getInt("id_jogador"), "",
 							rs.getString("licença"));
 				}
 
@@ -72,7 +72,7 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("SELECT * FROM STAFF WHERE ID=?");
+					.prepareStatement("SELECT * FROM staff WHERE id=?");
 
 			preparedStatement.setInt(1, parmStaff.getId());
 			ResultSet rs = preparedStatement.executeQuery();
@@ -81,7 +81,7 @@ public class StaffHelper {
 				staffData = new StaffData(rs.getInt("id"), rs.getString("nome"), rs.getString("nome_completo"),
 						rs.getString("telemovel"), rs.getString("email"), rs.getString("morada"),
 						rs.getString("codigo_postal"), rs.getInt("data_nascimento"));
-				staffData.setLicenca(rs.getString("Licença"));
+				staffData.setLicenca(rs.getString("licença"));
 
 			}
 
@@ -138,8 +138,8 @@ public class StaffHelper {
 					.prepareStatement("update\r\n" + "	staff \r\n" + "set\r\n" + "	nome =? ,\r\n"
 							+ "	data_nascimento =? ,\r\n" + "	email =? ,\r\n" + "	telemovel =? ,\r\n"
 							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? ,\r\n"
-							+ "	Licença =? \r\n" + "where\r\n"
-							+ "	ID =?");
+							+ "	licenca =? \r\n" + "where\r\n"
+							+ "	id =?");
 
 			preparedStatement.setString(1, parmStaff.getNome());
 			preparedStatement.setInt(2, parmStaff.getData_nascimento());
@@ -173,7 +173,7 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,Tenant_id, Licença) VALUES\r\n"
+					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,tenant_id, licença) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,0,1,?,?)",
 					Statement.RETURN_GENERATED_KEYS);
 
@@ -264,9 +264,9 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"select id, nome from staff where ESTADO='1' and TENANT_ID=? and id_jogador =0\r\n" + "union\r\n"
+					"select id, nome from staff where estado='1' and tenant_id=? and id_jogador =0\r\n" + "union\r\n"
 							+ "select s.id, j.nome from staff s \r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
-							+ "where s.ESTADO='1' and s.TENANT_ID=? and s.id_jogador <>0\r\n" + "order by 1 ");
+							+ "where s.estado='1' and s.tenant_id=? and s.id_jogador <>0\r\n" + "order by 1 ");
 	
 			preparedStatement.setInt(1, parmTenantID);
 			preparedStatement.setInt(2, parmTenantID);
@@ -302,9 +302,9 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement("select * from (\r\n"
-					+ "select id, nome from staff where ESTADO='1' and TENANT_ID=? and id_jogador =0\r\n" + "union\r\n"
+					+ "select id, nome from staff where estado='1' and tenant_id=? and id_jogador =0\r\n" + "union\r\n"
 					+ "select s.id, j.nome from staff s\r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
-					+ "where s.ESTADO='1' and s.TENANT_ID=? and s.id_jogador <>0\r\n" + "order by 1 \r\n" + ") a \r\n"
+					+ "where s.estado='1' and s.tenant_id=? and s.id_jogador <>0\r\n" + "order by 1 \r\n" + ") a \r\n"
 					+ "where \r\n" + "not exists (select * from escalao_epoca_staff X \r\n" + "where \r\n"
 					+ "X.id_staff  = a.id  AND\r\n" + "X.id_escalao_epoca = ?)");
 	
