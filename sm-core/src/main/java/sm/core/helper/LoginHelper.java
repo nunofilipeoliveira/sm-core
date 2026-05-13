@@ -62,7 +62,7 @@ public class LoginHelper {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select uti.user, uti.id, uti.password, uti.nome nome, uti.perfil, ee.id idescalao_epoca, ee.nome  desctivoescalao from utilizadores uti\r\n"
-							+ "inner join utilizadores_escalao UE on ue.id_utilizador=uti.id\r\n"
+							+ "inner join utilizadores_escalao ue on ue.id_utilizador=uti.id\r\n"
 							+ "inner join escalao_epoca ee on ue.id_escalao_epoca=ee.id \r\n"
 							+ "inner join epoca e on e.id =ee.id_epoca\r\n"
 							+ "inner join escalao e2 on ee.id_escalao =e2.id \r\n" + "where e.estado ='1' and uti.estado='1'\r\n"
