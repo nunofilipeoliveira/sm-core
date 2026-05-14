@@ -354,44 +354,80 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 	public boolean salvarConvocatoria(ConvocatoriaData convocatoriaData) {
 
-		
-		try {
-			// Primeiro, eliminar convocatória existente para o jogo, se houver
-			Connection conn = dbUtils.getConnection();
-			PreparedStatement deleteStatement = conn.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
-			deleteStatement.setInt(1, convocatoriaData.getId());
-			deleteStatement.executeUpdate();
-			deleteStatement.close();
+    Connection conn = null;
+    PreparedStatement deleteStatement = null;
+    PreparedStatement selectStatement = null;
+    PreparedStatement insertStatement = null;
 
-			// Depois, inserir a nova convocatória
-			PreparedStatement insertStatement = conn.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, estado, obs, numero) select ?, ?, ?, ?, CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero FROM jogador where id= ?");
+    try {
+        conn = dbUtils.getConnection();
+        conn.setAutoCommit(false);
 
-			for (JogadorConvocado jogador : convocatoriaData.getJogadoresConvocatoria()) {
-				insertStatement.setInt(1, convocatoriaData.getId());
-				insertStatement.setInt(2, jogador.getId_jogador());
-				insertStatement.setString(3, jogador.getEstado());
-				insertStatement.setString(4, jogador.getObs());
-				insertStatement.setInt(5, jogador.getId_jogador());
-				insertStatement.addBatch();
-			}
+        // Primeiro, eliminar convocatória existente para o jogo, se houver
+        deleteStatement = conn.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
+        deleteStatement.setInt(1, convocatoriaData.getId());
+        deleteStatement.executeUpdate();
 
-			int[] rowsAffected = insertStatement.executeBatch();
-			insertStatement.close();
-			dbUtils.closeConnection(conn);
+        // Buscar o número de cada jogador e inserir na convocatória
+        selectStatement = conn.prepareStatement(
+            "SELECT CASE WHEN numero = '' OR numero IS NULL THEN 0 ELSE CAST(numero AS UNSIGNED) END AS numero " +
+            "FROM jogador WHERE id = ?"
+        );
 
-			
+        insertStatement = conn.prepareStatement(
+            "INSERT INTO jogo_jogador (id_jogo, id_jogador, estado, obs, numero) VALUES (?, ?, ?, ?, ?)"
+        );
 
-			//Atualizado estado do jogo para INICIADO
-			updateEstadoJogo(convocatoriaData.getId(), "INICIADO");
+        for (JogadorConvocado jogador : convocatoriaData.getJogadoresConvocatoria()) {
+            // Obter o número do jogador
+            selectStatement.setInt(1, jogador.getId_jogador());
+            ResultSet rs = selectStatement.executeQuery();
+            int numero = 0;
+            if (rs.next()) {
+                numero = rs.getInt("numero");
+            }
+            rs.close();
 
-			return rowsAffected.length > 0;
+            // Adicionar ao batch de inserção
+            insertStatement.setInt(1, convocatoriaData.getId());
+            insertStatement.setInt(2, jogador.getId_jogador());
+            insertStatement.setString(3, jogador.getEstado());
+            insertStatement.setString(4, jogador.getObs());
+            insertStatement.setInt(5, numero);
+            insertStatement.addBatch();
+        }
 
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+        int[] rowsAffected = insertStatement.executeBatch();
+        conn.commit();
 
-		return false;
+        // Atualizar estado do jogo para INICIADO
+        updateEstadoJogo(convocatoriaData.getId(), "INICIADO");
+
+        return rowsAffected.length > 0;
+
+    } catch (SQLException e) {
+        if (conn != null) {
+            try {
+                conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        }
+        e.printStackTrace();
+    } finally {
+        try {
+            if (deleteStatement != null) deleteStatement.close();
+            if (selectStatement != null) selectStatement.close();
+            if (insertStatement != null) insertStatement.close();
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                dbUtils.closeConnection(conn);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    return false;
 	}
 
 	public ConvocatoriaData getConvocatoriaByJogoId(int jogoId) {
