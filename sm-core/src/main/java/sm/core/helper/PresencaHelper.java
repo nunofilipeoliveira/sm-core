@@ -229,7 +229,7 @@ public class PresencaHelper {
 		try {
 			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"select *from presencas P inner join presenca_jogador pj on PJ.id_presenca =P.id \r\n"
+					"select *from presencas p inner join presenca_jogador pj on pj.id_presenca =p.id \r\n"
 							+ "inner join escalao_epoca ee on ee.id =p.id_equipa \r\n"
 							+ "inner join utilizadores u on u.id=p.utilizador_criacao \r\n"
 							+ "inner join jogador j on j.id=pj.id_jogador where id_equipa=? and data=? and hora=?\r\n"
