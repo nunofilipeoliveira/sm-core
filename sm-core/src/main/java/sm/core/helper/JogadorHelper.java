@@ -226,11 +226,11 @@ public class JogadorHelper {
 			if (!allJogadores) {
 				
 				preparedStatement = conn.prepareStatement("select j.id, j.nome, ee.nome  from jogador j \r\n"
-						+ "inner join escalao_epoca_jogador eej on J.id =EEJ.id_jogador \r\n"
-						+ "inner join escalao_epoca ee ON EE.id =EEJ.id_escalao_epoca\r\n"
+						+ "inner join escalao_epoca_jogador eej on J.id =eej.id_jogador \r\n"
+						+ "inner join escalao_epoca ee ON ee.id =eej.id_escalao_epoca\r\n"
 						+ "inner join epoca e on e.id =ee.id_epoca where  e.estado =1\r\n"
-								+ "and not exists (select * from escalao_epoca_jogador X  where \r\n"
-								+ "X.id_jogador = EEJ.id_jogador AND X.id_escalao_epoca =?)\r\n"
+								+ "and not exists (select * from escalao_epoca_jogador x  where \r\n"
+								+ "x.id_jogador = eej.id_jogador AND x.id_escalao_epoca =?)\r\n"
 								+ "and j.tenant_id =?");
 
 				preparedStatement.setInt(1, parmIdEscalao);
