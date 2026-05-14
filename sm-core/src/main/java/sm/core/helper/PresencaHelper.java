@@ -39,12 +39,12 @@ public class PresencaHelper {
 			// PreparedStatement preparedStatement =
 			// dbUtils.getConnection().prepareStatement("select\r\n" + " *\r\n"
 			// + " from PRESENCAS P\r\n" + "inner join presenca_jogador pj on\r\n" + "
-			// pj.id_presenca = P.id\r\n"
+			// pj.id_presenca = p.id\r\n"
 			// + "inner join escalao_epoca ee on\r\n" + " ee.id = p.id_equipa\r\n"
 			// + "inner join utilizadores u on\r\n" + " u.id = p.utilizador_criacao\r\n"
 			// + "inner join jogador j on\r\n" + " j.id = pj.id_jogador\r\n" + "where\r\n" +
 			// " ee.id =?\r\n"
-			// + " and \r\n" + " ((?=1 and ?=1) or \r\n" + " P.`data` between ? and ?)\r\n"
+			// + " and \r\n" + " ((?=1 and ?=1) or \r\n" + " p.`data` between ? and ?)\r\n"
 			// + "order by\r\n"
 			// + " p.data,\r\n" + " p.hora,\r\n" + " p.id ");
 
@@ -155,7 +155,7 @@ public class PresencaHelper {
 							+ "	ee.nome,\r\n" + "	datacriacao,\r\n" + "	utilizador_criacao,\r\n" + "	u.nome,\r\n"
 							+ "	pj.id_jogador,\r\n" + "	j.nome,\r\n" + "	pj.estado,\r\n" + "	pj.motivo\r\n"
 							+ "from\r\n" + "	presencas p\r\n" + "inner join presenca_jogador pj on\r\n"
-							+ "	pj.id_presenca = P.id\r\n" + "inner join escalao_epoca ee on\r\n"
+							+ "	pj.id_presenca = p.id\r\n" + "inner join escalao_epoca ee on\r\n"
 							+ "	ee.id = p.id_equipa\r\n" + "inner join utilizadores u on\r\n"
 							+ "	u.id = p.utilizador_criacao\r\n" + "inner join jogador j on\r\n"
 							+ "	j.id = pj.id_jogador\r\n" + "where\r\n" + "	p.id = ? order by p.id");
@@ -182,12 +182,12 @@ public class PresencaHelper {
 
 			preparedStatement = conn
 					.prepareStatement("select ps.id_staff, s.nome, ps.estado, ps.motivo\r\n" + "from presencas P\r\n"
-							+ "inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
+							+ "inner join presenca_staff ps on Ps.id_presenca = p.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
 							+ "inner join utilizadores u on u.id = p.utilizador_criacao\r\n"
 							+ "inner join staff s on s.id = ps.id_staff \r\n" + "where p.id = ? and s.id_jogador =0\r\n"
 							+ "union\r\n" + "select ps.id_staff, j.nome, ps.estado, ps.motivo\r\n"
-							+ "from presencas P\r\n" + "inner join presenca_staff ps on Ps.id_presenca = P.id\r\n"
+							+ "from presencas P\r\n" + "inner join presenca_staff ps on Ps.id_presenca = p.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
 							+ "inner join utilizadores u on u.id = p.utilizador_criacao\r\n"
 							+ "inner join staff s on s.id = ps.id_staff \r\n"
