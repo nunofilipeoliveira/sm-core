@@ -30,9 +30,9 @@ public class StaffHelper {
 		try {
 			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
-					"select id, nome, nome_completo, telemovel, email, morada, codigo_postal, data_nascimento, id_jogador, licenca from staff where id_jogador=0 and id=?\r\n"
+					"select id, nome, nome_completo, telemovel, email, morada, codigo_postal, data_nascimento, id_jogador, licença from staff where id_jogador=0 and id=?\r\n"
 							+ "union\r\n"
-							+ "select staff.id, j.nome, j.nome_completo, j.telemovel, j.email, j.morada, j.codigo_postal, j.data_nascimento, id_jogador, staff.licenca from staff\r\n"
+							+ "select staff.id, j.nome, j.nome_completo, j.telemovel, j.email, j.morada, j.codigo_postal, j.data_nascimento, id_jogador, staff.licença from staff\r\n"
 							+ "inner join jogador j on j.id=staff.id_jogador \r\n" + "where id_jogador<>0 and staff.id=?");
 
 			preparedStatement.setInt(1, parmId);
@@ -138,7 +138,7 @@ public class StaffHelper {
 					.prepareStatement("update\r\n" + "	staff \r\n" + "set\r\n" + "	nome =? ,\r\n"
 							+ "	data_nascimento =? ,\r\n" + "	email =? ,\r\n" + "	telemovel =? ,\r\n"
 							+ "	morada =? ,\r\n" + "	codigo_postal =? ,\r\n" + "	nome_completo =? ,\r\n"
-							+ "	licenca =? \r\n" + "where\r\n"
+							+ "	licença =? \r\n" + "where\r\n"
 							+ "	id =?");
 
 			preparedStatement.setString(1, parmStaff.getNome());
