@@ -39,7 +39,7 @@ public class PresencaHelper {
 			// PreparedStatement preparedStatement =
 			// dbUtils.getConnection().prepareStatement("select\r\n" + " *\r\n"
 			// + " from PRESENCAS P\r\n" + "inner join presenca_jogador pj on\r\n" + "
-			// PJ.id_presenca = P.id\r\n"
+			// pj.id_presenca = P.id\r\n"
 			// + "inner join escalao_epoca ee on\r\n" + " ee.id = p.id_equipa\r\n"
 			// + "inner join utilizadores u on\r\n" + " u.id = p.utilizador_criacao\r\n"
 			// + "inner join jogador j on\r\n" + " j.id = pj.id_jogador\r\n" + "where\r\n" +
@@ -154,8 +154,8 @@ public class PresencaHelper {
 					.prepareStatement("select\r\n" + "	p.id,\r\n" + "	data,\r\n" + "	hora,\r\n" + "	id_equipa,\r\n"
 							+ "	ee.nome,\r\n" + "	datacriacao,\r\n" + "	utilizador_criacao,\r\n" + "	u.nome,\r\n"
 							+ "	pj.id_jogador,\r\n" + "	j.nome,\r\n" + "	pj.estado,\r\n" + "	pj.motivo\r\n"
-							+ "from\r\n" + "	presencas P\r\n" + "inner join presenca_jogador pj on\r\n"
-							+ "	PJ.id_presenca = P.id\r\n" + "inner join escalao_epoca ee on\r\n"
+							+ "from\r\n" + "	presencas p\r\n" + "inner join presenca_jogador pj on\r\n"
+							+ "	pj.id_presenca = P.id\r\n" + "inner join escalao_epoca ee on\r\n"
 							+ "	ee.id = p.id_equipa\r\n" + "inner join utilizadores u on\r\n"
 							+ "	u.id = p.utilizador_criacao\r\n" + "inner join jogador j on\r\n"
 							+ "	j.id = pj.id_jogador\r\n" + "where\r\n" + "	p.id = ? order by p.id");
