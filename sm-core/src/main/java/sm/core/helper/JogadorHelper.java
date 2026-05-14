@@ -120,7 +120,7 @@ public class JogadorHelper {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id_jogador, ee.nome, mid(data, 5, 2) mes, count(*) from presenca_jogador pj\r\n"
 							+ "inner join presencas p ON p.id =pj.id_presenca\r\n"
-							+ "inner join escalao_epoca ee on EE.id=p.id_equipa  \r\n"
+							+ "inner join escalao_epoca ee on ee.id=p.id_equipa  \r\n"
 							+ "inner join epoca e on e.id=ee.id_epoca and e.estado ='1'\r\n" + "where id_jogador =?\r\n"
 							+ "and pj.estado='Presente' \r\n" + "group by ee.nome, mid(data, 5, 2)\r\n"
 							+ "order by 1, 2, 3");
