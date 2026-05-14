@@ -182,12 +182,12 @@ public class PresencaHelper {
 
 			preparedStatement = conn
 					.prepareStatement("select ps.id_staff, s.nome, ps.estado, ps.motivo\r\n" + "from presencas p\r\n"
-							+ "inner join presenca_staff ps on Ps.id_presenca = p.id\r\n"
+							+ "inner join presenca_staff ps on ps.id_presenca = p.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
 							+ "inner join utilizadores u on u.id = p.utilizador_criacao\r\n"
 							+ "inner join staff s on s.id = ps.id_staff \r\n" + "where p.id = ? and s.id_jogador =0\r\n"
 							+ "union\r\n" + "select ps.id_staff, j.nome, ps.estado, ps.motivo\r\n"
-							+ "from presencas p\r\n" + "inner join presenca_staff ps on Ps.id_presenca = p.id\r\n"
+							+ "from presencas p\r\n" + "inner join presenca_staff ps on ps.id_presenca = p.id\r\n"
 							+ "inner join escalao_epoca ee on ee.id = p.id_equipa\r\n"
 							+ "inner join utilizadores u on u.id = p.utilizador_criacao\r\n"
 							+ "inner join staff s on s.id = ps.id_staff \r\n"
