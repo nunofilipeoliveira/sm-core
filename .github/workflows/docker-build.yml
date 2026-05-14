@@ -76,4 +76,14 @@ jobs:
           echo "Triggering Render deploy via hook"
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
 
-
+      - name: Refresh smcorews
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 178.105.141.106
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /SM
+            docker compose pull smcorews
+            docker compose up -d --no-deps smcorews
+            docker image prune -f
