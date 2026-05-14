@@ -457,7 +457,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			PreparedStatement preparedStatement = conn.prepareStatement("SELECT j.id, j.epoca_id, j.equipa_id, j.tipoequipa, j.data, j.hora, j.local, j.golos_equipa, j.equipa_adv_id, clube.nome AS clube_nome, j.tipoequipa_adv, j.golos_equipa_adv, j.tipo_local, j.competicao_id, competicao_descritivo AS competicao_nome, j.arbitro_1, j.arbitro_2, j.estado, j.hora_concentracao, j.obs, j.numerojogo, jj.*, jg.nome AS jogador_nome, jg.licença " +
 										"FROM jogo_jogador jj " +
 										"INNER JOIN jogo j ON jj.id_jogo = j.id " +
-										"INNER JOIN JOGADOR jg ON jg.id = jj.id_jogador " +
+										"INNER JOIN jogador jg ON jg.id = jj.id_jogador " +
 										"INNER JOIN clube ON clube.id = j.equipa_adv_id " +
 										"WHERE jj.id_jogador = ? and jj.estado<>'INDISPONÍVEL'" +
 										"ORDER BY j.data, j.hora");
