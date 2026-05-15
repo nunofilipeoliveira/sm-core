@@ -10,6 +10,7 @@ import java.util.Map;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,248 +27,312 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import sm.core.Start_SMCore;
 import sm.core.utils.TenantProperties;
 
+/**
+ * REST controller para upload de ficheiros (fotos de jogadores e logos de clubes).
+ *
+ * Modos de funcionamento, configuráveis via application.properties:
+ *
+ *   sm.core.amb=DEV                          → grava em disco local Windows (desenvolvimento)
+ *   sm.core.amb=PROD + sm.core.storage=FTP   → envia via FTP para servidor remoto
+ *   sm.core.amb=PROD + sm.core.storage=LOCAL → grava diretamente no volume montado no container
+ *
+ * Exemplo de application.properties completo:
+ *
+ *   sm.core.amb=PROD
+ *
+ *   # Modo de storage: FTP ou LOCAL
+ *   sm.core.storage=FTP
+ *
+ *   # Configuração FTP
+ *   sm.core.ftp.server=94.46.180.24
+ *   sm.core.ftp.port=21
+ *   sm.core.ftp.user=smcompt
+ *   sm.core.ftp.pass=xo5igqMs.X
+ *   sm.core.ftp.basePath=/httpdocs
+ *
+ *   # Configuração LOCAL (volume montado em container)
+ *   sm.core.storage.basePath=/SM/www
+ *
+ *   # Configuração DEV (caminho local Windows)
+ *   sm.core.dev.basePath=D:\\SM\\SM-Front\\sm\\src\\assets\\img
+ */
 @Component
 @RestController
 @RequestMapping("/sm")
 public class FicheirosWS {
 
-	@Autowired
-	private TenantProperties tenantProperties;
+    // -------------------------------------------------------------------------
+    // Injeção de propriedades — application.properties
+    // -------------------------------------------------------------------------
 
-	@CrossOrigin
-	@PostMapping(value = "/uploadfoto/{nomeFoto}/{tenantId}")
-	@ResponseBody
-	public String uploadFoto(@PathVariable String nomeFoto, @PathVariable String tenantId,
-			@RequestPart MultipartFile foto) {
+    // Ambiente e modo de storage
+    @Value("${sm.core.amb:PROD}")
+    private String amb;
 
-		System.out.println("FicheirosWS | uploadfoto | Start");
-		System.out.println("FicheirosWS | uploadfoto | nomeFoto:" + nomeFoto);
-		System.out.println("FicheirosWS | uploadfoto | tenantId:" + tenantId);
+    @Value("${sm.core.storage:FTP}")
+    private String storage;
 
-		String server = "94.46.180.24";
-		int port = 21;
-		String user = "smcompt";
-		String pass = "xo5igqMs.X";
+    // FTP
+    @Value("${sm.core.ftp.server:94.46.180.24}")
+    private String ftpServer;
 
-		boolean resultado = false;
-		ObjectMapper mapper = new ObjectMapper();
+    @Value("${sm.core.ftp.port:21}")
+    private int ftpPort;
 
-		Object tenantObj = tenantProperties.getTenant_id().get(String.valueOf(tenantId));
-		String tmpTenantID = null;
-		if (tenantObj instanceof Map) {
-			Map<?, ?> tenantMap = (Map<?, ?>) tenantObj;
-			tmpTenantID = (String) tenantMap.get("name");
-			// agora tmpTenantID == "hcmaia"
-		}
+    @Value("${sm.core.ftp.user:smcompt}")
+    private String ftpUser;
 
-		String amb = Start_SMCore.configProp.getProperty("sm.core.amb");
-		if (amb != null && amb.equals("DEV")) {
-			System.out.println("FicheirosWS | uploadfoto | Ambiente:" + amb);
-			try {
-				// Define o caminho completo do ficheiro local
-				String localDir = "D:\\SM\\SM-Front\\sm\\src\\assets\\img\\jogadores";
-				File dir = new File(localDir);
-				if (!dir.exists()) {
-					dir.mkdirs(); // cria a pasta se não existir
-				}
-				// Nome do ficheiro com extensão .jpg
-				File localFile = new File(dir, nomeFoto + ".jpg");
-				// Grava os bytes do MultipartFile no ficheiro local
-				foto.transferTo(localFile);
-				System.out.println("Ficheiro gravado localmente em: " + localFile.getAbsolutePath());
+    @Value("${sm.core.ftp.pass:}")
+    private String ftpPass;
 
-			} catch (IOException e) {
-				System.out.println("Erro ao gravar ficheiro localmente: " + e.getMessage());
-				e.printStackTrace();
-				return "Erro ao gravar ficheiro localmente";
-			}
-			resultado = true;
+    @Value("${sm.core.ftp.basePath:/httpdocs}")
+    private String ftpBasePath;
 
-		} else {
-			System.out.println("FicheirosWS | uploadfoto | Ambiente:" + amb);
+    // LOCAL (volume montado)
+    @Value("${sm.core.storage.basePath:/SM/www}")
+    private String localBasePath;
 
-			FTPClient ftpClient = new FTPClient();
-			try {
+    // DEV (disco local Windows)
+    @Value("${sm.core.dev.basePath:D:\\\\SM\\\\SM-Front\\\\sm\\\\src\\\\assets\\\\img}")
+    private String devBasePath;
 
-				File convFile = new File(foto.getOriginalFilename());
-				FileOutputStream fos = new FileOutputStream(convFile);
-				fos.write(foto.getBytes());
-				fos.close();
+    // -------------------------------------------------------------------------
 
-				ftpClient.connect(server, port);
-				ftpClient.login(user, pass);
-				ftpClient.enterLocalPassiveMode();
+    // Tenants para o uploadLogo (logo é partilhada por todos os tenants)
+    private static final String[] ALL_TENANTS = { "hcmaia", "advalongo", "cis" };
 
-				ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+    @Autowired
+    private TenantProperties tenantProperties;
 
-				// APPROACH #1: uploads first file using an InputStream
-				// File firstLocalFile = new File("C:/Users/nuno8/Downloads/Jacob.jpg");
+    // =========================================================================
+    //  POST /sm/uploadfoto/{nomeFoto}/{tenantId}
+    // =========================================================================
+    @CrossOrigin
+    @PostMapping(value = "/uploadfoto/{nomeFoto}/{tenantId}")
+    @ResponseBody
+    public String uploadFoto(@PathVariable String nomeFoto,
+                             @PathVariable String tenantId,
+                             @RequestPart MultipartFile foto) {
 
-				File firstLocalFile = convFile;
+        log("uploadfoto", "Start | nomeFoto=" + nomeFoto + " | tenantId=" + tenantId);
 
-				String firstRemoteFile = "/httpdocs/" + tmpTenantID + "/assets/img/jogadores/" + nomeFoto + ".jpg";
-				System.out.println("FicheirosWS | uploadfoto | firstRemoteFile:" + firstRemoteFile);
-				InputStream inputStream = new FileInputStream(firstLocalFile);
+        boolean resultado = false;
+        ObjectMapper mapper = new ObjectMapper();
+        String tmpTenantID = resolveTenantName(tenantId);
 
-				System.out.println("Start uploading first file");
-				boolean done = ftpClient.storeFile(firstRemoteFile, inputStream);
-				inputStream.close();
-				if (done) {
-					System.out.println("The first file is uploaded successfully.");
-				}
+        try {
+            if (isDev()) {
+                // ----- DEV: grava localmente em Windows -----
+                String destDir = devBasePath + "\\jogadores";
+                gravarFicheiroLocal(foto, destDir, nomeFoto + ".jpg");
 
-			} catch (IOException ex) {
-				System.out.println("Error: " + ex.getMessage());
-				ex.printStackTrace();
-			} finally {
-				try {
-					if (ftpClient.isConnected()) {
-						ftpClient.logout();
-						ftpClient.disconnect();
-					}
-				} catch (IOException ex) {
-					ex.printStackTrace();
-				}
-			}
+            } else if (isLocal()) {
+                // ----- PROD LOCAL: escreve diretamente no volume montado -----
+                String destDir = localBasePath + "/" + tmpTenantID + "/assets/img/jogadores";
+                gravarFicheiroLocal(foto, destDir, nomeFoto + ".jpg");
 
-			resultado = true;
-		}
+            } else {
+                // ----- PROD FTP -----
+                String remotePath = ftpBasePath + "/" + tmpTenantID + "/assets/img/jogadores/" + nomeFoto + ".jpg";
+                uploadViaFtp(foto, remotePath);
+            }
 
-		try {
-			System.out.println("FicheirosWS | uploadfoto | End: Resultado" + resultado);
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
-		} catch (JsonProcessingException e) {
-			resultado = false;
-			return "";
-		}
+            resultado = true;
 
-	}
+        } catch (Exception e) {
+            log("uploadfoto", "Erro: " + e.getMessage());
+            e.printStackTrace();
+        }
 
+        log("uploadfoto", "End | resultado=" + resultado);
+        return toJson(mapper, resultado);
+    }
 
-	@CrossOrigin
-	@PostMapping(value = "/uploadLogo/{nomeFoto}/{tenantId}")
-	@ResponseBody
-	public String uploadLogo(@PathVariable String nomeFoto, @PathVariable String tenantId,
-			@RequestPart MultipartFile foto) {
+    // =========================================================================
+    //  POST /sm/uploadLogo/{nomeFoto}/{tenantId}
+    // =========================================================================
+    @CrossOrigin
+    @PostMapping(value = "/uploadLogo/{nomeFoto}/{tenantId}")
+    @ResponseBody
+    public String uploadLogo(@PathVariable String nomeFoto,
+                             @PathVariable String tenantId,
+                             @RequestPart MultipartFile foto) {
 
-		System.out.println("FicheirosWS | uploadLogo | Start");
-		System.out.println("FicheirosWS | uploadLogo | nomeFoto:" + nomeFoto);
-		System.out.println("FicheirosWS | uploadLogo | tenantId:" + tenantId);
+        log("uploadLogo", "Start | nomeFoto=" + nomeFoto + " | tenantId=" + tenantId);
 
-		String server = "94.46.180.24";
-		int port = 21;
-		String user = "smcompt";
-		String pass = "xo5igqMs.X";
+        boolean resultado = false;
+        ObjectMapper mapper = new ObjectMapper();
 
-		boolean resultado = false;
-		ObjectMapper mapper = new ObjectMapper();
+        try {
+            if (isDev()) {
+                // ----- DEV: grava localmente em Windows -----
+                String destDir = devBasePath + "\\clubes";
+                gravarFicheiroLocal(foto, destDir, nomeFoto + ".png");
 
-		Object tenantObj = tenantProperties.getTenant_id().get(String.valueOf(tenantId));
-		String tmpTenantID = null;
-		if (tenantObj instanceof Map) {
-			Map<?, ?> tenantMap = (Map<?, ?>) tenantObj;
-			tmpTenantID = (String) tenantMap.get("name");
-			// agora tmpTenantID == "hcmaia"
-		}
+            } else if (isLocal()) {
+                // ----- PROD LOCAL: escreve no volume montado para todos os tenants -----
+                byte[] bytes = foto.getBytes(); // lê uma vez, reutiliza para todos os tenants
+                for (String tenant : ALL_TENANTS) {
+                    String destDir = localBasePath + "/" + tenant + "/assets/img/clubes";
+                    gravarFicheiroBytes(bytes, destDir, nomeFoto + ".png");
+                }
 
-		String amb = Start_SMCore.configProp.getProperty("sm.core.amb");
-		if (amb != null && amb.equals("DEV")) {
-			System.out.println("FicheirosWS | uploadfoto | Ambiente:" + amb);
-			try {
-				// Define o caminho completo do ficheiro local
-				String localDir = "D:\\SM\\SM-Front\\sm\\src\\assets\\img\\clubes";
-				File dir = new File(localDir);
-				if (!dir.exists()) {
-					dir.mkdirs(); // cria a pasta se não existir
-				}
-				// Nome do ficheiro com extensão .png
-				File localFile = new File(dir, nomeFoto + ".png");
-				// Grava os bytes do MultipartFile no ficheiro local
-				foto.transferTo(localFile);
-				System.out.println("Ficheiro gravado localmente em: " + localFile.getAbsolutePath());
+            } else {
+                // ----- PROD FTP: envia para todos os tenants -----
+                uploadLogoViaFtp(foto, nomeFoto);
+            }
 
-			} catch (IOException e) {
-				System.out.println("Erro ao gravar ficheiro localmente: " + e.getMessage());
-				e.printStackTrace();
-				return "Erro ao gravar ficheiro localmente";
-			}
-			resultado = true;
+            resultado = true;
 
-		} else {
-			System.out.println("FicheirosWS | uploadfoto | Ambiente:" + amb);
+        } catch (Exception e) {
+            log("uploadLogo", "Erro: " + e.getMessage());
+            e.printStackTrace();
+        }
 
-			FTPClient ftpClient = new FTPClient();
-			try {
+        log("uploadLogo", "End | resultado=" + resultado);
+        return toJson(mapper, resultado);
+    }
 
-				File convFile = new File(foto.getOriginalFilename());
-				FileOutputStream fos = new FileOutputStream(convFile);
-				fos.write(foto.getBytes());
-				fos.close();
+    // =========================================================================
+    //  Métodos privados de suporte
+    // =========================================================================
 
-				ftpClient.connect(server, port);
-				ftpClient.login(user, pass);
-				ftpClient.enterLocalPassiveMode();
+    private boolean isDev() {
+        return "DEV".equalsIgnoreCase(amb);
+    }
 
-				ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+    private boolean isLocal() {
+        return "LOCAL".equalsIgnoreCase(storage);
+    }
 
-				// APPROACH #1: uploads first file using an InputStream
-				// File firstLocalFile = new File("C:/Users/nuno8/Downloads/Jacob.jpg");
+    /** Resolve o nome do tenant a partir do tenantId numérico. */
+    private String resolveTenantName(String tenantId) {
+        Object tenantObj = tenantProperties.getTenant_id().get(String.valueOf(tenantId));
+        if (tenantObj instanceof Map) {
+            Map<?, ?> tenantMap = (Map<?, ?>) tenantObj;
+            return (String) tenantMap.get("name");
+        }
+        return tenantId; // fallback: usa o id diretamente
+    }
 
-				File firstLocalFile = convFile;
+    // -------------------------------------------------------------------------
+    //  Escrita local / volume montado
+    // -------------------------------------------------------------------------
 
-				//colocar em todas tenants
-				//hcmaia é o tenantId = 1
-				String firstRemoteFile = "/httpdocs/hcmaia/assets/img/clubes/" + nomeFoto + ".png";
-				System.out.println("FicheirosWS | uploadfoto | firstRemoteFile:" + firstRemoteFile);
-				InputStream inputStream = new FileInputStream(firstLocalFile);
+    /** Grava um MultipartFile no diretório destino, criando-o se não existir. */
+    private void gravarFicheiroLocal(MultipartFile foto, String destDir, String nomeCompleto)
+            throws IOException {
+        File dir = new File(destDir);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        File destFile = new File(dir, nomeCompleto);
+        foto.transferTo(destFile);
+        log("gravarFicheiroLocal", "Gravado em: " + destFile.getAbsolutePath());
+    }
 
-				System.out.println("Start uploading first file");
-				boolean done = ftpClient.storeFile(firstRemoteFile, inputStream);
+    /** Grava bytes em disco — usado para reutilizar o mesmo conteúdo em múltiplos tenants. */
+    private void gravarFicheiroBytes(byte[] bytes, String destDir, String nomeCompleto)
+            throws IOException {
+        File dir = new File(destDir);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        File destFile = new File(dir, nomeCompleto);
+        try (FileOutputStream fos = new FileOutputStream(destFile)) {
+            fos.write(bytes);
+        }
+        log("gravarFicheiroBytes", "Gravado em: " + destFile.getAbsolutePath());
+    }
 
-				//advalongo é o tenantId = 2
-				firstRemoteFile = "/httpdocs/advalongo/assets/img/clubes/" + nomeFoto + ".png";
-				System.out.println("FicheirosWS | uploadfoto | firstRemoteFile:" + firstRemoteFile);
-				inputStream = new FileInputStream(firstLocalFile);	
-				done = ftpClient.storeFile(firstRemoteFile, inputStream);	
+    // -------------------------------------------------------------------------
+    //  FTP
+    // -------------------------------------------------------------------------
 
-				//cis é o tenantId = 3
-				firstRemoteFile = "/httpdocs/cis/assets/img/clubes/" + nomeFoto + ".png";
-				System.out.println("FicheirosWS | uploadfoto | firstRemoteFile:" + firstRemoteFile);
-				inputStream = new FileInputStream(firstLocalFile);	
-				done = ftpClient.storeFile(firstRemoteFile, inputStream);	
+    /** Upload de um único ficheiro via FTP. */
+    private void uploadViaFtp(MultipartFile foto, String remotePath) throws IOException {
+        log("uploadViaFtp", "remotePath=" + remotePath);
+        FTPClient ftpClient = new FTPClient();
+        try {
+            File convFile = multipartToTempFile(foto);
+            conectarFtp(ftpClient);
+            try (InputStream is = new FileInputStream(convFile)) {
+                boolean done = ftpClient.storeFile(remotePath, is);
+                log("uploadViaFtp", "Upload " + (done ? "OK" : "FALHOU") + " → " + remotePath);
+            }
+        } finally {
+            disconnectFtp(ftpClient);
+        }
+    }
 
+    /** Upload do logo via FTP para todos os tenants. */
+    private void uploadLogoViaFtp(MultipartFile foto, String nomeFoto) throws IOException {
+        FTPClient ftpClient = new FTPClient();
+        try {
+            File convFile = multipartToTempFile(foto);
+            conectarFtp(ftpClient);
 
-				inputStream.close();
-				if (done) {
-					System.out.println("The first file is uploaded successfully.");
-				}
+            // hcmaia → tenantId = 1
+            // advalongo → tenantId = 2
+            // cis → tenantId = 3
+            for (String tenant : ALL_TENANTS) {
+                String remotePath = ftpBasePath + "/" + tenant + "/assets/img/clubes/" + nomeFoto + ".png";
+                log("uploadLogoViaFtp", "remotePath=" + remotePath);
+                try (InputStream is = new FileInputStream(convFile)) {
+                    boolean done = ftpClient.storeFile(remotePath, is);
+                    log("uploadLogoViaFtp", "Upload " + (done ? "OK" : "FALHOU") + " → " + remotePath);
+                }
+            }
+        } finally {
+            disconnectFtp(ftpClient);
+        }
+    }
 
-			} catch (IOException ex) {
-				System.out.println("Error: " + ex.getMessage());
-				ex.printStackTrace();
-			} finally {
-				try {
-					if (ftpClient.isConnected()) {
-						ftpClient.logout();
-						ftpClient.disconnect();
-					}
-				} catch (IOException ex) {
-					ex.printStackTrace();
-				}
-			}
+    /** Estabelece ligação FTP com as propriedades configuradas. */
+    private void conectarFtp(FTPClient ftpClient) throws IOException {
+        ftpClient.connect(ftpServer, ftpPort);
+        ftpClient.login(ftpUser, ftpPass);
+        ftpClient.enterLocalPassiveMode();
+        ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+        log("conectarFtp", "Ligado a " + ftpServer + ":" + ftpPort);
+    }
 
-			resultado = true;
-		}
+    private void disconnectFtp(FTPClient ftpClient) {
+        try {
+            if (ftpClient.isConnected()) {
+                ftpClient.logout();
+                ftpClient.disconnect();
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
 
-		try {
-			System.out.println("FicheirosWS | uploadLogo | End: Resultado" + resultado);
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
-		} catch (JsonProcessingException e) {
-			resultado = false;
-			return "";
-		}
+    // -------------------------------------------------------------------------
+    //  Utilitários
+    // -------------------------------------------------------------------------
 
-	}
+    /** Converte MultipartFile num File temporário em disco. */
+    private File multipartToTempFile(MultipartFile foto) throws IOException {
+        String originalName = foto.getOriginalFilename();
+        File convFile = new File(originalName != null ? originalName : "upload_tmp");
+        try (FileOutputStream fos = new FileOutputStream(convFile)) {
+            fos.write(foto.getBytes());
+        }
+        return convFile;
+    }
 
+    /** Serializa um boolean para JSON. */
+    private String toJson(ObjectMapper mapper, boolean value) {
+        try {
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            return "";
+        }
+    }
 
+    /** Log padronizado. */
+    private void log(String metodo, String mensagem) {
+        System.out.println("FicheirosWS | " + metodo + " | " + mensagem);
+    }
 }
