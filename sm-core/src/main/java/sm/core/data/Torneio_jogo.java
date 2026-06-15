@@ -2,6 +2,7 @@ package sm.core.data;
 
 public class Torneio_jogo {
     private int id;
+    private String date;
     private int court;
     private String time; // formato HH:mm
     private int homeTeamId;
@@ -13,6 +14,10 @@ public class Torneio_jogo {
     private String status;
     private String result;
     private String round;
+    private String round_number;
+    private String round_action;
+    private String tier; // exemplo: Sub-9, Sub-11, Sub-13, etc.
+
 
 
 
@@ -90,12 +95,45 @@ public class Torneio_jogo {
         this.goalsAwayTeam = goalsAwayTeam;
     }
 
+    public String getTier() {
+        return tier;
+    }
+
+    public void setTier(String tier) {
+        this.tier = tier;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public String getRound_number() {
+        return round_number;
+    }
+
+    public void setRound_number(String round_number) {
+        this.round_number = round_number;
+    }
+
+    public String getRound_action() {
+        return round_action;
+    }
+
+    public void setRound_action(String round_action) {
+        this.round_action = round_action;
+    }
+
+
     //construtor 
 public Torneio_jogo() {
     }
 
     public Torneio_jogo(int id, int court, String time, int homeTeamId, int awayTeamId, String homeTeam, String awayTeam, int goalsHomeTeam, int goalsAwayTeam,
-            String status, String result, String round) {
+            String status, String result, String round, String tier, String date, String round_number, String round_action) {
         this.id = id;
         this.court = court;
         this.time = time;
@@ -106,8 +144,12 @@ public Torneio_jogo() {
         this.status = status;
         this.result = result;
         this.round = round;
+        this.tier = tier;
         this.goalsHomeTeam = goalsHomeTeam;
         this.goalsAwayTeam = goalsAwayTeam;
+        this.date = date;
+        this.round_number = round_number;
+        this.round_action = round_action;
     } 
     
 }

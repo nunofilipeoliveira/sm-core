@@ -55,6 +55,10 @@ public class Torneio_jogoHelper {
                 jogo.setRound(rs.getString("round"));
                 jogo.setGoalsHomeTeam(rs.getInt("goalsHomeTeam"));
                 jogo.setGoalsAwayTeam(rs.getInt("goalsAwayTeam"));
+                jogo.setTier(rs.getString("tier")); // exemplo: Sub-9, Sub-11, Sub-13, etc.
+                jogo.setDate(rs.getString("date"));
+                jogo.setRound_number(rs.getString("round_number"));
+                jogo.setRound_action(rs.getString("round_action"));
 
                 games.add(jogo);
 
@@ -77,7 +81,7 @@ public class Torneio_jogoHelper {
             Connection conn = dbUtils.getConnection();
             PreparedStatement preparedStatement = conn
                     .prepareStatement(
-                            "UPDATE torneio_jogo SET court = ?, time = ?, homeTeamId = ?, awayTeamId = ?, homeTeam = ?, awayTeam = ?, goalsHomeTeam = ?, goalsAwayTeam = ?, status = ?, result = ?, round = ? WHERE id = ?");
+                            "UPDATE torneio_jogo SET court = ?, time = ?, homeTeamId = ?, awayTeamId = ?, homeTeam = ?, awayTeam = ?, goalsHomeTeam = ?, goalsAwayTeam = ?, status = ?, result = ?, round = ?, tier = ? WHERE id = ?");
 
             preparedStatement.setInt(1, match.getCourt());
             preparedStatement.setString(2, match.getTime());
@@ -91,7 +95,8 @@ public class Torneio_jogoHelper {
             preparedStatement.setString(10,
                     String.valueOf(match.getGoalsHomeTeam()) + "-" + String.valueOf(match.getGoalsAwayTeam()));
             preparedStatement.setString(11, match.getRound());
-            preparedStatement.setInt(12, match.getId());
+            preparedStatement.setString(12, match.getTier());
+            preparedStatement.setInt(13, match.getId());
 
             int rowsAffected = preparedStatement.executeUpdate();
 
@@ -224,7 +229,7 @@ public class Torneio_jogoHelper {
             Connection conn = dbUtils.getConnection();
             PreparedStatement preparedStatement = conn
                     .prepareStatement(
-                            "UPDATE torneio_jogo SET goalsHomeTeam = 0, goalsAwayTeam = 0, status = 'scheduled', result = '', hometeamid=0, awayteamid=0, hometeam=hometeamdefault, awayteam=awayteamdefault WHERE id = ?");
+                            "UPDATE torneio_jogo SET goalsHomeTeam = 0, goalsAwayTeam = 0, status = 'scheduled', result = '', hometeam=hometeamdefault, awayteam=awayteamdefault WHERE id = ?");
 
             preparedStatement.setInt(1, matchId);
 
