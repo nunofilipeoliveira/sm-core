@@ -229,7 +229,7 @@ public class Torneio_jogoHelper {
             Connection conn = dbUtils.getConnection();
             PreparedStatement preparedStatement = conn
                     .prepareStatement(
-                            "UPDATE torneio_jogo SET goalsHomeTeam = 0, goalsAwayTeam = 0, status = 'scheduled', result = '', homeTeamId=homeTeamIdDefault, awayTeamId=awayTeamIdDefault WHERE id = ?");
+                            "UPDATE torneio_jogo SET goalsHomeTeam = 0, goalsAwayTeam = 0, status = 'scheduled', result = '', homeTeamId=homeTeamIdDefault, awayTeamId=awayTeamIdDefault, homeTeam=homeTeamDefault, awayTeam=awayTeamDefault, homeTeam=homeTeamDefault WHERE id = ?");
 
             preparedStatement.setInt(1, matchId);
 
