@@ -17,6 +17,7 @@ public class Torneio_jogo {
     private String round_number;
     private String round_action;
     private String tier; // exemplo: Sub-9, Sub-11, Sub-13, etc.
+    private boolean hasTable; // Indica se o jogo possui tabela associada
 
 
 
@@ -127,13 +128,21 @@ public class Torneio_jogo {
         this.round_action = round_action;
     }
 
+    public boolean isHasTable() {
+        return hasTable;
+    }
+
+    public void setHasTable(boolean hasTable) {
+        this.hasTable = hasTable;
+    }
+
 
     //construtor 
 public Torneio_jogo() {
     }
 
     public Torneio_jogo(int id, int court, String time, int homeTeamId, int awayTeamId, String homeTeam, String awayTeam, int goalsHomeTeam, int goalsAwayTeam,
-            String status, String result, String round, String tier, String date, String round_number, String round_action) {
+            String status, String result, String round, String tier, String date, String round_number, String round_action, boolean hasTable) {
         this.id = id;
         this.court = court;
         this.time = time;
@@ -150,6 +159,7 @@ public Torneio_jogo() {
         this.date = date;
         this.round_number = round_number;
         this.round_action = round_action;
+        this.hasTable = hasTable; // Inicializa com o valor passado como parâmetro
     } 
     
 }

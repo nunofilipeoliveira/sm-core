@@ -57,6 +57,7 @@ public class Torneio_jogoHelper {
                 jogo.setDate(rs.getString("date"));
                 jogo.setRound_number(rs.getString("round_number"));
                 jogo.setRound_action(rs.getString("round_action"));
+                jogo.setHasTable(rs.getBoolean("hasTable")); // Indica se o jogo possui tabela associada
 
                 games.add(jogo);
 
