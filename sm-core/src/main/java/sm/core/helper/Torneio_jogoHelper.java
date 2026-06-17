@@ -104,7 +104,10 @@ public class Torneio_jogoHelper {
 
             int rowsAffected = preparedStatement.executeUpdate();
 
-           
+            // Processar round_action se existir
+            if (match.getRound_action() != null && !match.getRound_action().isEmpty()) {
+                processRoundActions(conn, match);
+            }
 
             // vai realizar a ação definida para a equipa vencedora e vencida se o jogo
             // estiver
@@ -540,6 +543,79 @@ public class Torneio_jogoHelper {
         }
         
         return new int[] { golosMarcadosA - golosSofridosA, golosMarcadosB - golosSofridosB };
+    }
+
+    /**
+     * Processa as ações do round_action para atualizar equipas baseado na classificação
+     * Formato: "jogoId.tipo;jogoId.tipo;..." onde tipo é H (home) ou A (away)
+     */
+    private void processRoundActions(Connection conn, Torneio_jogo match) {
+        try {
+            String roundAction = match.getRound_action();
+            if (roundAction == null || roundAction.trim().isEmpty()) {
+                return;
+            }
+
+            // Obter a classificação do round
+            ArrayList<sm.core.data.Torneio_classificacao> classificacao = getClassificacaoPorRound(match.getRound());
+            
+            if (classificacao == null || classificacao.isEmpty()) {
+                System.out.println("Nenhuma classificação encontrada para o round: " + match.getRound());
+                return;
+            }
+
+            // Dividir as ações por ;
+            String[] actions = roundAction.split(";");
+            
+            for (int i = 0; i < actions.length && i < classificacao.size(); i++) {
+                String action = actions[i].trim();
+                if (action.isEmpty()) {
+                    continue;
+                }
+
+                // Parse do formato "jogoId.tipo"
+                String[] parts = action.split("\\.");
+                if (parts.length != 2) {
+                    System.out.println("Formato inválido de action: " + action);
+                    continue;
+                }
+
+                int targetGameId = Integer.parseInt(parts[0]);
+                String teamType = parts[1].toUpperCase(); // H ou A
+
+                // Obter a equipa da posição i+1 da classificação (1º, 2º, 3º, etc.)
+                sm.core.data.Torneio_classificacao teamStats = classificacao.get(i);
+                int teamId = teamStats.getTeamId();
+                String teamName = teamStats.getTeamName();
+
+                // Atualizar o jogo de destino
+                String sql;
+                if ("H".equals(teamType)) {
+                    sql = "UPDATE torneio_jogo SET homeTeamId = ?, homeTeam = ? WHERE id = ?";
+                } else if ("A".equals(teamType)) {
+                    sql = "UPDATE torneio_jogo SET awayTeamId = ?, awayTeam = ? WHERE id = ?";
+                } else {
+                    System.out.println("Tipo de equipa inválido: " + teamType);
+                    continue;
+                }
+
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, teamId);
+                ps.setString(2, teamName);
+                ps.setInt(3, targetGameId);
+                
+                int updated = ps.executeUpdate();
+                System.out.println("Round action processada: Posição " + (i+1) + 
+                                 " (" + teamName + ") -> Jogo " + targetGameId + 
+                                 " como " + (teamType.equals("H") ? "Home" : "Away") + 
+                                 " (rows updated: " + updated + ")");
+                ps.close();
+            }
+
+        } catch (Exception e) {
+            System.err.println("Erro ao processar round_action: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 }
