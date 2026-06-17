@@ -4,7 +4,6 @@ import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
-
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -94,5 +93,27 @@ public class TorneioWS {
        System.out.println("resetMatch | Error End");
 
         return "false";
+    }
+
+    @CrossOrigin
+    @PutMapping("/getClassificacaoPorRound")
+    @ResponseBody
+    public String getClassificacaoPorRound(@RequestBody sm.core.ws.requesdata.RoundRequest request) {
+        // Obter classificação por round
+        System.out.println("getClassificacaoPorRound | Start | Round: " + request.getRound());
+        
+        ArrayList<sm.core.data.Torneio_classificacao> classificacao = 
+            torneio_jogoHelper.getClassificacaoPorRound(request.getRound());
+
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            System.out.println("getClassificacaoPorRound | End");
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(classificacao);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        
+        System.out.println("getClassificacaoPorRound | Error End");
+        return "[]";
     }
 }

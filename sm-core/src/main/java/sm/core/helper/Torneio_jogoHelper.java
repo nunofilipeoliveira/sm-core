@@ -23,12 +23,10 @@ public class Torneio_jogoHelper {
 
     public ArrayList<Torneio_jogo> loadAllGames() {
         ArrayList<Torneio_jogo> games = new ArrayList<>();
-        // lógica para carregar todos os jogos do banco de dados
-
+        Connection conn = null;
         
-
         try {
-            Connection conn = dbUtils.getConnection();
+            conn = dbUtils.getConnection();
             PreparedStatement preparedStatement = conn
                     .prepareStatement("select *From torneio_jogo order by id ");
 
@@ -64,11 +62,16 @@ public class Torneio_jogoHelper {
 
             }
 
-            dbUtils.closeConnection(conn);
-
         } catch (SQLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+        } finally {
+            if (conn != null) {
+                try {
+                    dbUtils.closeConnection(conn);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
         return games;
@@ -76,9 +79,10 @@ public class Torneio_jogoHelper {
 
     public boolean saveMatch(Torneio_jogo match) {
         // lógica para salvar o jogo no banco de dados
+        Connection conn = null;
         
         try {
-            Connection conn = dbUtils.getConnection();
+            conn = dbUtils.getConnection();
             PreparedStatement preparedStatement = conn
                     .prepareStatement(
                             "UPDATE torneio_jogo SET court = ?, time = ?, homeTeamId = ?, awayTeamId = ?, homeTeam = ?, awayTeam = ?, goalsHomeTeam = ?, goalsAwayTeam = ?, status = ?, result = ?, round = ?, tier = ? WHERE id = ?");
@@ -211,12 +215,18 @@ public class Torneio_jogoHelper {
 
             }
 
-            dbUtils.closeConnection(conn);
             return true;
 
         } catch (SQLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+        } finally {
+            if (conn != null) {
+                try {
+                    dbUtils.closeConnection(conn);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
         return false;
@@ -224,9 +234,10 @@ public class Torneio_jogoHelper {
 
     public boolean resetMatch(int matchId) {
         // lógica para resetar o jogo no banco de dados
+        Connection conn = null;
         
         try {
-            Connection conn = dbUtils.getConnection();
+            conn = dbUtils.getConnection();
             PreparedStatement preparedStatement = conn
                     .prepareStatement(
                             "UPDATE torneio_jogo SET goalsHomeTeam = 0, goalsAwayTeam = 0, status = 'scheduled', result = '', homeTeamId=homeTeamIdDefault, awayTeamId=awayTeamIdDefault, homeTeam=homeTeamDefault, awayTeam=awayTeamDefault, homeTeam=homeTeamDefault WHERE id = ?");
@@ -235,16 +246,300 @@ public class Torneio_jogoHelper {
 
             int rowsAffected = preparedStatement.executeUpdate();
 
-            dbUtils.closeConnection(conn);
-
             return rowsAffected > 0;
 
         } catch (SQLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+        } finally {
+            if (conn != null) {
+                try {
+                    dbUtils.closeConnection(conn);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
         return false;
+    }
+
+    public ArrayList<sm.core.data.Torneio_classificacao> getClassificacaoPorRound(String round) {
+        ArrayList<sm.core.data.Torneio_classificacao> classificacao = new ArrayList<>();
+        Connection conn = null;
+        
+        try {
+            conn = dbUtils.getConnection();
+            
+            // Mapa para armazenar estatísticas de cada equipa
+            java.util.HashMap<Integer, sm.core.data.Torneio_classificacao> statsMap = new java.util.HashMap<>();
+            
+            // PRIMEIRO: Carregar TODAS as equipas do round (incluindo jogos não completados)
+            PreparedStatement psAllTeams = conn.prepareStatement(
+                "SELECT DISTINCT homeTeamId, homeTeam FROM torneio_jogo WHERE round = ? AND homeTeamId > 0 " +
+                "UNION " +
+                "SELECT DISTINCT awayTeamId, awayTeam FROM torneio_jogo WHERE round = ? AND awayTeamId > 0"
+            );
+            psAllTeams.setString(1, round);
+            psAllTeams.setString(2, round);
+            ResultSet rsAllTeams = psAllTeams.executeQuery();
+            
+            // Inicializar todas as equipas com estatísticas zeradas
+            while (rsAllTeams.next()) {
+                int teamId = rsAllTeams.getInt(1);
+                String teamName = rsAllTeams.getString(2);
+                
+                if (!statsMap.containsKey(teamId)) {
+                    sm.core.data.Torneio_classificacao stats = new sm.core.data.Torneio_classificacao();
+                    stats.setTeamId(teamId);
+                    stats.setTeamName(teamName);
+                    // Todos os valores já inicializados em 0 pelo construtor
+                    statsMap.put(teamId, stats);
+                }
+            }
+            
+            // SEGUNDO: Processar apenas os jogos completados para atualizar estatísticas
+            PreparedStatement preparedStatement = conn.prepareStatement(
+                "SELECT * FROM torneio_jogo WHERE round = ? AND status = 'completed' ORDER BY id"
+            );
+            preparedStatement.setString(1, round);
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            // Processar todos os jogos completados
+            while (rs.next()) {
+                int homeTeamId = rs.getInt("homeTeamId");
+                int awayTeamId = rs.getInt("awayTeamId");
+                int goalsHome = rs.getInt("goalsHomeTeam");
+                int goalsAway = rs.getInt("goalsAwayTeam");
+
+                // Atualizar estatísticas da equipa da casa
+                sm.core.data.Torneio_classificacao homeStats = statsMap.get(homeTeamId);
+                if (homeStats != null) {
+                    homeStats.setJogos(homeStats.getJogos() + 1);
+                    homeStats.setGolosMarcados(homeStats.getGolosMarcados() + goalsHome);
+                    homeStats.setGolosSofridos(homeStats.getGolosSofridos() + goalsAway);
+                }
+                
+                // Atualizar estatísticas da equipa visitante
+                sm.core.data.Torneio_classificacao awayStats = statsMap.get(awayTeamId);
+                if (awayStats != null) {
+                    awayStats.setJogos(awayStats.getJogos() + 1);
+                    awayStats.setGolosMarcados(awayStats.getGolosMarcados() + goalsAway);
+                    awayStats.setGolosSofridos(awayStats.getGolosSofridos() + goalsHome);
+                }
+
+                // Determinar resultado
+                if (goalsHome > goalsAway) {
+                    // Vitória da casa
+                    if (homeStats != null) {
+                        homeStats.setVitorias(homeStats.getVitorias() + 1);
+                        homeStats.setPontos(homeStats.getPontos() + 3);
+                    }
+                    if (awayStats != null) {
+                        awayStats.setDerrotas(awayStats.getDerrotas() + 1);
+                    }
+                } else if (goalsHome < goalsAway) {
+                    // Vitória visitante
+                    if (awayStats != null) {
+                        awayStats.setVitorias(awayStats.getVitorias() + 1);
+                        awayStats.setPontos(awayStats.getPontos() + 3);
+                    }
+                    if (homeStats != null) {
+                        homeStats.setDerrotas(homeStats.getDerrotas() + 1);
+                    }
+                } else {
+                    // Empate
+                    if (homeStats != null) {
+                        homeStats.setEmpates(homeStats.getEmpates() + 1);
+                        homeStats.setPontos(homeStats.getPontos() + 1);
+                    }
+                    if (awayStats != null) {
+                        awayStats.setEmpates(awayStats.getEmpates() + 1);
+                        awayStats.setPontos(awayStats.getPontos() + 1);
+                    }
+                }
+            }
+
+            // Calcular diferença de golos para todas as equipas
+            for (sm.core.data.Torneio_classificacao stats : statsMap.values()) {
+                stats.setDiferencaGolos(stats.getGolosMarcados() - stats.getGolosSofridos());
+                classificacao.add(stats);
+            }
+
+            // Pré-calcular critérios de desempate antes de ordenar
+            java.util.HashMap<String, Integer> confrontosDiretos = new java.util.HashMap<>();
+            java.util.HashMap<String, int[]> diferencasConfrontoDireto = new java.util.HashMap<>();
+            
+            for (int i = 0; i < classificacao.size(); i++) {
+                for (int j = i + 1; j < classificacao.size(); j++) {
+                    int teamA = classificacao.get(i).getTeamId();
+                    int teamB = classificacao.get(j).getTeamId();
+                    String key = teamA + "-" + teamB;
+                    
+                    confrontosDiretos.put(key, calcularConfrontoDireto(teamA, teamB, round, conn));
+                    diferencasConfrontoDireto.put(key, calcularDiferencaGolosConfrontoDireto(teamA, teamB, round, conn));
+                }
+            }
+
+            // Ordenar a classificação
+            classificacao.sort((a, b) -> {
+                // 1. Ordenar por pontos (decrescente)
+                if (a.getPontos() != b.getPontos()) {
+                    return b.getPontos() - a.getPontos();
+                }
+                
+                // 2. Em caso de empate, verificar confronto direto
+                String key = a.getTeamId() + "-" + b.getTeamId();
+                String keyInversa = b.getTeamId() + "-" + a.getTeamId();
+                int confrontoDireto = confrontosDiretos.containsKey(key) ? 
+                    confrontosDiretos.get(key) : 
+                    -confrontosDiretos.getOrDefault(keyInversa, 0);
+                
+                if (confrontoDireto != 0) {
+                    return confrontoDireto;
+                }
+                
+                // 3. Diferença de golos no confronto direto
+                int[] diferencaCD = diferencasConfrontoDireto.containsKey(key) ?
+                    diferencasConfrontoDireto.get(key) :
+                    new int[] { diferencasConfrontoDireto.getOrDefault(keyInversa, new int[]{0,0})[1],
+                               diferencasConfrontoDireto.getOrDefault(keyInversa, new int[]{0,0})[0] };
+                
+                int difA = diferencaCD[0];
+                int difB = diferencaCD[1];
+                if (difA != difB) {
+                    return difB - difA;
+                }
+                
+                // 4. Diferença de golos geral (já calculada)
+                if (a.getDiferencaGolos() != b.getDiferencaGolos()) {
+                    return b.getDiferencaGolos() - a.getDiferencaGolos();
+                }
+                
+                // 5. Golos marcados geral
+                return b.getGolosMarcados() - a.getGolosMarcados();
+            });
+
+            // Atribuir posições
+            for (int i = 0; i < classificacao.size(); i++) {
+                classificacao.get(i).setPosicao(i + 1);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            // IMPORTANTE: Fechar a conexão SEMPRE, mesmo em caso de erro
+            if (conn != null) {
+                try {
+                    dbUtils.closeConnection(conn);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return classificacao;
+    }
+
+    private int calcularConfrontoDireto(int teamA, int teamB, String round, Connection conn) {
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT goalsHomeTeam, goalsAwayTeam FROM torneio_jogo " +
+                "WHERE round = ? AND status = 'completed' AND " +
+                "((homeTeamId = ? AND awayTeamId = ?) OR (homeTeamId = ? AND awayTeamId = ?))"
+            );
+            ps.setString(1, round);
+            ps.setInt(2, teamA);
+            ps.setInt(3, teamB);
+            ps.setInt(4, teamB);
+            ps.setInt(5, teamA);
+            
+            ResultSet rs = ps.executeQuery();
+            
+            int pontosA = 0;
+            int pontosB = 0;
+            
+            while (rs.next()) {
+                int goalsHome = rs.getInt("goalsHomeTeam");
+                int goalsAway = rs.getInt("goalsAwayTeam");
+                
+                // Determinar qual equipa era casa e qual visitante
+                PreparedStatement psCheck = conn.prepareStatement(
+                    "SELECT homeTeamId FROM torneio_jogo WHERE round = ? AND " +
+                    "goalsHomeTeam = ? AND goalsAwayTeam = ? LIMIT 1"
+                );
+                psCheck.setString(1, round);
+                psCheck.setInt(2, goalsHome);
+                psCheck.setInt(3, goalsAway);
+                ResultSet rsCheck = psCheck.executeQuery();
+                
+                if (rsCheck.next()) {
+                    int homeId = rsCheck.getInt("homeTeamId");
+                    
+                    if (homeId == teamA) {
+                        if (goalsHome > goalsAway) pontosA += 3;
+                        else if (goalsHome < goalsAway) pontosB += 3;
+                        else { pontosA += 1; pontosB += 1; }
+                    } else {
+                        if (goalsHome > goalsAway) pontosB += 3;
+                        else if (goalsHome < goalsAway) pontosA += 3;
+                        else { pontosA += 1; pontosB += 1; }
+                    }
+                }
+            }
+            
+            if (pontosA > pontosB) return -1;
+            if (pontosB > pontosA) return 1;
+            return 0;
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private int[] calcularDiferencaGolosConfrontoDireto(int teamA, int teamB, String round, Connection conn) {
+        int golosMarcadosA = 0;
+        int golosSofridosA = 0;
+        int golosMarcadosB = 0;
+        int golosSofridosB = 0;
+        
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT homeTeamId, awayTeamId, goalsHomeTeam, goalsAwayTeam FROM torneio_jogo " +
+                "WHERE round = ? AND status = 'completed' AND " +
+                "((homeTeamId = ? AND awayTeamId = ?) OR (homeTeamId = ? AND awayTeamId = ?))"
+            );
+            ps.setString(1, round);
+            ps.setInt(2, teamA);
+            ps.setInt(3, teamB);
+            ps.setInt(4, teamB);
+            ps.setInt(5, teamA);
+            
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                int homeId = rs.getInt("homeTeamId");
+                int goalsHome = rs.getInt("goalsHomeTeam");
+                int goalsAway = rs.getInt("goalsAwayTeam");
+                
+                if (homeId == teamA) {
+                    golosMarcadosA += goalsHome;
+                    golosSofridosA += goalsAway;
+                    golosMarcadosB += goalsAway;
+                    golosSofridosB += goalsHome;
+                } else {
+                    golosMarcadosA += goalsAway;
+                    golosSofridosA += goalsHome;
+                    golosMarcadosB += goalsHome;
+                    golosSofridosB += goalsAway;
+                }
+            }
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
+        return new int[] { golosMarcadosA - golosSofridosA, golosMarcadosB - golosSofridosB };
     }
 
 }
