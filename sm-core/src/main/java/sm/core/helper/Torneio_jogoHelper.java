@@ -105,16 +105,18 @@ public class Torneio_jogoHelper {
 
             int rowsAffected = preparedStatement.executeUpdate();
 
-            // Processar round_action se existir
-            if (match.getRound_action() != null && !match.getRound_action().isEmpty()) {
-                processRoundActions(conn, match);
-            }
+  
 
             // vai realizar a ação definida para a equipa vencedora e vencida se o jogo
             // estiver
             // concluído
             if (match.getStatus().equals("completed") == false) {
                 return true;
+            }
+
+            // Processar round_action se existir
+            if (match.getRound_action() != null && !match.getRound_action().isEmpty()) {
+                processRoundActions(conn, match);
             }
 
             // Home vitoria
