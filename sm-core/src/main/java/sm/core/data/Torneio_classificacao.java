@@ -12,6 +12,7 @@ public class Torneio_classificacao {
     private int golosMarcados;
     private int golosSofridos;
     private int diferencaGolos;
+    private boolean hasLiveMatch;
 
     public Torneio_classificacao() {
     }
@@ -102,5 +103,13 @@ public class Torneio_classificacao {
 
     public void setDiferencaGolos(int diferencaGolos) {
         this.diferencaGolos = diferencaGolos;
+    }
+
+    public boolean isHasLiveMatch() {
+        return hasLiveMatch;
+    }
+
+    public void setHasLiveMatch(boolean hasLiveMatch) {
+        this.hasLiveMatch = hasLiveMatch;
     }
 }

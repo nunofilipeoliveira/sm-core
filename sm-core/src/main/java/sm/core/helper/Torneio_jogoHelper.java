@@ -298,24 +298,47 @@ public class Torneio_jogoHelper {
                     sm.core.data.Torneio_classificacao stats = new sm.core.data.Torneio_classificacao();
                     stats.setTeamId(teamId);
                     stats.setTeamName(teamName);
+                    stats.setHasLiveMatch(false);
                     // Todos os valores já inicializados em 0 pelo construtor
                     statsMap.put(teamId, stats);
                 }
             }
             
-            // SEGUNDO: Processar apenas os jogos completados para atualizar estatísticas
+            // SEGUNDO: Processar jogos completados E em andamento para atualizar estatísticas
             PreparedStatement preparedStatement = conn.prepareStatement(
-                "SELECT * FROM torneio_jogo WHERE round = ? AND status = 'completed' ORDER BY id"
+                "SELECT * FROM torneio_jogo WHERE round = ? AND (status = 'completed' OR status = 'in-progress') ORDER BY id"
             );
             preparedStatement.setString(1, round);
             ResultSet rs = preparedStatement.executeQuery();
             
-            // Processar todos os jogos completados
+            System.out.println("=== Processando classificação do round: " + round + " ===");
+            
+            // Processar todos os jogos completados e em andamento
             while (rs.next()) {
                 int homeTeamId = rs.getInt("homeTeamId");
                 int awayTeamId = rs.getInt("awayTeamId");
                 int goalsHome = rs.getInt("goalsHomeTeam");
                 int goalsAway = rs.getInt("goalsAwayTeam");
+                String status = rs.getString("status");
+                int gameId = rs.getInt("id");
+
+                System.out.println("Jogo #" + gameId + ": " + rs.getString("homeTeam") + " " + goalsHome + 
+                                 " x " + goalsAway + " " + rs.getString("awayTeam") + 
+                                 " [Status: " + status + "]");
+
+                // Marcar se tem jogo ao vivo
+                if ("in-progress".equals(status)) {
+                    sm.core.data.Torneio_classificacao homeStats = statsMap.get(homeTeamId);
+                    sm.core.data.Torneio_classificacao awayStats = statsMap.get(awayTeamId);
+                    if (homeStats != null) {
+                        homeStats.setHasLiveMatch(true);
+                        System.out.println("  -> Marcando " + homeStats.getTeamName() + " com jogo ao vivo");
+                    }
+                    if (awayStats != null) {
+                        awayStats.setHasLiveMatch(true);
+                        System.out.println("  -> Marcando " + awayStats.getTeamName() + " com jogo ao vivo");
+                    }
+                }
 
                 // Atualizar estatísticas da equipa da casa
                 sm.core.data.Torneio_classificacao homeStats = statsMap.get(homeTeamId);
