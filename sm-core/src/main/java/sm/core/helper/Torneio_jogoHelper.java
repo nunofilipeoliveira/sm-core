@@ -6,17 +6,24 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import sm.core.data.Torneio_jogo;
+import sm.core.service.TournamentWebSocketService;
 
 @Component
 public class Torneio_jogoHelper {
 
     private final DBUtils dbUtils;
-    public Torneio_jogoHelper(DBUtils dbUtils) {
+    private final TournamentWebSocketService webSocketService;
+    
+    @Autowired
+    public Torneio_jogoHelper(DBUtils dbUtils, TournamentWebSocketService webSocketService) {
         this.dbUtils = dbUtils;
+        this.webSocketService = webSocketService;
     }
+    
     public static String getTableName() {
         return "torneio_jogo";
     }
@@ -105,7 +112,8 @@ public class Torneio_jogoHelper {
 
             int rowsAffected = preparedStatement.executeUpdate();
 
-  
+            // ✅ Notificar via WebSocket sobre atualização do jogo (sempre, mesmo se não completado)
+            webSocketService.notifyGameUpdate(match);
 
             // vai realizar a ação definida para a equipa vencedora e vencida se o jogo
             // estiver
@@ -221,6 +229,16 @@ public class Torneio_jogoHelper {
 
             }
 
+            // ✅ Notificar atualização de classificação do round
+            if (match.getRound() != null && !match.getRound().isEmpty()) {
+                ArrayList<sm.core.data.Torneio_classificacao> classificacao = getClassificacaoPorRound(match.getRound());
+                webSocketService.notifyClassificacaoUpdate(match.getRound(), classificacao);
+            }
+
+            // ✅ Notificar atualização geral (para recarregar todos os jogos, pois round_actions
+            // pode ter alterado nomes de equipas noutros jogos do calendário)
+            webSocketService.notifyGamesUpdate();
+
             return true;
 
         } catch (SQLException e) {
@@ -251,6 +269,11 @@ public class Torneio_jogoHelper {
             preparedStatement.setInt(1, matchId);
 
             int rowsAffected = preparedStatement.executeUpdate();
+
+            if (rowsAffected > 0) {
+                // ✅ Notificar via WebSocket sobre reset do jogo
+                webSocketService.notifyGameReset(matchId);
+            }
 
             return rowsAffected > 0;
 
