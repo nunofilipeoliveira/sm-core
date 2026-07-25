@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import sm.core.Start_SMCore;
 import sm.core.utils.TenantProperties;
 
 /**
@@ -98,9 +97,6 @@ public class FicheirosWS {
 
     // -------------------------------------------------------------------------
 
-    // Tenants para o uploadLogo (logo é partilhada por todos os tenants)
-    private static final String[] ALL_TENANTS = { "hcmaia", "advalongo", "cis" };
-
     @Autowired
     private TenantProperties tenantProperties;
 
@@ -172,7 +168,7 @@ public class FicheirosWS {
             } else if (isLocal()) {
                 // ----- PROD LOCAL: escreve no volume montado para todos os tenants -----
                 byte[] bytes = foto.getBytes(); // lê uma vez, reutiliza para todos os tenants
-                for (String tenant : ALL_TENANTS) {
+                for (String tenant : getAllTenantNames()) {
                     String destDir = localBasePath + "/" + tenant + "/assets/img/clubes";
                     gravarFicheiroBytes(bytes, destDir, nomeFoto + ".png");
                 }
@@ -213,6 +209,20 @@ public class FicheirosWS {
             return (String) tenantMap.get("name");
         }
         return tenantId; // fallback: usa o id diretamente
+    }
+
+    /**
+     * Obtém os nomes de todos os tenants configurados em application.properties.
+     * O logo é partilhada por todos os tenants, por isso se faz o upload para cada um.
+     */
+    private String[] getAllTenantNames() {
+        Map<String, Map<String, String>> tenants = tenantProperties.getTenant_id();
+        if (tenants == null || tenants.isEmpty()) {
+            return new String[0];
+        }
+        return tenants.values().stream()
+                .map(m -> m.get("name"))
+                .toArray(String[]::new);
     }
 
     // -------------------------------------------------------------------------
@@ -272,10 +282,7 @@ public class FicheirosWS {
             File convFile = multipartToTempFile(foto);
             conectarFtp(ftpClient);
 
-            // hcmaia → tenantId = 1
-            // advalongo → tenantId = 2
-            // cis → tenantId = 3
-            for (String tenant : ALL_TENANTS) {
+            for (String tenant : getAllTenantNames()) {
                 String remotePath = ftpBasePath + "/" + tenant + "/assets/img/clubes/" + nomeFoto + ".png";
                 log("uploadLogoViaFtp", "remotePath=" + remotePath);
                 try (InputStream is = new FileInputStream(convFile)) {
