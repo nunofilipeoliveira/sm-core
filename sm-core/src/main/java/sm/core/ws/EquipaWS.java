@@ -23,6 +23,7 @@ import sm.core.data.EquipaData;
 import sm.core.data.EscalaoData;
 import sm.core.data.EscalaoEpocaData;
 import sm.core.data.FichaJogadorPresencasData;
+import sm.core.data.HistoricoJogadorData;
 import sm.core.data.JogadorData;
 import sm.core.data.StaffData;
 import sm.core.helper.EquipaHelper;
@@ -786,6 +787,37 @@ public class EquipaWS {
 		}
 
 		log.error("getPresencasByJogador | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/getHistoricobyJogador/{idJogador}/{tenant_id}")
+	@ResponseBody
+	public String getHistoricobyJogador(@PathVariable String idJogador, @PathVariable String tenant_id) {
+
+		// Carregar histórico do jogador
+
+		log.info("getHistoricobyJogador | Start");
+		log.info("getHistoricobyJogador | ID Jogador:" + idJogador);
+		log.info("getHistoricobyJogador | tenant_ID:" + tenant_id);
+
+		
+		HistoricoJogadorData historico = equipaHelper.getHistoricobyJogador(Integer.parseInt(idJogador), Integer.parseInt(tenant_id));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			log.info("getHistoricobyJogador | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(historico);
+
+			// return mapper.writeValueAsString(loginData);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		log.error("getHistoricobyJogador | Error End");
 		return "";
 	}
 

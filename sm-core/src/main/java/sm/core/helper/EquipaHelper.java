@@ -9,10 +9,14 @@ import java.util.ArrayList;
 import org.springframework.stereotype.Component;
 
 import sm.core.data.EpocaData;
+import sm.core.data.EpocaHistoricoData;
 import sm.core.data.EquipaData;
 import sm.core.data.EscalaoData;
 import sm.core.data.EscalaoEpocaData;
+import sm.core.data.HistoricoJogadorData;
 import sm.core.data.JogadorData;
+import sm.core.data.JogoData;
+import sm.core.data.PresencaData;
 import sm.core.data.StaffData;
 
 @Component
@@ -539,6 +543,122 @@ public class EquipaHelper {
 		}
 
 		return escalao;
+	}
+
+	public HistoricoJogadorData getHistoricobyJogador(int parmJogadorID, int parmTenantID) {
+		HistoricoJogadorData historico = null;
+		JogadorHelper jogadorHelper = new JogadorHelper(dbUtils);
+		JogoHelper jogoHelper = new JogoHelper(dbUtils);
+		PresencaHelper presencaHelper = new PresencaHelper(dbUtils);
+
+		try {
+			// Get jogador info
+			JogadorData jogador = jogadorHelper.getJogadorbyID(parmJogadorID);
+			if (jogador == null) {
+				return null;
+			}
+
+			historico = new HistoricoJogadorData(jogador.getId(), jogador.getNome());
+
+			// Get all epocas for the tenant (excluding current)
+			Connection conn = dbUtils.getConnection();
+			PreparedStatement preparedStatement = conn.prepareStatement(
+					"select *from epoca where tenant_id=? and estado<>'1' order by anoinicio desc");
+
+			preparedStatement.setInt(1, parmTenantID);
+			ResultSet rs = preparedStatement.executeQuery();
+
+			if (rs == null) {
+				dbUtils.closeConnection(conn);
+				return historico;
+			}
+
+			while (rs.next()) {
+				int epocaId = rs.getInt("id");
+				String epocaDescritivo = rs.getString("descritivo");
+				int anoInicio = rs.getInt("anoinicio");
+
+				// Get escalão name for this epoca and jogador
+				String nomeEscalao = "";
+				PreparedStatement psEscalao = conn.prepareStatement(
+					"select e.nome from escalao_epoca ee " +
+					"inner join escalao e on e.id = ee.id_escalao " +
+					"inner join escalao_epoca_jogador eej on eej.id_escalao_epoca = ee.id " +
+					"where ee.id_epoca = ? and eej.id_jogador = ? " +
+					"limit 1"
+				);
+				psEscalao.setInt(1, epocaId);
+				psEscalao.setInt(2, parmJogadorID);
+				ResultSet rsEscalao = psEscalao.executeQuery();
+				if (rsEscalao.next()) {
+					nomeEscalao = rsEscalao.getString("nome");
+				}
+				rsEscalao.close();
+				psEscalao.close();
+
+				EpocaHistoricoData epocaHistorico = new EpocaHistoricoData(epocaId, epocaDescritivo, anoInicio, nomeEscalao);
+
+				// Get all jogos for this jogador in this epoca
+				ArrayList<JogoData> jogos = jogoHelper.getJogosByJogadorId(parmJogadorID);
+				if (jogos != null) {
+					for (JogoData jogo : jogos) {
+						if (jogo.getEpoca_id() == epocaId) {
+							epocaHistorico.addJogo(jogo);
+						}
+					}
+				}
+
+				// Get all treinos (presencas) for this jogador in this epoca
+				// Treinos are presencas where the jogador participated
+				PreparedStatement psTreinos = conn.prepareStatement(
+						"select p.id, p.data, p.hora, p.id_equipa, ee.nome as nomeequipa, " +
+						"p.datacriacao, p.utilizador_criacao, u.nome as nomeutilizador, " +
+						"pj.id_jogador, j.nome, pj.estado, pj.motivo " +
+						"from presencas p " +
+						"inner join presenca_jogador pj on pj.id_presenca = p.id " +
+						"inner join escalao_epoca ee on ee.id = p.id_equipa " +
+						"inner join epoca e on e.id = ee.id_epoca " +
+						"inner join utilizadores u on u.id = p.utilizador_criacao " +
+						"inner join jogador j on j.id = pj.id_jogador " +
+						"where pj.id_jogador = ? and e.id = ? " +
+						"order by p.data, p.hora");
+
+				psTreinos.setInt(1, parmJogadorID);
+				psTreinos.setInt(2, epocaId);
+				ResultSet rsTreinos = psTreinos.executeQuery();
+
+				while (rsTreinos.next()) {
+					PresencaData treino = new PresencaData(
+						rsTreinos.getInt("id"),
+						rsTreinos.getInt("data"),
+						rsTreinos.getString("hora"),
+						rsTreinos.getInt("id_equipa"),
+						rsTreinos.getString("nomeequipa"),
+						rsTreinos.getString("datacriacao"),
+						rsTreinos.getInt("utilizador_criacao"),
+						rsTreinos.getString("nomeutilizador")
+					);
+					treino.addJogador(
+						rsTreinos.getInt("id_jogador"),
+						rsTreinos.getString("nome"),
+						rsTreinos.getString("estado"),
+						rsTreinos.getString("motivo")
+					);
+					epocaHistorico.addTreino(treino);
+				}
+
+				historico.addEpoca(epocaHistorico);
+			}
+
+			dbUtils.closeConnection(conn);
+			return historico;
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return historico;
 	}
 
 }
