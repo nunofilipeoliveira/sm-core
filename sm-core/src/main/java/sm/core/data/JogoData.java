@@ -26,6 +26,7 @@ public class JogoData {
     private String hora_concentracao;
     private String obs;
     private String numeroJogo;
+    private JogoConfigData config;
 
 
 
@@ -193,6 +194,13 @@ public class JogoData {
     }
     public void setNumeroJogo(String numeroJogo) {
         this.numeroJogo = numeroJogo;
+    }
+
+    public JogoConfigData getConfig() {
+        return config;
+    }
+    public void setConfig(JogoConfigData config) {
+        this.config = config;
     }
 
     

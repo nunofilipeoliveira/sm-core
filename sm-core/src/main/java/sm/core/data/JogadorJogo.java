@@ -33,6 +33,32 @@ private int ld_defesa;
 private String licenca;
 private boolean gr;
 
+    // Campos do modo cronómetro / timeline
+    private boolean titular;
+    private boolean emCampo;
+    private Integer excluidoAteSegundos;
+    private int tempoJogoSegundos;
+
+    /**
+     * Construtor leve usado pelas funcionalidades do modo cronómetro
+     * (config do jogo, estado em campo, tempos de jogo).
+     */
+    public JogadorJogo(int id_jogador, String nome, boolean titular, boolean emCampo, Integer excluidoAteSegundos,
+            int tempoJogoSegundos) {
+        this.id_jogador = id_jogador;
+        this.nome = nome;
+        this.titular = titular;
+        this.emCampo = emCampo;
+        this.excluidoAteSegundos = excluidoAteSegundos;
+        this.tempoJogoSegundos = tempoJogoSegundos;
+    }
+
+    /**
+     * Construtor padrão necessário para o Jackson (desserialização JSON).
+     */
+    public JogadorJogo() {
+    }
+
 public JogadorJogo(int id_jogador, String nome, boolean capitao, int numero, int amarelo, int azul, int vermelho, int golos_p, int golos_ld,
         int golos_pp, int golos_up, int golos_normal, int golos_s_p, int golos_s_ld, int golos_s_up, int golos_s_pp,
         int golos_s_normal, String estado, String obs, int faltas, int assistencias, int recuperacoes_bola, int perdas_bola, int remates, int penalty_falhado, int penalty_defesa, int ld_falhado, int ld_defesa, String licenca, boolean gr) {
@@ -391,6 +417,40 @@ public boolean isGr() {
 public void setGr(boolean gr) {
     this.gr = gr;
 }
+
+public boolean isTitular() {
+    return titular;
+}
+
+public void setTitular(boolean titular) {
+    this.titular = titular;
+}
+
+public boolean getEmCampo() {
+    return emCampo;
+}
+
+public void setEmCampo(boolean emCampo) {
+    this.emCampo = emCampo;
+}
+
+public Integer getExcluidoAteSegundos() {
+    return excluidoAteSegundos;
+}
+
+public void setExcluidoAteSegundos(Integer excluidoAteSegundos) {
+    this.excluidoAteSegundos = excluidoAteSegundos;
+}
+
+public int getTempoJogoSegundos() {
+    return tempoJogoSegundos;
+}
+
+public void setTempoJogoSegundos(int tempoJogoSegundos) {
+    this.tempoJogoSegundos = tempoJogoSegundos;
+}
+
+
 
         
 }

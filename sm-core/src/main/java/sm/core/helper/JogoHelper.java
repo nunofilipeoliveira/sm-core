@@ -14,6 +14,7 @@ import sm.core.data.CompeticaoData;
 import sm.core.data.ConvocatoriaData;
 import sm.core.data.JogadorConvocado;
 import sm.core.data.JogadorJogo;
+import sm.core.data.JogoConfigData;
 import sm.core.data.JogoData;
 
 @Component
@@ -181,51 +182,69 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			preparedStatement.setInt(20, jogo.getId());
 
 			int rowsAffected = preparedStatement.executeUpdate();
-			
 
 			if(jogo.getJogadores()!=null && jogo.getJogadores().size()>0) {
-				//Atualizar convocatória se existirem jogadores associados
-				preparedStatement = conn
-						.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
-				preparedStatement.setInt(1, jogo.getId());
-				preparedStatement.executeUpdate();	
-				preparedStatement.close();
-				PreparedStatement insertStatement = conn
-						.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-				for(JogadorJogo jogador : jogo.getJogadores()) {
-					insertStatement.setInt(1, jogo.getId());
-					insertStatement.setInt(2, jogador.getId_jogador());
-					insertStatement.setBoolean(3, jogador.getCapitao());
-					insertStatement.setInt(4, jogador.getNumero());
-					insertStatement.setInt(5, jogador.getAmarelo());
-					insertStatement.setInt(6, jogador.getAzul());
-					insertStatement.setInt(7, jogador.getVermelho());
-					insertStatement.setInt(8, jogador.getGolos_p());
-					insertStatement.setInt(9, jogador.getGolos_ld());
-					insertStatement.setInt(10, jogador.getGolos_pp());
-					insertStatement.setInt(11, jogador.getGolos_up());
-					insertStatement.setInt(12, jogador.getGolos_normal());
-					insertStatement.setInt(13, jogador.getGolos_s_p());
-					insertStatement.setInt(14, jogador.getGolos_s_ld());
-					insertStatement.setInt(15, jogador.getGolos_s_up());
-					insertStatement.setInt(16, jogador.getGolos_s_pp());
-					insertStatement.setInt(17, jogador.getGolos_s_normal());
-					insertStatement.setString(18, jogador.getEstado());
-					insertStatement.setString(19, jogador.getObs());
-					insertStatement.setInt(20, jogador.getFaltas());
-					insertStatement.setInt(21, jogador.getAssistencias());
-					insertStatement.setInt(22, jogador.getRecuperacoes_bola());
-					insertStatement.setInt(23, jogador.getPerdas_bola());
-					insertStatement.setInt(24, jogador.getRemates());
-					insertStatement.setInt(25, jogador.getPenalty_falhado());
-					insertStatement.setInt(26, jogador.getPenalty_defesa());
-					insertStatement.setInt(27, jogador.getLd_falhado());
-					insertStatement.setInt(28, jogador.getLd_defesa());
-					insertStatement.setBoolean(29, jogador.isGr());
-					insertStatement.executeUpdate();
+				// Jogos registados em modo CRONÓMETRO têm as estatísticas, o "5 inicial",
+				// quem está em campo e o tempo de jogo mantidos ao vivo, evento a evento,
+				// diretamente na base de dados (ver JogoCronometroHelper). O array de
+				// jogadores que chega aqui, nesse modo, não é sincronizado em tempo real
+				// com esses eventos e pode estar desatualizado (tipicamente com os valores
+				// que tinha quando a página foi carregada) — por isso NÃO se pode apagar e
+				// recriar as linhas de jogo_jogador como se faz no modo normal, sob pena de
+				// apagar tudo o que já estava corretamente registado durante o jogo.
+				if (isModoCronometro(conn, jogo.getId())) {
+					atualizarFichaJogadoresPreservandoCronometro(conn, jogo);
+				} else {
+					//Atualizar convocatória se existirem jogadores associados
+					preparedStatement = conn
+							.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
+					preparedStatement.setInt(1, jogo.getId());
+					preparedStatement.executeUpdate();	
+					preparedStatement.close();
+					PreparedStatement insertStatement = conn
+							.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr, titular, em_campo, tempo_jogo_segundos, excluido_ate_segundos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+					for(JogadorJogo jogador : jogo.getJogadores()) {
+						insertStatement.setInt(1, jogo.getId());
+						insertStatement.setInt(2, jogador.getId_jogador());
+						insertStatement.setBoolean(3, jogador.getCapitao());
+						insertStatement.setInt(4, jogador.getNumero());
+						insertStatement.setInt(5, jogador.getAmarelo());
+						insertStatement.setInt(6, jogador.getAzul());
+						insertStatement.setInt(7, jogador.getVermelho());
+						insertStatement.setInt(8, jogador.getGolos_p());
+						insertStatement.setInt(9, jogador.getGolos_ld());
+						insertStatement.setInt(10, jogador.getGolos_pp());
+						insertStatement.setInt(11, jogador.getGolos_up());
+						insertStatement.setInt(12, jogador.getGolos_normal());
+						insertStatement.setInt(13, jogador.getGolos_s_p());
+						insertStatement.setInt(14, jogador.getGolos_s_ld());
+						insertStatement.setInt(15, jogador.getGolos_s_up());
+						insertStatement.setInt(16, jogador.getGolos_s_pp());
+						insertStatement.setInt(17, jogador.getGolos_s_normal());
+						insertStatement.setString(18, jogador.getEstado());
+						insertStatement.setString(19, jogador.getObs());
+						insertStatement.setInt(20, jogador.getFaltas());
+						insertStatement.setInt(21, jogador.getAssistencias());
+						insertStatement.setInt(22, jogador.getRecuperacoes_bola());
+						insertStatement.setInt(23, jogador.getPerdas_bola());
+						insertStatement.setInt(24, jogador.getRemates());
+						insertStatement.setInt(25, jogador.getPenalty_falhado());
+						insertStatement.setInt(26, jogador.getPenalty_defesa());
+						insertStatement.setInt(27, jogador.getLd_falhado());
+						insertStatement.setInt(28, jogador.getLd_defesa());
+						insertStatement.setBoolean(29, jogador.isGr());
+						insertStatement.setBoolean(30, jogador.isTitular());
+						insertStatement.setBoolean(31, jogador.getEmCampo());
+						insertStatement.setInt(32, jogador.getTempoJogoSegundos());
+						if (jogador.getExcluidoAteSegundos() != null) {
+							insertStatement.setInt(33, jogador.getExcluidoAteSegundos());
+						} else {
+							insertStatement.setNull(33, java.sql.Types.INTEGER);
+						}
+						insertStatement.executeUpdate();
+					}
+					insertStatement.close();
 				}
-				insertStatement.close();
-				
 			}
 
 			dbUtils.closeConnection(conn);
@@ -237,6 +256,59 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Indica se o jogo está registado em modo CRONÓMETRO (ver jogo_config). Nesse
+	 * modo, os dados por jogador em jogo_jogador (estatísticas, 5 inicial, em
+	 * campo, tempo de jogo) são mantidos ao vivo pelo JogoCronometroHelper e não
+	 * podem ser substituídos por um "guardar registo" genérico.
+	 */
+	private boolean isModoCronometro(Connection conn, int idJogo) throws SQLException {
+		PreparedStatement ps = conn.prepareStatement("SELECT modo_registo FROM jogo_config WHERE id_jogo = ?");
+		ps.setInt(1, idJogo);
+		ResultSet rs = ps.executeQuery();
+		boolean cronometro = false;
+		if (rs.next()) {
+			cronometro = "CRONOMETRO".equalsIgnoreCase(rs.getString("modo_registo"));
+		}
+		rs.close();
+		ps.close();
+		return cronometro;
+	}
+
+	/**
+	 * Atualiza só os campos "de ficha" de cada jogador (capitão, número, estado da
+	 * convocatória, observações) sem tocar em estatísticas, 5 inicial, em campo,
+	 * tempo de jogo ou exclusão — esses ficam exatamente como o cronómetro os
+	 * deixou. Se um jogador ainda não tiver linha em jogo_jogador (ex: adicionado
+	 * agora à convocatória), cria uma nova, com as estatísticas a começar do zero.
+	 */
+	private void atualizarFichaJogadoresPreservandoCronometro(Connection conn, JogoData jogo) throws SQLException {
+		PreparedStatement update = conn.prepareStatement(
+				"UPDATE jogo_jogador SET capitao = ?, numero = ?, estado = ?, obs = ? WHERE id_jogo = ? AND id_jogador = ?");
+		PreparedStatement insert = conn.prepareStatement(
+				"INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, estado, obs) VALUES (?, ?, ?, ?, ?, ?)");
+		for (JogadorJogo jogador : jogo.getJogadores()) {
+			update.setBoolean(1, jogador.getCapitao());
+			update.setInt(2, jogador.getNumero());
+			update.setString(3, jogador.getEstado());
+			update.setString(4, jogador.getObs());
+			update.setInt(5, jogo.getId());
+			update.setInt(6, jogador.getId_jogador());
+			int linhas = update.executeUpdate();
+			if (linhas == 0) {
+				insert.setInt(1, jogo.getId());
+				insert.setInt(2, jogador.getId_jogador());
+				insert.setBoolean(3, jogador.getCapitao());
+				insert.setInt(4, jogador.getNumero());
+				insert.setString(5, jogador.getEstado());
+				insert.setString(6, jogador.getObs());
+				insert.executeUpdate();
+			}
+		}
+		update.close();
+		insert.close();
 	}
 
 	public boolean deleteJogo(int id) {
@@ -334,10 +406,29 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					rsJogadores.getString("Licença"),
 					rsJogadores.getBoolean("gr")	
 				);
+				jogador.setTitular(rsJogadores.getBoolean("titular"));
+				jogador.setEmCampo(rsJogadores.getBoolean("em_campo"));
+				jogador.setTempoJogoSegundos(rsJogadores.getInt("tempo_jogo_segundos"));
+				Object excluidoAte = rsJogadores.getObject("excluido_ate_segundos");
+				jogador.setExcluidoAteSegundos(excluidoAte != null ? rsJogadores.getInt("excluido_ate_segundos") : null);
 				listaJogadores.add(jogador);
 			}
 			
 			jogo.setJogadores(listaJogadores);
+
+			// carregar a configuração do jogo (modo normal / cronómetro)
+			PreparedStatement psConfig = conn.prepareStatement("SELECT id, id_jogo, modo_registo, duracao_parte_minutos, numero_partes, num_jogadores_iniciais, duracao_exclusao_azul_segundos, tempo_atual_segundos FROM jogo_config WHERE id_jogo = ?");
+			psConfig.setInt(1, id);
+			ResultSet rsConfig = psConfig.executeQuery();
+			if (rsConfig.next()) {
+				JogoConfigData config = new JogoConfigData(rsConfig.getInt("id"), rsConfig.getInt("id_jogo"), rsConfig.getString("modo_registo"),
+						rsConfig.getInt("duracao_parte_minutos"), rsConfig.getInt("numero_partes"), rsConfig.getInt("num_jogadores_iniciais"),
+						rsConfig.getInt("duracao_exclusao_azul_segundos"), rsConfig.getInt("tempo_atual_segundos"));
+				jogo.setConfig(config);
+			}
+			rsConfig.close();
+			psConfig.close();
+
 			dbUtils.closeConnection(conn);
 
 			return jogo;
@@ -521,6 +612,12 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 						rs.getInt("golo_s_normal"), rs.getString("estado"), rs.getString("obs"), rs.getInt("faltas"), rs.getInt("assistencias"),
 						rs.getInt("recuperacoes_bola"), rs.getInt("perdas_bola"), rs.getInt("remates"), rs.getInt("penalty_falhado"), rs.getInt("penalty_defesa"),
 						rs.getInt("ld_falhado"), rs.getInt("ld_defesa"), rs.getString("Licença"), rs.getBoolean("gr"));
+
+				jogadorNoJogo.setTitular(rs.getBoolean("titular"));
+				jogadorNoJogo.setEmCampo(rs.getBoolean("em_campo"));
+				jogadorNoJogo.setTempoJogoSegundos(rs.getInt("tempo_jogo_segundos"));
+				Object excluidoAte = rs.getObject("excluido_ate_segundos");
+				jogadorNoJogo.setExcluidoAteSegundos(excluidoAte != null ? rs.getInt("excluido_ate_segundos") : null);
 
 				ArrayList<JogadorJogo> jogadores = new ArrayList<>();
 				jogadores.add(jogadorNoJogo);
