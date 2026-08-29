@@ -1,5 +1,6 @@
 package sm.core.helper;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,8 +23,8 @@ public class ClubeHelper {
 
         ClubeData clube = null;
 
-        try {
-            PreparedStatement preparedStatement = dbUtils.getConnection()
+        try (Connection conn = dbUtils.getConnection()) {
+            PreparedStatement preparedStatement = conn
                     .prepareStatement("select *from clube where id=? ");
 
             preparedStatement.setInt(1, parmClubeId);
@@ -40,7 +41,6 @@ public class ClubeHelper {
 
             }
 
-            dbUtils.closeConnection(preparedStatement.getConnection());
             return clube;
 
         } catch (SQLException e) {
@@ -55,8 +55,8 @@ public class ClubeHelper {
 
         ArrayList<ClubeData> clubes = new ArrayList<>();
 
-        try {
-            PreparedStatement preparedStatement = dbUtils.getConnection()
+        try (Connection conn = dbUtils.getConnection()) {
+            PreparedStatement preparedStatement = conn
                     .prepareStatement("select *from clube");
 
             ResultSet rs = preparedStatement.executeQuery();
@@ -71,7 +71,6 @@ public class ClubeHelper {
                 clubes.add(clube);
             }
 
-            dbUtils.closeConnection(preparedStatement.getConnection());
             return clubes;
 
         } catch (SQLException e) {
@@ -84,11 +83,10 @@ public class ClubeHelper {
 
     public boolean updateClube(ClubeData parmClube) {
 
-        try {
-
+        try (Connection conn = dbUtils.getConnection()) {
             if (parmClube.getId() == 0) {
                 // Inserir novo clube
-                PreparedStatement preparedStatement = dbUtils.getConnection()
+                PreparedStatement preparedStatement = conn
                         .prepareStatement(
                                 "INSERT INTO clube (nome, pav_nome, pav_endereco, pav_link) VALUES (?, ?, ?, ?)");
 
@@ -98,12 +96,10 @@ public class ClubeHelper {
                 preparedStatement.setString(4, parmClube.getPav_link());
                 preparedStatement.executeUpdate();
 
-                dbUtils.closeConnection(preparedStatement.getConnection());
-
                 return true;
             } else {
                 // Atualizar clube existente
-                PreparedStatement preparedStatement = dbUtils.getConnection()
+                PreparedStatement preparedStatement = conn
                         .prepareStatement(
                                 "UPDATE clube SET nome = ?, pav_nome = ?, pav_endereco = ?, pav_link = ? WHERE id = ?");
 
@@ -113,8 +109,6 @@ public class ClubeHelper {
                 preparedStatement.setString(4, parmClube.getPav_link());
                 preparedStatement.setInt(5, parmClube.getId());
                 preparedStatement.executeUpdate();
-
-                dbUtils.closeConnection(preparedStatement.getConnection());
 
                 return true;
             }

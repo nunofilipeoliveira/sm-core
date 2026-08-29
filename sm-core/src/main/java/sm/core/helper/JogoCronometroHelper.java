@@ -83,8 +83,7 @@ public class JogoCronometroHelper {
 
     public JogoConfigData getConfigJogo(int idJogo) {
         JogoConfigData config = null;
-        try {
-            Connection conn = dbUtils.getConnection();
+        try (Connection conn = dbUtils.getConnection()) {
             PreparedStatement ps = conn.prepareStatement(
                     "SELECT id, id_jogo, modo_registo, duracao_parte_minutos, numero_partes, num_jogadores_iniciais, "
                             + "duracao_exclusao_azul_segundos, tempo_atual_segundos FROM jogo_config WHERE id_jogo = ?");
@@ -102,7 +101,6 @@ public class JogoCronometroHelper {
             if (config != null) {
                 config.setJogadores(getJogadoresResumo(conn, idJogo));
             }
-            dbUtils.closeConnection(conn);
             return config;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -285,8 +283,7 @@ public class JogoCronometroHelper {
      */
     public ArrayList<JogoEventoData> getTimeline(int idJogo) {
         ArrayList<JogoEventoData> eventos = new ArrayList<>();
-        try {
-            Connection conn = dbUtils.getConnection();
+        try (Connection conn = dbUtils.getConnection()) {
             PreparedStatement ps = conn.prepareStatement(
                     "SELECT e.id, e.id_jogo, e.id_parte, e.tempo_evento, e.tempo_segundos, e.tipo_evento, "
                             + "e.id_jogador, e.id_jogador_secundario, e.detalhe, e.obs, e.criado_em, e.id_equipa, "
@@ -302,7 +299,6 @@ public class JogoCronometroHelper {
             }
             rs.close();
             ps.close();
-            dbUtils.closeConnection(conn);
             return eventos;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -317,8 +313,7 @@ public class JogoCronometroHelper {
      */
     public ArrayList<JogoEventoData> getEventosControleJogo(int idJogo) {
         ArrayList<JogoEventoData> eventos = new ArrayList<>();
-        try {
-            Connection conn = dbUtils.getConnection();
+        try (Connection conn = dbUtils.getConnection()) {
             PreparedStatement ps = conn.prepareStatement(
                     "SELECT e.id, e.id_jogo, e.id_parte, e.tempo_evento, e.tempo_segundos, e.tipo_evento, "
                             + "e.id_jogador, e.id_jogador_secundario, e.detalhe, e.obs, e.criado_em, e.id_equipa, "
@@ -339,7 +334,6 @@ public class JogoCronometroHelper {
             }
             rs.close();
             ps.close();
-            dbUtils.closeConnection(conn);
             return eventos;
         } catch (SQLException e) {
             e.printStackTrace();

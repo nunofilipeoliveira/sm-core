@@ -688,15 +688,15 @@ public class PresencaHelper {
 
 	private void registaHistorico(int idPresenca, int idUtilizador, String alteracao) throws SQLException {
 
-		Connection conn = dbUtils.getConnection();
-		PreparedStatement preparedStatement = conn
-				.prepareStatement("insert presencas_historico values (?, now(), ?, ?)");
+		try (Connection conn = dbUtils.getConnection()) {
+			PreparedStatement preparedStatement = conn
+					.prepareStatement("insert presencas_historico values (?, now(), ?, ?)");
 
-		preparedStatement.setInt(1, idPresenca);
-		preparedStatement.setInt(2, idUtilizador);
-		preparedStatement.setString(3, alteracao);
-		preparedStatement.executeUpdate();
-		dbUtils.closeConnection(conn);
+			preparedStatement.setInt(1, idPresenca);
+			preparedStatement.setInt(2, idUtilizador);
+			preparedStatement.setString(3, alteracao);
+			preparedStatement.executeUpdate();
+		}
 
 	}
 

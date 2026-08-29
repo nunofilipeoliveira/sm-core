@@ -29,8 +29,7 @@ public class JogadorHelper {
 
 		
 		JogadorData jogadorData = null;
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("SELECT * FROM jogador WHERE id=?");
 
@@ -54,7 +53,6 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return jogadorData;
 
 		} catch (SQLException e) {
@@ -71,8 +69,7 @@ public class JogadorHelper {
 		ArrayList<FichaJogadorPresencasData> faltas = new ArrayList<FichaJogadorPresencasData>();
 		FichaJogadorPresencasData tmpFalta = null;
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select j.id, j.nome , ee.id, ee.nome , pj.estado , pj.motivo , p.`data` , p.hora from jogador j \r\n"
 							+ "inner join presenca_jogador pj on j.id=pj.id_jogador \r\n"
@@ -98,7 +95,6 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return faltas;
 
 		} catch (SQLException e) {
@@ -115,8 +111,7 @@ public class JogadorHelper {
 		ArrayList<ContadorPresencaData> presencaPorEscalao = new ArrayList<ContadorPresencaData>();
 		ContadorPresencaData tmpContadorPorEscalao = null;
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id_jogador, ee.nome, mid(data, 5, 2) mes, count(*) from presenca_jogador pj\r\n"
 							+ "inner join presencas p ON p.id =pj.id_presenca\r\n"
@@ -203,7 +198,6 @@ public class JogadorHelper {
 			}
 			presencaPorEscalao.add(tmpContadorPorEscalao);
 
-			dbUtils.closeConnection(conn);
 			return presencaPorEscalao;
 
 		} catch (SQLException e) {
@@ -217,9 +211,8 @@ public class JogadorHelper {
 	public ArrayList<ElementoSeleccao> getJogadorDisponiveis(int parmIdEscalao, boolean allJogadores,
 			int parmTenandId) {
 
-		try {
+		try (Connection conn = dbUtils.getConnection()) {
 		ElementoSeleccao jogador = null;
-		Connection conn = dbUtils.getConnection();
 		PreparedStatement preparedStatement = null;
 		ArrayList<ElementoSeleccao> jogadoresDisponiveis = new ArrayList<ElementoSeleccao>();
 		
@@ -268,7 +261,6 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return jogadoresDisponiveis;
 
 		} catch (SQLException e) {
@@ -284,8 +276,7 @@ public class JogadorHelper {
 		
 		ElementoSeleccao jogador = null;
 		ArrayList<ElementoSeleccao> jogadoresDisponiveis = new ArrayList<ElementoSeleccao>();
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select *from jogador where estado='1' and tenant_id=? ");
 
@@ -303,7 +294,6 @@ public class JogadorHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return jogadoresDisponiveis;
 
 		} catch (SQLException e) {
@@ -318,8 +308,7 @@ public class JogadorHelper {
 
 		
 		JogadorData jogadorData = new JogadorData();
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("SELECT * FROM jogador WHERE id=?");
 
@@ -449,7 +438,6 @@ public class JogadorHelper {
 			preparedStatement.setInt(20, parmJogador.getId());
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -467,8 +455,7 @@ public class JogadorHelper {
 		JogadorData jogadorData = new JogadorData();
 		int generatedId = 0;
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO jogador(nome, data_nascimento, email, telemovel, pai_nome, pai_email, pai_telemovel, mae_nome, mae_email, mae_telemovel, morada, cidade, codigo_postal, observacoes, numero, nome_completo, nif, cc, licença, tenant_id, estado) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
@@ -575,7 +562,6 @@ public class JogadorHelper {
 				}
 			}
 
-			dbUtils.closeConnection(preparedStatement.getConnection());
 
 			return generatedId;
 

@@ -27,8 +27,7 @@ public class StaffHelper {
 
 		
 		StaffData staffData = null;
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id, nome, nome_completo, telemovel, email, morada, codigo_postal, data_nascimento, id_jogador, licença from staff where id_jogador=0 and id=?\r\n"
 							+ "union\r\n"
@@ -53,7 +52,6 @@ public class StaffHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return staffData;
 
 		} catch (SQLException e) {
@@ -69,8 +67,7 @@ public class StaffHelper {
 		
 		StaffData staffData = new StaffData();
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("SELECT * FROM staff WHERE id=?");
 
@@ -153,7 +150,6 @@ public class StaffHelper {
 			preparedStatement.setInt(9, parmStaff.getId());
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -170,8 +166,7 @@ public class StaffHelper {
 		
 		StaffData staffData = new StaffData();
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,tenant_id, licença) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,0,1,?,?)",
@@ -229,7 +224,6 @@ public class StaffHelper {
 				}
 			}
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -261,8 +255,7 @@ public class StaffHelper {
 		
 		ElementoSeleccao staff = null;
 		ArrayList<ElementoSeleccao> staffDisponiveis = new ArrayList<ElementoSeleccao>();
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select id, nome from staff where estado='1' and tenant_id=? and id_jogador =0\r\n" + "union\r\n"
 							+ "select s.id, j.nome from staff s \r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
@@ -283,7 +276,6 @@ public class StaffHelper {
 	
 			}
 
-			dbUtils.closeConnection(conn);
 			return staffDisponiveis;
 	
 		} catch (SQLException e) {
@@ -299,8 +291,7 @@ public class StaffHelper {
 		
 		ElementoSeleccao staff = null;
 		ArrayList<ElementoSeleccao> staffDisponiveis = new ArrayList<ElementoSeleccao>();
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement("select * from (\r\n"
 					+ "select id, nome from staff where estado='1' and tenant_id=? and id_jogador =0\r\n" + "union\r\n"
 					+ "select s.id, j.nome from staff s\r\n" + "inner join jogador j on s.id_jogador =j.id\r\n"
@@ -324,7 +315,6 @@ public class StaffHelper {
 	
 			}
 	
-			dbUtils.closeConnection(conn);
 			return staffDisponiveis;
 	
 		} catch (SQLException e) {

@@ -35,8 +35,7 @@ public class EquipaHelper {
 		EquipaData equipaData = null;
 		JogadorData tmpJogador = null;
 		JogadorHelper jogadorHelper = null;
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select ee.id, e2.descritivo , e.nome from escalao_epoca ee\r\n"
 							+ "inner join escalao e on e.id=ee.id_escalao \r\n"
@@ -76,7 +75,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return equipaData;
 
 		} catch (SQLException e) {
@@ -91,8 +89,7 @@ public class EquipaHelper {
 
 		
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("INSERT INTO escalao_epoca_jogador VALUES (?, ?)");
 
@@ -101,7 +98,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -117,8 +113,7 @@ public class EquipaHelper {
 
 		
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("INSERT INTO escalao_epoca_staff VALUES (?, ?, ?)");
 
@@ -128,7 +123,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -144,8 +138,7 @@ public class EquipaHelper {
 
 		
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("DELETE FROM escalao_epoca_jogador where id_escalao_epoca=? and id_jogador=?");
 
@@ -154,7 +147,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -170,8 +162,7 @@ public class EquipaHelper {
 
 		
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("DELETE FROM escalao_epoca_staff where id_escalao_epoca=? and id_staff=?");
 
@@ -180,7 +171,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -199,8 +189,7 @@ public class EquipaHelper {
 		ArrayList<EquipaData> equipas = new ArrayList<>();
 		EquipaData equipaData = null;
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select *from escalao_epoca inner join \r\n"
 							+ " epoca ON estado='1' and tenant_id=? and epoca.id=escalao_epoca.id_epoca");
@@ -222,7 +211,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -238,8 +226,7 @@ public class EquipaHelper {
 		EquipaData equipaData = null;
 		JogadorData tmpJogador = null;
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select	ee.id,	e2.Descritivo ,	e.Nome,	j.id, j.nome, j.numero,	j.data_nascimento, j.Tenant_id\r\n"
 							+ "from escalao_epoca ee\r\n"
@@ -304,7 +291,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return equipaData;
 
 		} catch (SQLException e) {
@@ -320,8 +306,7 @@ public class EquipaHelper {
 		
 		EpocaData epocaAtual = null;
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select *from epoca where estado='1' and tenant_id=? ");
 
@@ -339,7 +324,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return epocaAtual;
 
 		} catch (SQLException e) {
@@ -354,8 +338,7 @@ public class EquipaHelper {
 
 		
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("update epoca set estado='1' where tenant_id=? and id=?");
 
@@ -374,7 +357,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -393,8 +375,7 @@ public class EquipaHelper {
 
 		EpocaData epoca = getEpocaAtiva(parmTenantID);
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("insert into escalao_epoca(id_escalao, id_epoca, nome) values (?, ?, ?)");
 
@@ -404,7 +385,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -419,8 +399,7 @@ public class EquipaHelper {
 
 		
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("delete from escalao_epoca where id=?");
 
@@ -428,7 +407,6 @@ public class EquipaHelper {
 
 			preparedStatement.executeUpdate();
 
-			dbUtils.closeConnection(conn);
 
 			return true;
 
@@ -445,8 +423,7 @@ public class EquipaHelper {
 		EpocaData epocaAtual = null;
 		ArrayList<EpocaData> epocas = new ArrayList<>();
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select *from epoca where tenant_id=? ");
 
@@ -465,7 +442,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return epocas;
 
 		} catch (SQLException e) {
@@ -482,8 +458,7 @@ public class EquipaHelper {
 		EscalaoData escalao = null;
 		ArrayList<EscalaoData> escaloes = new ArrayList<>();
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement("select *from escalao ");
 
 			ResultSet rs = preparedStatement.executeQuery();
@@ -499,7 +474,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return escaloes;
 
 		} catch (SQLException e) {
@@ -515,8 +489,7 @@ public class EquipaHelper {
 		
 		String escalao = "";
 
-		try {
-			Connection conn = dbUtils.getConnection();
+		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"SELECT escalao.nome FROM escalao inner join escalao_epoca e on e.id_escalao = escalao.id where e.id =?");
 
@@ -534,7 +507,6 @@ public class EquipaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
 			return escalao;
 
 		} catch (SQLException e) {
@@ -551,7 +523,7 @@ public class EquipaHelper {
 		JogoHelper jogoHelper = new JogoHelper(dbUtils);
 		PresencaHelper presencaHelper = new PresencaHelper(dbUtils);
 
-		try {
+		try (Connection conn = dbUtils.getConnection()) {
 			// Get jogador info
 			JogadorData jogador = jogadorHelper.getJogadorbyID(parmJogadorID);
 			if (jogador == null) {
@@ -561,7 +533,6 @@ public class EquipaHelper {
 			historico = new HistoricoJogadorData(jogador.getId(), jogador.getNome());
 
 			// Get all epocas for the tenant (excluding current)
-			Connection conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"select *from epoca where tenant_id=? and estado<>'1' order by anoinicio desc");
 
@@ -569,7 +540,6 @@ public class EquipaHelper {
 			ResultSet rs = preparedStatement.executeQuery();
 
 			if (rs == null) {
-				dbUtils.closeConnection(conn);
 				return historico;
 			}
 
@@ -650,7 +620,6 @@ public class EquipaHelper {
 				historico.addEpoca(epocaHistorico);
 			}
 
-			dbUtils.closeConnection(conn);
 			return historico;
 
 		} catch (SQLException e) {
