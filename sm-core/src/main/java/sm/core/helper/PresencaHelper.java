@@ -686,6 +686,74 @@ public class PresencaHelper {
 
 	}
 
+	/**
+	 * Elimina uma ficha de presenças e todos os seus dados associados
+	 * (jogadores, staff e histórico). A operação é efetuada dentro de uma
+	 * transação para garantir a consistência dos dados.
+	 *
+	 * @param parmIdPresenca id da ficha de presenças a eliminar
+	 * @return true se a ficha foi eliminada, false caso contrário
+	 */
+	public boolean deletePresenca(int parmIdPresenca) {
+
+		Connection conn = null;
+
+		try {
+			conn = dbUtils.getConnection();
+			conn.setAutoCommit(false);
+
+			// apagar o historico da ficha de presencas
+			PreparedStatement psHistorico = conn
+					.prepareStatement("delete from presencas_historico where id_presenca = ?");
+			psHistorico.setInt(1, parmIdPresenca);
+			psHistorico.executeUpdate();
+			psHistorico.close();
+
+			// apagar os jogadores associados à ficha de presencas
+			PreparedStatement psJogadores = conn
+					.prepareStatement("delete from presenca_jogador where id_presenca = ?");
+			psJogadores.setInt(1, parmIdPresenca);
+			psJogadores.executeUpdate();
+			psJogadores.close();
+
+			// apagar o staff associado à ficha de presencas
+			PreparedStatement psStaff = conn
+					.prepareStatement("delete from presenca_staff where id_presenca = ?");
+			psStaff.setInt(1, parmIdPresenca);
+			psStaff.executeUpdate();
+			psStaff.close();
+
+			// apagar a ficha de presencas
+			PreparedStatement psPresenca = conn.prepareStatement("delete from presencas where id = ?");
+			psPresenca.setInt(1, parmIdPresenca);
+			int rowsAffected = psPresenca.executeUpdate();
+			psPresenca.close();
+
+			conn.commit();
+			dbUtils.closeConnection(conn);
+			conn = null; // to avoid closing again in catch
+
+			return rowsAffected > 0;
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+			if (conn != null) {
+				try {
+					conn.rollback();
+				} catch (Exception ex) {
+					// ignore
+				}
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
+		}
+
+		return false;
+	}
+
 	private void registaHistorico(int idPresenca, int idUtilizador, String alteracao) throws SQLException {
 
 		try (Connection conn = dbUtils.getConnection()) {

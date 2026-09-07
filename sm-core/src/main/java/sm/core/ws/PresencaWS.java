@@ -18,6 +18,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.PresencaData;
+import sm.core.data.UtilizadorData;
+import sm.core.helper.LoginHelper;
 import sm.core.helper.PresencaHelper;
 
 @RestController
@@ -29,6 +31,9 @@ public class PresencaWS {
 	
 	@Autowired
 	private PresencaHelper presencaHelper;
+
+	@Autowired
+	private LoginHelper loginHelper;
 
 	@CrossOrigin
 	@PutMapping("/presenca/{parmTenantId}")
@@ -344,6 +349,56 @@ public class PresencaWS {
 		}
 
 		log.error("getHistoricobyId | Error End");
+		return "";
+	}
+
+	@CrossOrigin
+	@PutMapping("/eliminarPresenca/{parms}")
+	@ResponseBody
+	public String eliminarPresenca(@PathVariable String parms) {
+
+		// parms = idPresenca_idUtilizador_tenantId
+
+		boolean resultado = false;
+
+		log.info("PresencaWS | eliminarPresenca | Start");
+		log.info("PresencaWS | eliminarPresenca | parms:" + parms);
+
+		String[] tmpParms = parms.split("_");
+
+		int idPresenca = Integer.parseInt(tmpParms[0]);
+		int idUtilizador = Integer.parseInt(tmpParms[1]);
+		int tenantId = Integer.parseInt(tmpParms[2]);
+
+		// valida se o utilizador tem perfil de Administrador
+		UtilizadorData utilizador = loginHelper.getUser(idUtilizador, tenantId);
+
+		if (utilizador != null && "ADMIN".equalsIgnoreCase(utilizador.getPerfil())) {
+
+			log.info("PresencaWS | eliminarPresenca | Utilizador com perfil ADMIN, a eliminar a ficha:" + idPresenca);
+
+			resultado = presencaHelper.deletePresenca(idPresenca);
+
+		} else {
+
+			log.warn("PresencaWS | eliminarPresenca | Utilizador:" + idUtilizador
+					+ " sem perfil ADMIN. Eliminação não autorizada.");
+		}
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+
+			log.info("PresencaWS | eliminarPresenca | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			log.error("PresencaWS | eliminarPresenca | Error End");
+		}
+
+		log.error("PresencaWS | eliminarPresenca | Error End");
 		return "";
 	}
 
