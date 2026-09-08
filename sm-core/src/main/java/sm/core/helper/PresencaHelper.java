@@ -50,19 +50,19 @@ public class PresencaHelper {
 
 			conn = dbUtils.getConnection();
 			PreparedStatement preparedStatement = conn.prepareStatement("select * FROM(\r\n"
-					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, pj.id_jogador as id_item, j.nome, pj.estado, pj.motivo, 'J' as tipo\r\n"
+					+ "select p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, pj.id_jogador as id_item, j.nome, pj.estado, pj.motivo, pj.classificacao, 'J' as tipo\r\n"
 					+ "from presencas p inner join presenca_jogador pj on pj.id_presenca = p.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
 					+ "inner join utilizadores u on 	u.id = p.utilizador_criacao\r\n"
 					+ "inner join jogador j on j.id = pj.id_jogador where 	ee.id =?\r\n"
 					+ "and  ((?=1 and ?=1) or  p.`data` between ? and ?) \r\n" + "union\r\n"
-					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, ps.id_staff  as id_item, j.nome, ps.estado, ps.motivo, 'S' as tipo \r\n"
+					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, ps.id_staff  as id_item, j.nome, ps.estado, ps.motivo, null as classificacao, 'S' as tipo \r\n"
 					+ "from presencas p inner join presenca_staff ps on ps.id_presenca = p.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
 					+ "inner join utilizadores u on 	u.id = p.utilizador_criacao\r\n"
 					+ "inner join staff j on j.id = ps.id_staff where 	ee.id =? and j.id_jogador=0\r\n"
 					+ "and  ((?=1 and ?=1) or  p.`data` between ? and ?) \r\n" + "union\r\n"
-					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, ps.id_staff  as id_item, j.nome, ps.estado, ps.motivo, 'S' as tipo \r\n"
+					+ "select  p.id, p.data, p.hora, p.id_equipa , ee.nome as nomeequipa, p.datacriacao , p.utilizador_criacao , u.nome as nomeutilizador, ps.id_staff  as id_item, j.nome, ps.estado, ps.motivo, null as classificacao, 'S' as tipo \r\n"
 					+ "from presencas p inner join presenca_staff ps on ps.id_presenca = p.id\r\n"
 					+ "inner join escalao_epoca ee on 	ee.id = p.id_equipa\r\n"
 					+ "inner join utilizadores u on 	u.id = p.utilizador_criacao\r\n"
@@ -112,8 +112,10 @@ public class PresencaHelper {
 				}
 
 				if (rs.getString("tipo").equals("J")) {
+					int classificacao = rs.getInt("classificacao");
+					Integer classificacaoObj = rs.wasNull() ? null : classificacao;
 					presencaData.addJogador(rs.getInt("id_item"), rs.getString("nome"), rs.getString("estado"),
-							rs.getString("motivo"));
+							rs.getString("motivo"), classificacaoObj);
 				}
 
 				if (rs.getString("tipo").equals("S")) {
@@ -153,7 +155,8 @@ public class PresencaHelper {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("select\r\n" + "	p.id,\r\n" + "	data,\r\n" + "	hora,\r\n" + "	id_equipa,\r\n"
 							+ "	ee.nome,\r\n" + "	datacriacao,\r\n" + "	utilizador_criacao,\r\n" + "	u.nome,\r\n"
-							+ "	pj.id_jogador,\r\n" + "	j.nome,\r\n" + "	pj.estado,\r\n" + "	pj.motivo\r\n"
+							+ "	pj.id_jogador,\r\n" + "	j.nome,\r\n" + "	pj.estado,\r\n" + "	pj.motivo,\r\n"
+							+ "	pj.classificacao\r\n"
 							+ "from\r\n" + "	presencas p\r\n" + "inner join presenca_jogador pj on\r\n"
 							+ "	pj.id_presenca = p.id\r\n" + "inner join escalao_epoca ee on\r\n"
 							+ "	ee.id = p.id_equipa\r\n" + "inner join utilizadores u on\r\n"
@@ -176,8 +179,10 @@ public class PresencaHelper {
 
 				}
 
+				int classificacao = rs.getInt("pj.classificacao");
+				Integer classificacaoObj = rs.wasNull() ? null : classificacao;
 				presencaData.addJogador(rs.getInt("pj.id_jogador"), rs.getString("j.nome"), rs.getString("pj.estado"),
-						rs.getString("pj.motivo"));
+						rs.getString("pj.motivo"), classificacaoObj);
 			}
 
 			preparedStatement = conn
@@ -420,12 +425,18 @@ public class PresencaHelper {
 			for (int i = 0; i < parmPresencaData.getJogadoresPresenca().size(); i++) {
 
 				preparedStatement = conn
-						.prepareStatement("insert into presenca_jogador VALUES(?, ?, ?, ?)");
+						.prepareStatement("insert into presenca_jogador(id_presenca, id_jogador, estado, motivo, classificacao) VALUES(?, ?, ?, ?, ?)");
 
 				preparedStatement.setInt(1, parmPresencaData.getId());
 				preparedStatement.setInt(2, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
 				preparedStatement.setString(3, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
 				preparedStatement.setString(4, parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
+				Integer classificacao = parmPresencaData.getJogadoresPresenca().get(i).getClassificacao();
+				if (classificacao == null) {
+					preparedStatement.setNull(5, java.sql.Types.TINYINT);
+				} else {
+					preparedStatement.setInt(5, classificacao);
+				}
 				preparedStatement.executeUpdate();
 
 			}
@@ -557,12 +568,18 @@ public class PresencaHelper {
 				// insere novo jogador na presenca
 
 				PreparedStatement preparedStatement = conn.prepareStatement(
-						"insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo) VALUES(?,?,?,?)");
+						"insert into  presenca_jogador(id_presenca, id_jogador, estado, motivo, classificacao) VALUES(?,?,?,?,?)");
 
 				preparedStatement.setString(3, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
 				preparedStatement.setString(4, parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
 				preparedStatement.setInt(1, parmPresencaData.getId());
 				preparedStatement.setInt(2, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
+				Integer classificacaoNovo = parmPresencaData.getJogadoresPresenca().get(i).getClassificacao();
+				if (classificacaoNovo == null) {
+					preparedStatement.setNull(5, java.sql.Types.TINYINT);
+				} else {
+					preparedStatement.setInt(5, classificacaoNovo);
+				}
 				preparedStatement.executeUpdate();
 
 			}
@@ -579,12 +596,18 @@ public class PresencaHelper {
 			for (int i = 0; i < parmPresencaData.getJogadoresPresenca().size(); i++) {
 
 				preparedStatement = conn.prepareStatement(
-						"update presenca_jogador set estado=?, motivo=? where id_presenca=? and id_jogador=?");
+						"update presenca_jogador set estado=?, motivo=?, classificacao=? where id_presenca=? and id_jogador=?");
 
 				preparedStatement.setString(1, parmPresencaData.getJogadoresPresenca().get(i).getEstado());
 				preparedStatement.setString(2, parmPresencaData.getJogadoresPresenca().get(i).getMotivo());
-				preparedStatement.setInt(3, parmPresencaData.getId());
-				preparedStatement.setInt(4, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
+				Integer classificacaoUpdate = parmPresencaData.getJogadoresPresenca().get(i).getClassificacao();
+				if (classificacaoUpdate == null) {
+					preparedStatement.setNull(3, java.sql.Types.TINYINT);
+				} else {
+					preparedStatement.setInt(3, classificacaoUpdate);
+				}
+				preparedStatement.setInt(4, parmPresencaData.getId());
+				preparedStatement.setInt(5, parmPresencaData.getJogadoresPresenca().get(i).getId_jogador());
 				preparedStatement.executeUpdate();
 
 			}

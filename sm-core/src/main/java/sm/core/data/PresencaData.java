@@ -118,6 +118,14 @@ public class PresencaData {
 		this.jogadoresPresenca.add(new PresencaJogadorData(idjogador, nome, estado, motivo));
 	}
 
+	public void addJogador(int idjogador, String nome, String estado, String motivo, Integer classificacao) {
+		if (this.jogadoresPresenca == null) {
+			this.jogadoresPresenca = new ArrayList<PresencaJogadorData>();
+		}
+
+		this.jogadoresPresenca.add(new PresencaJogadorData(idjogador, nome, estado, motivo, classificacao));
+	}
+
 	public void addStaff(int idstaff, String nome, String estado, String motivo) {
 		if (this.staffPresenca == null) {
 			this.staffPresenca = new ArrayList<PresencaStaffData>();
