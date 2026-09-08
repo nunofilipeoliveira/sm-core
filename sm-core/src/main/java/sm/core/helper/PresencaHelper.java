@@ -23,6 +23,9 @@ public class PresencaHelper {
 	@Autowired
 	private TenantProperties tenantProperties;
 
+	@Autowired
+	private PerformanceHelper performanceHelper;
+
 	private final DBUtils dbUtils;
 
 	public PresencaHelper(DBUtils dbUtils) {
@@ -402,6 +405,12 @@ public class PresencaHelper {
 
 	public boolean createPresenca(PresencaData parmPresencaData, String parmTenantId) {
 
+		// Configuração de performance: se a equipa não permite o registo de
+		// classificações, as classificações recebidas são ignoradas.
+		if (!performanceHelper.permiteRegistoClassificacao(parmPresencaData.getId_escalao())) {
+			limparClassificacoes(parmPresencaData);
+		}
+
 		Connection conn = null;
 		try {
 			conn = dbUtils.getConnection();
@@ -475,7 +484,27 @@ public class PresencaHelper {
 
 	}
 
+	/**
+	 * Remove as classificações de desempenho dos jogadores da presença.
+	 * Utilizado quando a configuração da equipa não permite o registo de
+	 * classificações (performance_config.permitir_registo = 0).
+	 */
+	private void limparClassificacoes(PresencaData parmPresencaData) {
+		if (parmPresencaData.getJogadoresPresenca() == null) {
+			return;
+		}
+		for (PresencaJogadorData jogador : parmPresencaData.getJogadoresPresenca()) {
+			jogador.setClassificacao(null);
+		}
+	}
+
 	public boolean updatePresenca(PresencaData parmPresencaData, Integer parmIdUtilizador) {
+
+		// Configuração de performance: se a equipa não permite o registo de
+		// classificações, as classificações recebidas são ignoradas.
+		if (!performanceHelper.permiteRegistoClassificacao(parmPresencaData.getId_escalao())) {
+			limparClassificacoes(parmPresencaData);
+		}
 
 		PresencaData oldPresenca = loadPresencasbyID(parmPresencaData.getId());
 		Connection conn = null;

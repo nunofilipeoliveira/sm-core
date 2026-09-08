@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -15,6 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.JogadorData;
+import sm.core.data.PerformanceConfigData;
 import sm.core.data.PerformanceEquipaData;
 import sm.core.data.PerformanceResumoJogadorData;
 import sm.core.data.UtilizadorData;
@@ -72,6 +75,20 @@ public class PerformanceWS {
 			}
 		}
 
+		// Configuração da equipa: se a visualização de performance estiver
+		// desativada, devolve o resumo vazio.
+		PerformanceConfigData configEquipa = performanceHelper.getPerformanceConfig(Integer.parseInt(idEquipa));
+		if (!configEquipa.isPermitir_visualizacao()) {
+			log.info("PerformanceWS | getPerformanceEquipa | Visualização de performance desativada para a equipa {}",
+					idEquipa);
+			try {
+				return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(new PerformanceEquipaData());
+			} catch (JsonProcessingException e) {
+				e.printStackTrace();
+				return "";
+			}
+		}
+
 		PerformanceEquipaData resultado = performanceHelper.getResumoEquipa(Integer.parseInt(idEquipa), idJogador,
 				dataInicio, dataFim);
 
@@ -118,6 +135,94 @@ public class PerformanceWS {
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 			log.error("PerformanceWS | getPerformanceJogador | Error End");
+		}
+
+		return "";
+	}
+
+	/**
+	 * Configuração de performance da equipa (registo e visualização).
+	 * Sem permissão devolve a configuração com as funcionalidades desativadas.
+	 */
+	@CrossOrigin
+	@GetMapping("/performance/config/{idEquipa}/{idUtilizador}/{tenantId}")
+	@ResponseBody
+	public String getPerformanceConfig(@PathVariable String idEquipa, @PathVariable String idUtilizador,
+			@PathVariable String tenantId) {
+
+		log.info("PerformanceWS | getPerformanceConfig | idEquipa:{} idUtilizador:{}", idEquipa, idUtilizador);
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		PerformanceConfigData config = new PerformanceConfigData();
+		config.setId_equipa(Integer.parseInt(idEquipa));
+
+		if (!temPermissao(Integer.parseInt(idUtilizador), Integer.parseInt(tenantId))) {
+			log.warn("PerformanceWS | getPerformanceConfig | Utilizador {} sem permissão (requer ADMIN/TREINADOR)",
+					idUtilizador);
+			config.setPermitir_registo(false);
+			config.setPermitir_visualizacao(false);
+			try {
+				return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
+			} catch (JsonProcessingException e) {
+				e.printStackTrace();
+				return "";
+			}
+		}
+
+		try {
+			return mapper.writerWithDefaultPrettyPrinter()
+					.writeValueAsString(performanceHelper.getPerformanceConfig(Integer.parseInt(idEquipa)));
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("PerformanceWS | getPerformanceConfig | Error End");
+		}
+
+		return "";
+	}
+
+	/**
+	 * Grava a configuração de performance da equipa (requer ADMIN/TREINADOR).
+	 */
+	@CrossOrigin
+	@PutMapping("/performance/config/{idUtilizador}/{tenantId}")
+	@ResponseBody
+	public String gravarPerformanceConfig(@PathVariable String idUtilizador, @PathVariable String tenantId,
+			@RequestBody PerformanceConfigData parmConfig) {
+
+		log.info("PerformanceWS | gravarPerformanceConfig | idUtilizador:{} idEquipa:{}", idUtilizador,
+				parmConfig.getId_equipa());
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		if (!temPermissao(Integer.parseInt(idUtilizador), Integer.parseInt(tenantId))) {
+			log.warn("PerformanceWS | gravarPerformanceConfig | Utilizador {} sem permissão (requer ADMIN/TREINADOR)",
+					idUtilizador);
+			try {
+				return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(false);
+			} catch (JsonProcessingException e) {
+				e.printStackTrace();
+				return "";
+			}
+		}
+
+		if (parmConfig.getId_equipa() <= 0) {
+			log.warn("PerformanceWS | gravarPerformanceConfig | id_equipa inválido: {}", parmConfig.getId_equipa());
+			try {
+				return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(false);
+			} catch (JsonProcessingException e) {
+				e.printStackTrace();
+				return "";
+			}
+		}
+
+		boolean resultado = performanceHelper.gravarPerformanceConfig(parmConfig, Integer.parseInt(idUtilizador));
+
+		try {
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("PerformanceWS | gravarPerformanceConfig | Error End");
 		}
 
 		return "";

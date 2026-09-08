@@ -9,6 +9,17 @@ public class PresencaJogadorData {
 	// Classificação de desempenho do atleta no treino (1 a 5 estrelas). Null se ainda não avaliado.
 	private Integer classificacao;
 
+	/**
+	 * Construtor por omissão. Necessário para o Jackson conseguir desserializar o
+	 * JSON enviado pelo frontend (ex.: PUT /sm/updatepresenca). Sem este
+	 * construtor — e existindo mais do que um construtor com argumentos — o
+	 * Jackson não consegue escolher um creator e devolve
+	 * InvalidDefinitionException ("no Creators, like default constructor, exist").
+	 */
+	public PresencaJogadorData() {
+		super();
+	}
+
 	public PresencaJogadorData(int id_jogador, String nome_jogador, String estado, String motivo) {
 		super();
 		this.id_jogador = id_jogador;

@@ -7,6 +7,17 @@ public class PresencaStaffData {
 	private String estado;
 	private String motivo;
 
+	/**
+	 * Construtor por omissão. Necessário para o Jackson conseguir desserializar
+	 * o JSON enviado pelo frontend (ex.: PUT /sm/updatepresenca, campo
+	 * staffPresenca). Com um único construtor com argumentos o Jackson consegue
+	 * usá-lo implicitamente, mas qualquer novo construtor com argumentos tornaria
+	 * a desserialização ambígua; o construtor por omissão garante robustez.
+	 */
+	public PresencaStaffData() {
+		super();
+	}
+
 	public PresencaStaffData(int id_staff, String nome_staff, String estado, String motivo) {
 		super();
 		this.id_staff = id_staff;

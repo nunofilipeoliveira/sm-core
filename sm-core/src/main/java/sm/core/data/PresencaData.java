@@ -4,6 +4,18 @@ import java.util.ArrayList;
 
 public class PresencaData {
 
+	/**
+	 * Construtor por omissão. Necessário para o Jackson conseguir desserializar o
+	 * JSON enviado pelo frontend (PUT /sm/presenca e PUT /sm/updatepresenca).
+	 * As listas são inicializadas vazias para evitar NullPointerException nos
+	 * helpers quando o JSON não incluir jogadoresPresenca/staffPresenca.
+	 */
+	public PresencaData() {
+		super();
+		this.jogadoresPresenca = new ArrayList<PresencaJogadorData>();
+		this.staffPresenca = new ArrayList<PresencaStaffData>();
+	}
+
 	public PresencaData(int id, int data, String hora, int id_escalao, String escalao_descricao, String data_criacao,
 			int id_utilizador_criacao, String user_criacao) {
 		super();
