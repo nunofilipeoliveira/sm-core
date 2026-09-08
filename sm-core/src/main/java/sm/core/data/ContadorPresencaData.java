@@ -1,9 +1,15 @@
 package sm.core.data;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
+// Os meses são serializados pela ordem da época desportiva: Agosto a Julho.
+@JsonPropertyOrder({ "id_jogador", "escalao", "ago", "set", "out", "nov", "dez", "jan", "fev", "mar", "abr", "mai",
+		"jun", "jul" })
 public class ContadorPresencaData {
 
 	private int id_jogador;
 	private String escalao;
+	private int ago;
 	private int set;
 	private int out;
 	private int nov;
@@ -15,15 +21,15 @@ public class ContadorPresencaData {
 	private int mai;
 	private int jun;
 	private int jul;
-	private int ago;
 
 
 
-	public ContadorPresencaData(int id_jogador, String escalao, int set, int out, int nov, int dez, int jan, int fev,
-			int mar, int abr, int mai, int jun, int jul, int ago) {
+	public ContadorPresencaData(int id_jogador, String escalao, int ago, int set, int out, int nov, int dez, int jan,
+			int fev, int mar, int abr, int mai, int jun, int jul) {
 		super();
 		this.id_jogador = id_jogador;
 		this.escalao = escalao;
+		this.ago = ago;
 		this.set = set;
 		this.out = out;
 		this.nov = nov;
@@ -51,6 +57,14 @@ public class ContadorPresencaData {
 
 	public void setEscalao(String escalao) {
 		this.escalao = escalao;
+	}
+
+	public int getAgo() {
+		return ago;
+	}
+
+	public void setAgo(int ago) {
+		this.ago = ago;
 	}
 
 	public int getSet() {
@@ -140,15 +154,5 @@ public class ContadorPresencaData {
 	public void setJul(int jul) {
 		this.jul = jul;
 	}
-
-		public int getAgo() {
-		return ago;
-	}
-
-	public void setAgo(int ago) {
-		this.ago = ago;
-	}
-
-	
 
 }
