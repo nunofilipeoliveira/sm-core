@@ -4,7 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +18,7 @@ import sm.core.data.PerformanceEquipaData;
 import sm.core.data.PerformanceEvolucaoTreinoData;
 import sm.core.data.PerformanceHistoricoData;
 import sm.core.data.PerformanceResumoJogadorData;
+import sm.core.data.PerformanceUltimaClassificacaoData;
 
 /**
  * Helper com a lógica de análise de performance dos atletas nos treinos,
@@ -280,6 +284,82 @@ public class PerformanceHelper {
 				if (classificacao != null) {
 					resumo.getEvolucao().add(new PerformanceEvolucaoTreinoData(idPresenca, data, hora, classificacao));
 				}
+			}
+
+			// 3. Campos de resumo utilizados pela ficha do jogador (média global,
+			// semanal, mensal, tendência e últimas classificações), calculados a
+			// partir da evolução de treinos avaliados.
+			ArrayList<PerformanceEvolucaoTreinoData> evolucao = resumo.getEvolucao();
+
+			resumo.setTotal_classificacoes(resumo.getTreinos_avaliados());
+			resumo.setMedia_global(resumo.getMedia_classificacao());
+
+			if (!evolucao.isEmpty()) {
+				LocalDate hoje = LocalDate.now();
+				int dataHoje = Integer.parseInt(hoje.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+				int dataSemana = Integer.parseInt(hoje.minusDays(7).format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+				int dataMes = Integer.parseInt(hoje.minusDays(30).format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+
+				double somaSemana = 0;
+				int totalSemana = 0;
+				double somaMes = 0;
+				int totalMes = 0;
+
+				for (PerformanceEvolucaoTreinoData ponto : evolucao) {
+					if (ponto.getData() >= dataSemana && ponto.getData() <= dataHoje) {
+						somaSemana += ponto.getClassificacao();
+						totalSemana++;
+					}
+					if (ponto.getData() >= dataMes && ponto.getData() <= dataHoje) {
+						somaMes += ponto.getClassificacao();
+						totalMes++;
+					}
+				}
+
+				if (totalSemana > 0) {
+					resumo.setMedia_semanal(arredondar(somaSemana / totalSemana));
+				}
+				if (totalMes > 0) {
+					resumo.setMedia_mensal(arredondar(somaMes / totalMes));
+				}
+
+				// Tendência: compara a média da segunda metade com a primeira metade
+				// da evolução (ordenada por data).
+				if (evolucao.size() >= 2) {
+					int metade = evolucao.size() / 2;
+					double somaPrimeira = 0;
+					for (int i = 0; i < metade; i++) {
+						somaPrimeira += evolucao.get(i).getClassificacao();
+					}
+					double mediaPrimeira = somaPrimeira / metade;
+
+					double somaSegunda = 0;
+					int totalSegunda = evolucao.size() - metade;
+					for (int i = metade; i < evolucao.size(); i++) {
+						somaSegunda += evolucao.get(i).getClassificacao();
+					}
+					double mediaSegunda = somaSegunda / totalSegunda;
+
+					double diferenca = mediaSegunda - mediaPrimeira;
+					if (diferenca > 0.15) {
+						resumo.setTendencia("SUBIDA");
+					} else if (diferenca < -0.15) {
+						resumo.setTendencia("DESCIDA");
+					} else {
+						resumo.setTendencia("ESTAVEL");
+					}
+				}
+
+				// Últimas classificações: mais recentes primeiro, limitado a 10.
+				ArrayList<PerformanceUltimaClassificacaoData> ultimas = new ArrayList<PerformanceUltimaClassificacaoData>();
+				for (PerformanceEvolucaoTreinoData ponto : evolucao) {
+					ultimas.add(new PerformanceUltimaClassificacaoData(ponto.getData(), ponto.getClassificacao()));
+				}
+				Collections.reverse(ultimas);
+				if (ultimas.size() > 10) {
+					ultimas = new ArrayList<PerformanceUltimaClassificacaoData>(ultimas.subList(0, 10));
+				}
+				resumo.setUltimasClassificacoes(ultimas);
 			}
 
 			log.info("PerformanceHelper | getResumoJogador | End | treinos:{} avaliados:{}", resumo.getTotal_treinos(),

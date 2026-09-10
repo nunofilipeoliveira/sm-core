@@ -27,6 +27,20 @@ public class PerformanceResumoJogadorData {
 	// Histórico completo de presenças/faltas do atleta.
 	private ArrayList<PerformanceHistoricoData> historico;
 
+	// ---- Campos de resumo utilizados pela ficha do jogador ----
+	// Número de treinos com classificação registada (= treinos_avaliados).
+	private int total_classificacoes;
+	// Média global das classificações (1 a 5). Null se não houver classificações.
+	private Double media_global;
+	// Média das classificações dos últimos 7 dias. Null se não houver classificações no período.
+	private Double media_semanal;
+	// Média das classificações dos últimos 30 dias. Null se não houver classificações no período.
+	private Double media_mensal;
+	// Tendência da evolução: "SUBIDA" | "DESCIDA" | "ESTAVEL".
+	private String tendencia;
+	// Últimas classificações registadas (mais recentes primeiro).
+	private ArrayList<PerformanceUltimaClassificacaoData> ultimasClassificacoes;
+
 	public PerformanceResumoJogadorData() {
 		this.id_jogador = 0;
 		this.nome_jogador = "";
@@ -40,6 +54,12 @@ public class PerformanceResumoJogadorData {
 		this.media_classificacao = null;
 		this.evolucao = new ArrayList<PerformanceEvolucaoTreinoData>();
 		this.historico = new ArrayList<PerformanceHistoricoData>();
+		this.total_classificacoes = 0;
+		this.media_global = null;
+		this.media_semanal = null;
+		this.media_mensal = null;
+		this.tendencia = "ESTAVEL";
+		this.ultimasClassificacoes = new ArrayList<PerformanceUltimaClassificacaoData>();
 	}
 
 	public int getId_jogador() {
@@ -136,6 +156,54 @@ public class PerformanceResumoJogadorData {
 
 	public void setHistorico(ArrayList<PerformanceHistoricoData> historico) {
 		this.historico = historico;
+	}
+
+	public int getTotal_classificacoes() {
+		return total_classificacoes;
+	}
+
+	public void setTotal_classificacoes(int total_classificacoes) {
+		this.total_classificacoes = total_classificacoes;
+	}
+
+	public Double getMedia_global() {
+		return media_global;
+	}
+
+	public void setMedia_global(Double media_global) {
+		this.media_global = media_global;
+	}
+
+	public Double getMedia_semanal() {
+		return media_semanal;
+	}
+
+	public void setMedia_semanal(Double media_semanal) {
+		this.media_semanal = media_semanal;
+	}
+
+	public Double getMedia_mensal() {
+		return media_mensal;
+	}
+
+	public void setMedia_mensal(Double media_mensal) {
+		this.media_mensal = media_mensal;
+	}
+
+	public String getTendencia() {
+		return tendencia;
+	}
+
+	public void setTendencia(String tendencia) {
+		this.tendencia = tendencia;
+	}
+
+	public ArrayList<PerformanceUltimaClassificacaoData> getUltimasClassificacoes() {
+		return ultimasClassificacoes;
+	}
+
+	public void setUltimasClassificacoes(ArrayList<PerformanceUltimaClassificacaoData> ultimasClassificacoes) {
+		this.ultimasClassificacoes = ultimasClassificacoes;
 	}
 
 }
