@@ -8,6 +8,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import sm.core.data.CompeticaoData;
@@ -19,6 +21,8 @@ import sm.core.data.JogoData;
 
 @Component
 public class JogoHelper {
+
+	private static final Logger log = LoggerFactory.getLogger(JogoHelper.class);
 
 	private final DBUtils dbUtils;
 
@@ -150,6 +154,16 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 		
 		try (Connection conn = dbUtils.getConnection()) {
+			// Importante: em modo NORMAL, este método apaga TODAS as linhas de
+			// jogo_jogador e reinsere-as de seguida (ver mais abaixo). Sem uma
+			// transação, se o DELETE for feito com sucesso (e autocommitado de
+			// imediato) e a seguir UM ÚNICO INSERT falhar (ex: dados inconsistentes
+			// para um jogador em concreto), ficamos com a tabela sem linhas para
+			// esse jogo — os jogadores "desaparecem" do jogo, mesmo a atualização
+			// dos restantes campos do jogo tendo sido feita. Ao desativar o
+			// autocommit e só fazer commit no final (com rollback em caso de erro),
+			// garantimos que ou fica tudo gravado, ou nada é alterado.
+			conn.setAutoCommit(false);
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("UPDATE jogo SET epoca_id = ?, equipa_id = ?, tipoequipa = ?, data = ?, hora = ?, local = ?, golos_equipa = ?, equipa_adv_id = ?, tipoequipa_adv = ?, golos_equipa_adv = ?, tipo_local = ?, competicao_id = ?, competicao_descritivo=?, arbitro_1 = ?, arbitro_2 = ?, estado = ?, hora_concentracao = ?, obs = ?, numerojogo=? WHERE id = ?");
 
@@ -175,8 +189,9 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			preparedStatement.setInt(20, jogo.getId());
 
 			int rowsAffected = preparedStatement.executeUpdate();
+			preparedStatement.close();
 
-			if(jogo.getJogadores()!=null && jogo.getJogadores().size()>0) {
+			if(jogo.getJogadores()!=null && !jogo.getJogadores().isEmpty()) {
 				// Jogos registados em modo CRONÓMETRO têm as estatísticas, o "5 inicial",
 				// quem está em campo e o tempo de jogo mantidos ao vivo, evento a evento,
 				// diretamente na base de dados (ver JogoCronometroHelper). O array de
@@ -189,66 +204,74 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					atualizarFichaJogadoresPreservandoCronometro(conn, jogo);
 				} else {
 					//Atualizar convocatória se existirem jogadores associados
-					preparedStatement = conn
+					PreparedStatement deleteStatement = conn
 							.prepareStatement("DELETE FROM jogo_jogador WHERE id_jogo = ?");
-					preparedStatement.setInt(1, jogo.getId());
-					preparedStatement.executeUpdate();	
-					preparedStatement.close();
-					PreparedStatement insertStatement = conn
-							.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr, titular, em_campo, tempo_jogo_segundos, excluido_ate_segundos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-					for(JogadorJogo jogador : jogo.getJogadores()) {
-						insertStatement.setInt(1, jogo.getId());
-						insertStatement.setInt(2, jogador.getId_jogador());
-						insertStatement.setBoolean(3, jogador.getCapitao());
-						insertStatement.setInt(4, jogador.getNumero());
-						insertStatement.setInt(5, jogador.getAmarelo());
-						insertStatement.setInt(6, jogador.getAzul());
-						insertStatement.setInt(7, jogador.getVermelho());
-						insertStatement.setInt(8, jogador.getGolos_p());
-						insertStatement.setInt(9, jogador.getGolos_ld());
-						insertStatement.setInt(10, jogador.getGolos_pp());
-						insertStatement.setInt(11, jogador.getGolos_up());
-						insertStatement.setInt(12, jogador.getGolos_normal());
-						insertStatement.setInt(13, jogador.getGolos_s_p());
-						insertStatement.setInt(14, jogador.getGolos_s_ld());
-						insertStatement.setInt(15, jogador.getGolos_s_up());
-						insertStatement.setInt(16, jogador.getGolos_s_pp());
-						insertStatement.setInt(17, jogador.getGolos_s_normal());
-						insertStatement.setString(18, jogador.getEstado());
-						insertStatement.setString(19, jogador.getObs());
-						insertStatement.setInt(20, jogador.getFaltas());
-						insertStatement.setInt(21, jogador.getAssistencias());
-						insertStatement.setInt(22, jogador.getRecuperacoes_bola());
-						insertStatement.setInt(23, jogador.getPerdas_bola());
-						insertStatement.setInt(24, jogador.getRemates());
-						insertStatement.setInt(25, jogador.getPenalty_falhado());
-						insertStatement.setInt(26, jogador.getPenalty_defesa());
-						insertStatement.setInt(27, jogador.getLd_falhado());
-						insertStatement.setInt(28, jogador.getLd_defesa());
-						insertStatement.setBoolean(29, jogador.isGr());
-						insertStatement.setBoolean(30, jogador.isTitular());
-						insertStatement.setBoolean(31, jogador.getEmCampo());
-						insertStatement.setInt(32, jogador.getTempoJogoSegundos());
-						if (jogador.getExcluidoAteSegundos() != null) {
-							insertStatement.setInt(33, jogador.getExcluidoAteSegundos());
-						} else {
-							insertStatement.setNull(33, java.sql.Types.INTEGER);
+					deleteStatement.setInt(1, jogo.getId());
+					deleteStatement.executeUpdate();
+					deleteStatement.close();
+					try (PreparedStatement insertStatement = conn
+							.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr, titular, em_campo, tempo_jogo_segundos, excluido_ate_segundos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+						for(JogadorJogo jogador : jogo.getJogadores()) {
+							insertStatement.setInt(1, jogo.getId());
+							insertStatement.setInt(2, jogador.getId_jogador());
+							insertStatement.setBoolean(3, jogador.getCapitao());
+							insertStatement.setInt(4, jogador.getNumero());
+							insertStatement.setInt(5, jogador.getAmarelo());
+							insertStatement.setInt(6, jogador.getAzul());
+							insertStatement.setInt(7, jogador.getVermelho());
+							insertStatement.setInt(8, jogador.getGolos_p());
+							insertStatement.setInt(9, jogador.getGolos_ld());
+							insertStatement.setInt(10, jogador.getGolos_pp());
+							insertStatement.setInt(11, jogador.getGolos_up());
+							insertStatement.setInt(12, jogador.getGolos_normal());
+							insertStatement.setInt(13, jogador.getGolos_s_p());
+							insertStatement.setInt(14, jogador.getGolos_s_ld());
+							insertStatement.setInt(15, jogador.getGolos_s_up());
+							insertStatement.setInt(16, jogador.getGolos_s_pp());
+							insertStatement.setInt(17, jogador.getGolos_s_normal());
+							insertStatement.setString(18, jogador.getEstado());
+							insertStatement.setString(19, jogador.getObs());
+							insertStatement.setInt(20, jogador.getFaltas());
+							insertStatement.setInt(21, jogador.getAssistencias());
+							insertStatement.setInt(22, jogador.getRecuperacoes_bola());
+							insertStatement.setInt(23, jogador.getPerdas_bola());
+							insertStatement.setInt(24, jogador.getRemates());
+							insertStatement.setInt(25, jogador.getPenalty_falhado());
+							insertStatement.setInt(26, jogador.getPenalty_defesa());
+							insertStatement.setInt(27, jogador.getLd_falhado());
+							insertStatement.setInt(28, jogador.getLd_defesa());
+							insertStatement.setBoolean(29, jogador.isGr());
+							insertStatement.setBoolean(30, jogador.isTitular());
+							insertStatement.setBoolean(31, jogador.getEmCampo());
+							insertStatement.setInt(32, jogador.getTempoJogoSegundos());
+							if (jogador.getExcluidoAteSegundos() != null) {
+								insertStatement.setInt(33, jogador.getExcluidoAteSegundos());
+							} else {
+								insertStatement.setNull(33, java.sql.Types.INTEGER);
+							}
+							insertStatement.executeUpdate();
 						}
-						insertStatement.executeUpdate();
 					}
-					insertStatement.close();
 				}
 			}
 
+			// Só agora, com o UPDATE ao jogo e o DELETE+INSERT dos jogadores (quando
+			// aplicável) feitos com sucesso, é que confirmamos tudo em conjunto.
+			conn.commit();
 			return rowsAffected > 0;
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("updateJogo | Erro ao atualizar jogo, a fazer rollback", e);
+			try (Connection conn = dbUtils.getConnection()) {
+				conn.rollback();
+			} catch (SQLException ignored) {
+				// já não há muito a fazer aqui; o objetivo é apenas não deixar a
+				// transação pendurada num estado indefinido.
+			}
+			return false;
 		}
-
-		return false;
 	}
+
 
 	/**
 	 * Indica se o jogo está registado em modo CRONÓMETRO (ver jogo_config). Nesse
