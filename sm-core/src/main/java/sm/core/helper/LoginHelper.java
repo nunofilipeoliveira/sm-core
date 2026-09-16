@@ -624,7 +624,9 @@ public class LoginHelper {
 
 			// APAGA POSSIVEIS REGISTOS EM ATIVAÇÃO
 
-			preparedStatement = conn.prepareStatement("SELECT * FROM utilizadores u inner join utilizadores_escalao ue ON u.id = ue.id_utilizador WHERE u.id=?");
+			preparedStatement = conn.prepareStatement(
+					"SELECT u.user, u.nome, u.email, u.perfil, u.tenant_id, ue.id_escalao_epoca "
+							+ "FROM utilizadores u LEFT JOIN utilizadores_escalao ue ON u.id = ue.id_utilizador WHERE u.id=?");
 
 			preparedStatement.setInt(1, parmUserId);
 
