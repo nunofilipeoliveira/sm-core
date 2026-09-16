@@ -637,16 +637,33 @@ public class LoginHelper {
 			}
 
 			String tmpIdsEscalao = "";
+			String user = null;
+			String nome = null;
+			String email = null;
+			String perfil = null;
+			int tenantId = 0;
 
 			while (rs.next()) {
 
-				tmpIdsEscalao += rs.getString("id_escalao_epoca") + ";";
+				if (rs.getString("id_escalao_epoca") != null) {
+					tmpIdsEscalao += rs.getString("id_escalao_epoca") + ";";
+				}
+
+				user = rs.getString("user");
+				nome = rs.getString("nome");
+				email = rs.getString("email");
+				perfil = rs.getString("perfil");
+				tenantId = rs.getInt("tenant_id");
 
 			}
 
-			tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", tmpIdsEscalao,
-						rs.getString("nome"), rs.getString("email"), rs.getString("perfil"), "");
-				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("tenant_id"));
+			if (user == null) {
+				return false;
+			}
+
+			tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(user, "0", tmpIdsEscalao, nome, email,
+					perfil, "");
+			createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, tenantId);
 
 
 			return true;
