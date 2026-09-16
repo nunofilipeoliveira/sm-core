@@ -636,7 +636,7 @@ public class LoginHelper {
 
 			while (rs.next()) {
 
-				tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", "",
+				tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", rs.getString("ids_escalao"),
 						rs.getString("nome"), rs.getString("email"), rs.getString("perfil"), "");
 				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("tenant_id"));
 
