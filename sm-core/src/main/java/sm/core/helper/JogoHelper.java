@@ -210,7 +210,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					deleteStatement.executeUpdate();
 					deleteStatement.close();
 					try (PreparedStatement insertStatement = conn
-							.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr, titular, em_campo, tempo_jogo_segundos, excluido_ate_segundos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, )")) {
+							.prepareStatement("INSERT INTO jogo_jogador (id_jogo, id_jogador, capitao, numero, amarelo, azul, vermelho, golo_p, golo_ld, golo_pp, golo_up, golo_normal, golo_s_p, golo_s_ld, golo_s_up, golo_s_pp, golo_s_normal, estado, obs, faltas, assistencias, recuperacoes_bola, perdas_bola, remates, penalty_falhado, penalty_defesa, ld_falhado, ld_defesa, gr, titular, em_campo, tempo_jogo_segundos, excluido_ate_segundos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
 						for(JogadorJogo jogador : jogo.getJogadores()) {
 							insertStatement.setInt(1, jogo.getId());
 							insertStatement.setInt(2, jogador.getId_jogador());
