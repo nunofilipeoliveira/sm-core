@@ -661,6 +661,12 @@ public class LoginHelper {
 				return false;
 			}
 
+			//retira o ultimo ; do tmpIdsEscalao
+			if (tmpIdsEscalao.endsWith(";")) {
+				tmpIdsEscalao = tmpIdsEscalao.substring(0, tmpIdsEscalao.length() - 1);
+			}
+			
+
 			tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(user, "0", tmpIdsEscalao, nome, email,
 					perfil, "");
 			createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, tenantId);
