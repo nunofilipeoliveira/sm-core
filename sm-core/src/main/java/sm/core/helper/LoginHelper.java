@@ -624,7 +624,7 @@ public class LoginHelper {
 
 			// APAGA POSSIVEIS REGISTOS EM ATIVAÇÃO
 
-			preparedStatement = conn.prepareStatement("SELECT * FROM utilizadores WHERE id=?");
+			preparedStatement = conn.prepareStatement("SELECT * FROM utilizadores u inner join utilizadores_escalao ue ON u.id = ue.id_utilizador WHERE u.id=?");
 
 			preparedStatement.setInt(1, parmUserId);
 
@@ -634,13 +634,17 @@ public class LoginHelper {
 				return false;
 			}
 
+			String tmpIdsEscalao = "";
+
 			while (rs.next()) {
 
-				tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", rs.getString("ids_escalao"),
-						rs.getString("nome"), rs.getString("email"), rs.getString("perfil"), "");
-				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("tenant_id"));
+				tmpIdsEscalao += rs.getString("id_escalao_epoca") + ";";
 
 			}
+
+			tmpUtilizadorParaAtivarData = new UtilizadorParaAtivarData(rs.getString("user"), "0", tmpIdsEscalao,
+						rs.getString("nome"), rs.getString("email"), rs.getString("perfil"), "");
+				createUtilizadorParaAtivar(tmpUtilizadorParaAtivarData, rs.getInt("tenant_id"));
 
 
 			return true;
