@@ -27,7 +27,13 @@ public class PresencaData {
 		this.data_criacao = data_criacao;
 		this.id_utilizador_criacao = id_utilizador_criacao;
 		this.user_criacao = user_criacao;
-
+		// Inicializa as listas para evitar que fiquem a null quando ainda não foram
+		// adicionados jogadores/staff (ex.: presença sem staff). Sem isto o JSON
+		// devolvido pelo WS (loadPresencasbyID) continha "staffPresenca": null, o que
+		// causava "Cannot read properties of null (reading 'map')" no frontend ao
+		// gravar a edição (PresencaService.updatePresenca).
+		this.jogadoresPresenca = new ArrayList<PresencaJogadorData>();
+		this.staffPresenca = new ArrayList<PresencaStaffData>();
 	}
 
 	private int id;
