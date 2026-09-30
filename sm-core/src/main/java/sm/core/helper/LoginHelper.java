@@ -18,6 +18,7 @@ import sm.core.data.LoginData;
 import sm.core.data.UtilizadorData;
 import sm.core.data.UtilizadorParaAtivarData;
 import sm.core.utils.EmailService;
+import sm.core.utils.PasswordUtils;
 import sm.core.utils.TenantProperties;
 import sm.core.utils.TokenGenerator;
 import sm.core.utils.TokenValidator;
@@ -65,11 +66,10 @@ public class LoginHelper {
 							+ "inner join escalao_epoca ee on ue.id_escalao_epoca=ee.id \r\n"
 							+ "inner join epoca e on e.id =ee.id_epoca\r\n"
 							+ "inner join escalao e2 on ee.id_escalao =e2.id \r\n" + "where e.estado ='1' and uti.estado='1'\r\n"
-							+ "and uti.user=? and uti.password =? and uti.tenant_id=?");
+							+ "and uti.user=? and uti.tenant_id=?");
 
 			preparedStatement.setString(1, parmUser);
-			preparedStatement.setString(2, parmPWD);
-			preparedStatement.setInt(3, parmTenant_id);
+			preparedStatement.setInt(2, parmTenant_id);
 			ResultSet rs = preparedStatement.executeQuery();
 
 			if (rs == null) {
@@ -78,8 +78,25 @@ public class LoginHelper {
 
 			while (rs.next()) {
 				if (loginData == null) {
+					String storedPassword = rs.getString("password");
+
+					// A password deixou de ser comparada em SQL (estava em texto simples
+					// na tabela): e validada aqui, aceitando BCrypt (novo formato) e
+					// texto simples (formato legado).
+					if (!PasswordUtils.matches(parmPWD, storedPassword)) {
+						log.info("Dologin | Password invalida para o utilizador: " + parmUser);
+						return null;
+					}
+
 					loginData = new LoginData(rs.getInt("id"), rs.getString("nome"), rs.getString("user"),
-							rs.getString("password"), TokenGenerator.generateToken(rs.getString("user")), rs.getString("perfil"));
+							storedPassword, TokenGenerator.generateToken(rs.getString("user")), rs.getString("perfil"));
+
+					// MIGRACAO LAZY: se a password ainda estava em texto simples fica
+					// encriptada (BCrypt) a partir deste login, sem obrigar a reset.
+					if (!PasswordUtils.isEncoded(storedPassword)) {
+						updatePWD(loginData.getId(), parmPWD);
+						log.info("Dologin | Password do utilizador " + parmUser + " migrada para BCrypt.");
+					}
 
 					// regista histórico de acesso
 
@@ -160,7 +177,7 @@ public class LoginHelper {
 
 				preparedStatement.setString(1, parmLoginData.getNome());
 				preparedStatement.setString(2, parmLoginData.getUser());
-				preparedStatement.setString(3, parmLoginData.getPassword());
+				preparedStatement.setString(3, PasswordUtils.encodeIfNeeded(parmLoginData.getPassword()));
 				preparedStatement.setString(4, parmLoginData.getPerfil());
 				preparedStatement.setInt(5, parmTenantID);
 				preparedStatement.executeUpdate();
@@ -572,7 +589,7 @@ public class LoginHelper {
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("update utilizadores SET password=? where id=?");
 
-			preparedStatement.setString(1, parmPWD);
+			preparedStatement.setString(1, PasswordUtils.encodeIfNeeded(parmPWD));
 			preparedStatement.setInt(2, parmUserId);
 
 			preparedStatement.executeUpdate();
