@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,7 +29,6 @@ public class JogoWS {
     @Autowired
     private JogoHelper jogoHelper;
 
-    @CrossOrigin
     @PutMapping("/getAllJogosByEquipa/{id}")
     @ResponseBody
     public String loadAllJogosByEquipa(@PathVariable String id) {
@@ -60,7 +58,6 @@ public class JogoWS {
         return "";
     }
 
-    @CrossOrigin
     @PutMapping("/getAllCompeticoes")
     @ResponseBody
     public String getAllCompeticoes() {
@@ -88,7 +85,6 @@ public class JogoWS {
         return "";
     }
 
-    @CrossOrigin
     @PutMapping("/createJogo")
     @ResponseBody
     public String createJogo(@RequestBody JogoData entity) {
@@ -112,7 +108,6 @@ public class JogoWS {
         return "";
     }
 
-    @CrossOrigin
     @PutMapping("/updateJogo")
     @ResponseBody
     public String updateJogo(@RequestBody JogoData entity) {
@@ -131,7 +126,6 @@ public class JogoWS {
 
     }
 
-    @CrossOrigin
     @PutMapping("/deleteJogo/{id}")
     @ResponseBody
     public String deleteJogo(@PathVariable String id) {
@@ -153,7 +147,6 @@ public class JogoWS {
 
     }
 
-    @CrossOrigin
     @PutMapping("getJogoById/{id}")
     @ResponseBody
     public String getJogoById(@PathVariable String id) {    
@@ -180,7 +173,6 @@ public class JogoWS {
         return "";
     }    
 
-    @CrossOrigin
     @PutMapping("/salvarConvocatoria")
     @ResponseBody
     public String salvarConvocatoria(@RequestBody ConvocatoriaData convocatoriaData) {
@@ -203,7 +195,6 @@ public class JogoWS {
     }
 
 
-    @CrossOrigin
     @PutMapping("/getConvocatoriaByJogoId/{id}")
     @ResponseBody
     public String getConvocatoriaByJogoId(@PathVariable String id) {
@@ -230,7 +221,6 @@ public class JogoWS {
         return "";
     }
 
-    @CrossOrigin
     @PutMapping("/atualizarJogo")
     @ResponseBody
     public String atualizarJogo(@RequestBody JogoData entity) {
@@ -248,7 +238,6 @@ public class JogoWS {
         return "";
     }
 
-    @CrossOrigin
     @PutMapping("/getJogosByJogadorId/{id}")
     @ResponseBody
     public String getJogosByJogadorId(@PathVariable String id) {

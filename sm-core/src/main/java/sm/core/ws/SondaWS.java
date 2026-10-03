@@ -3,7 +3,6 @@ package sm.core.ws;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -30,7 +29,6 @@ public class SondaWS {
      * 
      * Uso: PUT http://<host>:<porta>/sm/sonda
      */
-    @CrossOrigin
     @PutMapping("/sonda")
     @ResponseBody
     public String verificarSistema() {

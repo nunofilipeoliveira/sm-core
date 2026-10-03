@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,7 +44,6 @@ public class EquipaWS {
 	@Autowired
 	private StaffHelper staffHelper;
 
-	@CrossOrigin
 	@PutMapping("/getEquipa/{id}")
 	@ResponseBody
 	public String loadEquipabyID(@PathVariable String id) {
@@ -75,7 +73,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getEquipaLight/{id}")
 	@ResponseBody
 	public String loadEquipabyIDLight(@PathVariable String id) {
@@ -105,7 +102,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getJogadoreDisponiveis/{id}/{all}/{tenant_id}")
 	@ResponseBody
 	public String getJogadoresDisponiveis(@PathVariable String id, @PathVariable String all, @PathVariable String tenant_id) {
@@ -143,7 +139,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getAllJogadores/{tenant_id}")
 	@ResponseBody
 	public String getAllJogadores(@PathVariable String tenant_id) {
@@ -175,7 +170,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getAllStaff/{tenant_id}")
 	@ResponseBody
 	public String getAllStaff(@PathVariable String tenant_id) {
@@ -207,7 +201,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getAllEquipasEpocaAtual/{tenant_id}")
 	@ResponseBody
 	public String getAllEquipasEpocaAtual(@PathVariable String tenant_id) {
@@ -239,7 +232,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getEpocaAtual/{tenant_id}")
 	@ResponseBody
 	public String getEpocaAtual(@PathVariable String tenant_id) {
@@ -271,7 +263,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/setEpocaAtual/{idepoca}/{tenant_id}")
 	@ResponseBody
 	public String setEpocaAtual(@PathVariable String idepoca, @PathVariable String tenant_id) {
@@ -304,7 +295,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/createEscalaoEpoca/{tenant_id}")
 	@ResponseBody
 	public String createEscalaoEpoca(@PathVariable String tenant_id,
@@ -339,7 +329,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/deleteEscalaoEpoca/{tenant_id}")
 	@ResponseBody
 	public String deleteEscalaoEpoca(@PathVariable String tenant_id,
@@ -374,7 +363,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getAllEpocas/{tenant_id}")
 	@ResponseBody
 	public String getAllEpocas(@PathVariable String tenant_id) {
@@ -406,7 +394,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getEscaloes")
 	@ResponseBody
 	public String getEscaloes() {
@@ -437,7 +424,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getAllStaffDisponivel/{tenant_id}/{idequipa}")
 	@ResponseBody
 	public String getAllStaff(@PathVariable String tenant_id, @PathVariable String idequipa) {
@@ -469,7 +455,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/updateJogador/{idUtilizador}")
 	@ResponseBody
 	public String updateJogador(@PathVariable String idUtilizador, @RequestBody JogadorData jogadorData) {
@@ -490,7 +475,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/equipa/addJogadorEquipa/{idEquipa}")
 	@ResponseBody
 	public String addJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
@@ -511,7 +495,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/equipa/addStaffEquipa/{idEquipa}")
 	@ResponseBody
 	public String addStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
@@ -534,7 +517,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/addStaff/{tenant_id}/{utilizador_id}")
 	@ResponseBody
 	public String addStaff(@PathVariable String tenant_id, @PathVariable String utilizador_id,
@@ -555,7 +537,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/addJogador/{tenant_id}/{utilizador_id}")
 	@ResponseBody
 	public String addJogador(@PathVariable String tenant_id, @PathVariable String utilizador_id,
@@ -576,7 +557,6 @@ public class EquipaWS {
 		}
 	}
 
-	@CrossOrigin
 	@PutMapping("/equipa/removeJogadorEquipa/{idEquipa}")
 	@ResponseBody
 	public String removeJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
@@ -597,7 +577,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/equipa/removeStaffEquipa/{idEquipa}")
 	@ResponseBody
 	public String removeStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
@@ -619,7 +598,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/updateStaff/{idUtilizador}")
 	@ResponseBody
 	public String updateStaff(@PathVariable String idUtilizador, @RequestBody StaffData staffData) {
@@ -640,7 +618,6 @@ public class EquipaWS {
 		return null;
 	}
 
-	@CrossOrigin
 	@PutMapping("/getJogador/{id}")
 	@ResponseBody
 	public String loadJogadorbyID(@PathVariable String id) {
@@ -670,7 +647,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getStaff/{id}")
 	@ResponseBody
 	public String getStaffbyID(@PathVariable String id) {
@@ -700,7 +676,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getFaltas/{id}")
 	@ResponseBody
 	public String getFaltasByJogador(@PathVariable String id) {
@@ -730,7 +705,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getEscalaoByEquipa/{parmEquipaId}")
 	@ResponseBody
 	public String getEscalaoByEquipa(@PathVariable String parmEquipaId) {
@@ -760,7 +734,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getCountPresencas/{id}")
 	@ResponseBody
 	public String getPresencasByJogador(@PathVariable String id) {
@@ -790,7 +763,6 @@ public class EquipaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getHistoricobyJogador/{idJogador}/{tenant_id}")
 	@ResponseBody
 	public String getHistoricobyJogador(@PathVariable String idJogador, @PathVariable String tenant_id) {

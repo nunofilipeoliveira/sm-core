@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import org.apache.commons.net.ftp.FTP;
@@ -12,7 +14,6 @@ import org.apache.commons.net.ftp.FTPClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -103,7 +104,6 @@ public class FicheirosWS {
     // =========================================================================
     //  POST /sm/uploadfoto/{nomeFoto}/{tenantId}
     // =========================================================================
-    @CrossOrigin
     @PostMapping(value = "/uploadfoto/{nomeFoto}/{tenantId}")
     @ResponseBody
     public String uploadFoto(@PathVariable String nomeFoto,
@@ -114,22 +114,32 @@ public class FicheirosWS {
 
         boolean resultado = false;
         ObjectMapper mapper = new ObjectMapper();
-        String tmpTenantID = resolveTenantName(tenantId);
+
+        // Nomes vindos do cliente sao validados: evita path traversal
+        // (../) e escrita arbitraria em disco a partir deste endpoint.
+        String nomeFicheiro = nomeSeguro(nomeFoto);
+        String tenantSeguro = nomeSeguro(tenantId);
+        if (nomeFicheiro == null || tenantSeguro == null) {
+            log("uploadfoto", "Nomes invalidos: nomeFoto=" + nomeFoto + " | tenantId=" + tenantId);
+            return toJson(mapper, false);
+        }
+        String tmpTenantID = resolveTenantName(tenantSeguro);
 
         try {
             if (isDev()) {
                 // ----- DEV: grava localmente em Windows -----
                 String destDir = devBasePath + "\\jogadores";
-                gravarFicheiroLocal(foto, destDir, nomeFoto + ".jpg");
+                gravarFicheiroLocal(foto, destDir, nomeFicheiro + ".jpg");
 
             } else if (isLocal()) {
                 // ----- PROD LOCAL: escreve diretamente no volume montado -----
                 String destDir = localBasePath + "/" + tmpTenantID + "/assets/img/jogadores";
-                gravarFicheiroLocal(foto, destDir, nomeFoto + ".jpg");
+                gravarFicheiroLocal(foto, destDir, nomeFicheiro + ".jpg");
 
             } else {
                 // ----- PROD FTP -----
-                String remotePath = ftpBasePath + "/" + tmpTenantID + "/assets/img/jogadores/" + nomeFoto + ".jpg";
+                String remotePath = ftpBasePath + "/" + tmpTenantID + "/assets/img/jogadores/" + nomeFicheiro
+                        + ".jpg";
                 uploadViaFtp(foto, remotePath);
             }
 
@@ -147,7 +157,6 @@ public class FicheirosWS {
     // =========================================================================
     //  POST /sm/uploadLogo/{nomeFoto}/{tenantId}
     // =========================================================================
-    @CrossOrigin
     @PostMapping(value = "/uploadLogo/{nomeFoto}/{tenantId}")
     @ResponseBody
     public String uploadLogo(@PathVariable String nomeFoto,
@@ -159,23 +168,32 @@ public class FicheirosWS {
         boolean resultado = false;
         ObjectMapper mapper = new ObjectMapper();
 
+        // Nomes vindos do cliente sao validados: evita path traversal
+        // (../) e escrita arbitraria em disco a partir deste endpoint.
+        String nomeFicheiro = nomeSeguro(nomeFoto);
+        String tenantSeguro = nomeSeguro(tenantId);
+        if (nomeFicheiro == null || tenantSeguro == null) {
+            log("uploadLogo", "Nomes invalidos: nomeFoto=" + nomeFoto + " | tenantId=" + tenantId);
+            return toJson(mapper, false);
+        }
+
         try {
             if (isDev()) {
                 // ----- DEV: grava localmente em Windows -----
                 String destDir = devBasePath + "\\clubes";
-                gravarFicheiroLocal(foto, destDir, nomeFoto + ".png");
+                gravarFicheiroLocal(foto, destDir, nomeFicheiro + ".png");
 
             } else if (isLocal()) {
                 // ----- PROD LOCAL: escreve no volume montado para todos os tenants -----
                 byte[] bytes = foto.getBytes(); // lê uma vez, reutiliza para todos os tenants
                 for (String tenant : getAllTenantNames()) {
                     String destDir = localBasePath + "/" + tenant + "/assets/img/clubes";
-                    gravarFicheiroBytes(bytes, destDir, nomeFoto + ".png");
+                    gravarFicheiroBytes(bytes, destDir, nomeFicheiro + ".png");
                 }
 
             } else {
                 // ----- PROD FTP: envia para todos os tenants -----
-                uploadLogoViaFtp(foto, nomeFoto);
+                uploadLogoViaFtp(foto, nomeFicheiro);
             }
 
             resultado = true;
@@ -263,8 +281,9 @@ public class FicheirosWS {
     private void uploadViaFtp(MultipartFile foto, String remotePath) throws IOException {
         log("uploadViaFtp", "remotePath=" + remotePath);
         FTPClient ftpClient = new FTPClient();
+        File convFile = null;
         try {
-            File convFile = multipartToTempFile(foto);
+            convFile = multipartToTempFile(foto);
             conectarFtp(ftpClient);
             try (InputStream is = new FileInputStream(convFile)) {
                 boolean done = ftpClient.storeFile(remotePath, is);
@@ -272,14 +291,16 @@ public class FicheirosWS {
             }
         } finally {
             disconnectFtp(ftpClient);
+            eliminarTempFile(convFile);
         }
     }
 
     /** Upload do logo via FTP para todos os tenants. */
     private void uploadLogoViaFtp(MultipartFile foto, String nomeFoto) throws IOException {
         FTPClient ftpClient = new FTPClient();
+        File convFile = null;
         try {
-            File convFile = multipartToTempFile(foto);
+            convFile = multipartToTempFile(foto);
             conectarFtp(ftpClient);
 
             for (String tenant : getAllTenantNames()) {
@@ -292,6 +313,7 @@ public class FicheirosWS {
             }
         } finally {
             disconnectFtp(ftpClient);
+            eliminarTempFile(convFile);
         }
     }
 
@@ -319,14 +341,54 @@ public class FicheirosWS {
     //  Utilitários
     // -------------------------------------------------------------------------
 
-    /** Converte MultipartFile num File temporário em disco. */
+    /**
+     * Converte MultipartFile num ficheiro temporario do sistema (nunca no
+     * diretorio de trabalho) — evita acumular ficheiros em disco, que era um
+     * vetor simples de esgotar o espaco disponivel. O ficheiro devolvido tem de
+     * ser eliminado pelo chamador ({@link #eliminarTempFile(File)}).
+     */
     private File multipartToTempFile(MultipartFile foto) throws IOException {
-        String originalName = foto.getOriginalFilename();
-        File convFile = new File(originalName != null ? originalName : "upload_tmp");
-        try (FileOutputStream fos = new FileOutputStream(convFile)) {
-            fos.write(foto.getBytes());
+        Path tempPath = Files.createTempFile("sm-upload-", ".tmp");
+        foto.transferTo(tempPath);
+        return tempPath.toFile();
+    }
+
+    /** Remove o ficheiro temporario, ignorando falhas. */
+    private void eliminarTempFile(File file) {
+        if (file == null) {
+            return;
         }
-        return convFile;
+        try {
+            Files.deleteIfExists(file.toPath());
+        } catch (IOException e) {
+            log("eliminarTempFile", "Nao foi possivel remover " + file.getAbsolutePath() + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Valida um nome recebido do cliente (nome de ficheiro ou tenant).
+     * Rejeita separadores de caminho, sequencias ".." e caracteres reservados,
+     * impedindo escrita fora do diretorio previsto (path traversal).
+     *
+     * @return o nome limpo ou {@code null} quando invalido
+     */
+    private String nomeSeguro(String nome) {
+        if (nome == null) {
+            return null;
+        }
+        String limpo = nome.trim();
+        if (limpo.isEmpty() || limpo.length() > 128) {
+            return null;
+        }
+        if (limpo.contains("/") || limpo.contains("\\") || limpo.contains("..") || limpo.contains(":")) {
+            return null;
+        }
+        for (char proibido : new char[] { '*', '?', '"', '<', '>', '|', '\0' }) {
+            if (limpo.indexOf(proibido) >= 0) {
+                return null;
+            }
+        }
+        return limpo;
     }
 
     /** Serializa um boolean para JSON. */

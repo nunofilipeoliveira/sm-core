@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -50,7 +49,6 @@ public class JogoCronometroWS {
     // Configuração (modo normal vs cronómetro, partes, 5 inicial)
     // ------------------------------------------------------------------
 
-    @CrossOrigin
     @PutMapping("/getConfigJogo/{idJogo}")
     @ResponseBody
     public String getConfigJogo(@PathVariable String idJogo) {
@@ -60,7 +58,6 @@ public class JogoCronometroWS {
         return toJson(config);
     }
 
-    @CrossOrigin
     @PutMapping("/guardarConfigJogo")
     @ResponseBody
     public String guardarConfigJogo(@RequestBody JogoConfigData config) {
@@ -74,7 +71,6 @@ public class JogoCronometroWS {
     // Timeline de eventos
     // ------------------------------------------------------------------
 
-    @CrossOrigin
     @PutMapping("/registarEvento")
     @ResponseBody
     public String registarEvento(@RequestBody JogoEventoData evento) {
@@ -84,7 +80,6 @@ public class JogoCronometroWS {
         return toJson(saved);
     }
 
-    @CrossOrigin
     @PutMapping("/marcarSubstituicao")
     @ResponseBody
     public String marcarSubstituicao(@RequestBody JogoEventoData evento) {
@@ -94,7 +89,6 @@ public class JogoCronometroWS {
         return toJson(saved);
     }
 
-    @CrossOrigin
     @PutMapping("/getTimeline/{idJogo}")
     @ResponseBody
     public String getTimeline(@PathVariable String idJogo) {
@@ -104,7 +98,6 @@ public class JogoCronometroWS {
         return toJson(timeline);
     }
 
-    @CrossOrigin
     @PutMapping("/getEventosControle/{idJogo}")
     @ResponseBody
     public String getEventosControle(@PathVariable String idJogo) {
@@ -114,7 +107,6 @@ public class JogoCronometroWS {
         return toJson(eventos);
     }
 
-    @CrossOrigin
     @PutMapping("/editarEvento")
     @ResponseBody
     public String editarEvento(@RequestBody JogoEventoData evento) {
@@ -124,7 +116,6 @@ public class JogoCronometroWS {
         return toJson(saved);
     }
 
-    @CrossOrigin
     @PutMapping("/eliminarEvento/{id}")
     @ResponseBody
     public String eliminarEvento(@PathVariable String id) {
@@ -138,7 +129,6 @@ public class JogoCronometroWS {
     // Tempo de jogo dos jogadores
     // ------------------------------------------------------------------
 
-    @CrossOrigin
     @PutMapping("/getTemposJogo/{idJogo}")
     @ResponseBody
     public String getTemposJogo(@PathVariable String idJogo) {
@@ -148,7 +138,6 @@ public class JogoCronometroWS {
         return toJson(tempos);
     }
 
-    @CrossOrigin
     @PutMapping("/atualizarTempoAtual")
     @ResponseBody
     public String atualizarTempoAtual(@RequestBody AtualizarTempoJogoRequest request) {

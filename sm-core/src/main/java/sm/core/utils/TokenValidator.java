@@ -11,7 +11,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.SignatureException;
 
 public class TokenValidator {
 
@@ -22,27 +21,36 @@ public class TokenValidator {
 	private static final long EXTENSION_TIME = 15 * 60 * 1000; // 15 minutos em milissegundos
 	private static final long RECENT_EXPIRATION_TIME = 5 * 60 * 1000; // 5 minutos anteriores
 
-	public static boolean isTokenValid(String token) {
-		try {
-			// Verifica a assinatura e decodifica o token
-			Claims claims = Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
-
-			// Se o token for válido, você pode acessar os dados do token, como o assunto
-			String username = claims.getSubject();
-			// despejar em log informacoes do token
-			log.info("Token valido para o usuario: " + username);
-
-			String dateExpiration=claims.getExpiration().toString();
-			log.info("Data de Expiracao do Token: " + dateExpiration);
-
-			return true; // O token é válido
-		} catch (SignatureException e) {
-			log.error("Token invalido: " + e.getMessage());
-			return false; // O token não é válido
-		} catch (Exception e) {
-			log.error("Erro ao validar o token: " + e.getMessage());
-			return false; // O token não é válido
+	/**
+	 * Valida a assinatura e a expiracao do token.
+	 *
+	 * <p>Nota: os logs sao de nivel {@code debug} de proposito — em ataque com
+	 * muitos tokens invalidos o registo de erro por pedido seria ele proprio um
+	 * vetor de esgotamento de disco/CPU. O log (com throttling) e feito pelo
+	 * {@code TokenAuthenticationFilter}.</p>
+	 *
+	 * @return as claims quando o token e valido, {@code null} caso contrario
+	 */
+	public static Claims parseValidToken(String token) {
+		if (token == null || token.isBlank()) {
+			return null;
 		}
+		try {
+			return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
+		} catch (Exception e) {
+			log.debug("Token invalido: " + e.getMessage());
+			return null;
+		}
+	}
+
+	public static boolean isTokenValid(String token) {
+		Claims claims = parseValidToken(token);
+		if (claims == null) {
+			log.debug("Token invalido.");
+			return false;
+		}
+		log.debug("Token valido para o utilizador: " + claims.getSubject());
+		return true;
 	}
 
 	public static String handleExpiredToken(String token) {

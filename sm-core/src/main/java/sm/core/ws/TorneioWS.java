@@ -3,7 +3,6 @@ package sm.core.ws;
 import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +21,6 @@ public class TorneioWS {
     @Autowired
     private Torneio_jogoHelper torneio_jogoHelper;
 
-    @CrossOrigin
     @PutMapping("/loadAllGames")
     @ResponseBody
     public String loadAllGames() {
@@ -51,7 +49,6 @@ public class TorneioWS {
         return "";
     }
 
-    @CrossOrigin
     @PutMapping("/saveMatch")
     @ResponseBody
     public String saveMatch(@RequestBody sm.core.data.Torneio_jogo match) {
@@ -73,7 +70,6 @@ public class TorneioWS {
         return "false";
     }
 
-    @CrossOrigin
     @PutMapping("/resetMatch")
     @ResponseBody
     public String resetMatch(@RequestBody sm.core.data.Torneio_jogo match) {
@@ -95,7 +91,6 @@ public class TorneioWS {
         return "false";
     }
 
-    @CrossOrigin
     @PutMapping("/getClassificacaoPorRound")
     @ResponseBody
     public String getClassificacaoPorRound(@RequestBody sm.core.ws.requesdata.RoundRequest request) {

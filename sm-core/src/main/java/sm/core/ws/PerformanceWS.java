@@ -3,7 +3,6 @@ package sm.core.ws;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -53,7 +52,6 @@ public class PerformanceWS {
 		return "ADMIN".equals(perfil) || "TREINADOR".equals(perfil);
 	}
 
-	@CrossOrigin
 	@GetMapping("/performance/equipa/{idEquipa}/{idUtilizador}/{tenantId}")
 	@ResponseBody
 	public String getPerformanceEquipa(@PathVariable String idEquipa, @PathVariable String idUtilizador,
@@ -102,7 +100,6 @@ public class PerformanceWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@GetMapping("/performance/jogador/{idJogador}/{idUtilizador}/{tenantId}")
 	@ResponseBody
 	public String getPerformanceJogador(@PathVariable String idJogador, @PathVariable String idUtilizador,
@@ -144,7 +141,6 @@ public class PerformanceWS {
 	 * Configuração de performance da equipa (registo e visualização).
 	 * Sem permissão devolve a configuração com as funcionalidades desativadas.
 	 */
-	@CrossOrigin
 	@GetMapping("/performance/config/{idEquipa}/{idUtilizador}/{tenantId}")
 	@ResponseBody
 	public String getPerformanceConfig(@PathVariable String idEquipa, @PathVariable String idUtilizador,
@@ -184,7 +180,6 @@ public class PerformanceWS {
 	/**
 	 * Grava a configuração de performance da equipa (requer ADMIN/TREINADOR).
 	 */
-	@CrossOrigin
 	@PutMapping("/performance/config/{idUtilizador}/{tenantId}")
 	@ResponseBody
 	public String gravarPerformanceConfig(@PathVariable String idUtilizador, @PathVariable String tenantId,

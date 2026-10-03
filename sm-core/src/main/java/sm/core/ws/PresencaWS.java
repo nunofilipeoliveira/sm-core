@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -35,7 +34,6 @@ public class PresencaWS {
 	@Autowired
 	private LoginHelper loginHelper;
 
-	@CrossOrigin
 	@PutMapping("/presenca/{parmTenantId}")
 	public String createPresenca(@RequestBody PresencaData presencaData, @PathVariable String parmTenantId) {
 		// Faz o login e obtem informação do utilizador
@@ -64,7 +62,6 @@ public class PresencaWS {
 
 	}
 
-	@CrossOrigin
 	@PutMapping("/updatepresenca/{idUtilizador}")
 	@ResponseBody
 	public String updatePresenca(@PathVariable String idUtilizador, @RequestBody PresencaData presencaData) {
@@ -93,7 +90,6 @@ public class PresencaWS {
 
 	}
 
-	@CrossOrigin
 	@PutMapping("/getPresenca")
 	@ResponseBody
 	public String getPresenca() {
@@ -120,7 +116,6 @@ public class PresencaWS {
 
 	}
 
-	@CrossOrigin
 	@GetMapping("/dashboard/getTotalTrainings/{parmEquipaID}")
 	@ResponseBody
 	public String getTotalTrainings(@PathVariable String parmEquipaID) {
@@ -146,7 +141,6 @@ public class PresencaWS {
 
 	}
 
-	@CrossOrigin
 	@GetMapping("/dashboard/getAverageAthletes/{parmEquipaID}")
 	@ResponseBody
 	public String getAverageAthletes(@PathVariable String parmEquipaID) {
@@ -177,7 +171,6 @@ public class PresencaWS {
 
 	}
 
-	@CrossOrigin
 	@GetMapping("/dashboard/getAbsencePercentage/{parmEquipaID}")
 	@ResponseBody
 	public String getAbsencePercentage(@PathVariable String parmEquipaID) {
@@ -226,7 +219,6 @@ public class PresencaWS {
 
 	}
 
-	@CrossOrigin
 	@PutMapping("/getPresencaByDatas/{datas}")
 	@ResponseBody
 	public String getPresencasbyDatasID(@PathVariable String datas) {
@@ -259,7 +251,6 @@ public class PresencaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/isPresencabyEquipaDataHora/{datas}")
 	@ResponseBody
 	public String isPresencabyEquipaDataHora(@PathVariable String datas) {
@@ -292,7 +283,6 @@ public class PresencaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getPresencaById/{id}")
 	@ResponseBody
 	public String getPresencasbyId(@PathVariable String id) {
@@ -322,7 +312,6 @@ public class PresencaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/getHistoricoById/{id}")
 	@ResponseBody
 	public String getHistoricobyId(@PathVariable String id) {
@@ -352,7 +341,6 @@ public class PresencaWS {
 		return "";
 	}
 
-	@CrossOrigin
 	@PutMapping("/eliminarPresenca/{parms}")
 	@ResponseBody
 	public String eliminarPresenca(@PathVariable String parms) {

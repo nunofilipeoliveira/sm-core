@@ -3,7 +3,6 @@ package sm.core.ws;
 import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +23,6 @@ public class ClubeWS {
     @Autowired
     private ClubeHelper clubeHelper;
 
-    @CrossOrigin
     @PutMapping("/getClube/{id}")
     @ResponseBody
     public String loadClubeByID(@PathVariable String id) {
@@ -56,7 +54,6 @@ public class ClubeWS {
 
 
 
-    @CrossOrigin
     @PutMapping("/getAllClubes")
     @ResponseBody
     public String loadAllClubes() {
@@ -86,7 +83,6 @@ public class ClubeWS {
     }
 
 
-    @CrossOrigin
     @PutMapping("/updateClube")
     @ResponseBody
     public String updateClube(@RequestBody ClubeData clubeData) {
