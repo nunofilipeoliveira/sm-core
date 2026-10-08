@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -407,6 +408,11 @@ public class JogoCronometroHelper {
 
             sincronizarTempoAtual(conn, evento.getId_jogo(), evento.getTempo_segundos());
 
+            // O novo evento muda quem está em campo e quando — recalcula e grava já o
+            // tempo de jogo de cada jogador (mesma transação), para os tempos ficarem
+            // atualizados automaticamente sem depender de nenhum passo manual.
+            persistirTemposJogo(conn, evento.getId_jogo());
+
             conn.commit();
             return buscarEvento(conn, evento.getId());
         } catch (SQLException e) {
@@ -502,6 +508,12 @@ public class JogoCronometroHelper {
 
             sincronizarTempoAtual(conn, novo.getId_jogo(), novo.getTempo_segundos());
 
+            // Uma edição (de tempo, de parte ou dos jogadores envolvidos — p. ex. numa
+            // substituição) muda quem esteve em campo e durante quanto tempo: recalcula
+            // e grava já o tempo de jogo de todos os jogadores afetados, dentro da mesma
+            // transação, para a atualização ser automática e nunca ficar a meio.
+            persistirTemposJogo(conn, novo.getId_jogo());
+
             conn.commit();
             return true;
         } catch (SQLException e) {
@@ -537,6 +549,10 @@ public class JogoCronometroHelper {
             del.setInt(1, idEvento);
             del.executeUpdate();
             del.close();
+
+            // Sem o evento, a reconstrução dos intervalos em campo muda: recalcula e
+            // grava o tempo de jogo de cada jogador na mesma transação.
+            persistirTemposJogo(conn, evento.getId_jogo());
 
             conn.commit();
             return true;
@@ -896,8 +912,8 @@ public class JogoCronometroHelper {
         try {
             conn = dbUtils.getConnection();
 
-            Map<Integer, PlayerTempo> map = new HashMap<>();
             ArrayList<Integer> ordem = new ArrayList<>();
+            Map<Integer, JogadorJogo> porId = new HashMap<>();
 
             PreparedStatement psj = conn.prepareStatement(
                     "SELECT jj.id_jogador, j.nome, jj.titular, jj.em_campo, jj.excluido_ate_segundos "
@@ -906,83 +922,20 @@ public class JogoCronometroHelper {
             psj.setInt(1, idJogo);
             ResultSet rsj = psj.executeQuery();
             while (rsj.next()) {
-                PlayerTempo pt = new PlayerTempo();
-                pt.idJogador = rsj.getInt("id_jogador");
-                pt.nome = rsj.getString("nome");
-                pt.titular = rsj.getBoolean("titular");
-                pt.emCampo = rsj.getBoolean("em_campo");
                 Object excluido = rsj.getObject("excluido_ate_segundos");
-                pt.excluidoAt = excluido != null ? rsj.getInt("excluido_ate_segundos") : null;
-                map.put(pt.idJogador, pt);
-                ordem.add(pt.idJogador);
+                JogadorJogo jj = new JogadorJogo(rsj.getInt("id_jogador"), rsj.getString("nome"),
+                        rsj.getBoolean("titular"), rsj.getBoolean("em_campo"),
+                        excluido != null ? rsj.getInt("excluido_ate_segundos") : null, 0);
+                porId.put(jj.getId_jogador(), jj);
+                ordem.add(jj.getId_jogador());
             }
             rsj.close();
             psj.close();
 
-            // percorrer a timeline para reconstruir os intervalos em campo
-            PreparedStatement pse = conn.prepareStatement(
-                    "SELECT id_parte, tempo_segundos, tipo_evento, id_jogador, id_jogador_secundario "
-                            + "FROM jogo_evento WHERE id_jogo = ? ORDER BY tempo_segundos ASC, id ASC");
-            pse.setInt(1, idJogo);
-            ResultSet rse = pse.executeQuery();
-            int ultimoTempo = 0;
-            while (rse.next()) {
-                String tipo = rse.getString("tipo_evento");
-                int t = rse.getInt("tempo_segundos");
-                ultimoTempo = Math.max(ultimoTempo, t);
-                int idJ = rse.getInt("id_jogador");
-                int idJ2 = rse.getInt("id_jogador_secundario");
-                switch (tipo) {
-                case JogoEventoData.TIPO_INICIO_JOGO:
-                    for (PlayerTempo pt : map.values()) {
-                        if (pt.titular && !pt.emCampoSimulado) {
-                            pt.entrarEmCampo(t);
-                        }
-                    }
-                    break;
-                case JogoEventoData.TIPO_SUBSTITUICAO:
-                    PlayerTempo sai = map.get(idJ2);
-                    if (sai != null && sai.emCampoSimulado) {
-                        sai.sairDeCampo(t);
-                    }
-                    PlayerTempo entra = map.get(idJ);
-                    if (entra != null && !entra.emCampoSimulado) {
-                        entra.entrarEmCampo(t);
-                    }
-                    break;
-                case JogoEventoData.TIPO_AZUL:
-                case JogoEventoData.TIPO_VERMELHO:
-                    PlayerTempo excluido = map.get(idJ);
-                    if (excluido != null && excluido.emCampoSimulado) {
-                        excluido.sairDeCampo(t);
-                    }
-                    break;
-                case JogoEventoData.TIPO_FIM_PARTE:
-                case JogoEventoData.TIPO_FIM_JOGO:
-                    for (PlayerTempo pt : map.values()) {
-                        if (pt.emCampoSimulado) {
-                            pt.sairDeCampo(t);
-                        }
-                    }
-                    break;
-                default:
-                    break;
-                }
-            }
-            rse.close();
-            pse.close();
-
-            // fechar intervalos em aberto (jogo ainda em andamento)
-            for (PlayerTempo pt : map.values()) {
-                if (pt.emCampoSimulado) {
-                    pt.acumular(ultimoTempo);
-                }
-            }
-
+            Map<Integer, Integer> tempos = calcularTemposJogo(conn, idJogo);
             for (Integer id : ordem) {
-                PlayerTempo pt = map.get(id);
-                JogadorJogo jj = new JogadorJogo(pt.idJogador, pt.nome, pt.titular, pt.emCampo, pt.excluidoAt,
-                        pt.acumulado);
+                JogadorJogo jj = porId.get(id);
+                jj.setTempoJogoSegundos(Math.max(0, tempos.getOrDefault(id, 0)));
                 resultado.add(jj);
             }
             dbUtils.closeConnection(conn);
@@ -992,6 +945,222 @@ public class JogoCronometroHelper {
             fechar(conn);
         }
         return null;
+    }
+
+    /**
+     * Recalcula o tempo de jogo de todos os jogadores a partir da timeline e grava o
+     * resultado em jogo_jogador.tempo_jogo_segundos.
+     *
+     * Chamado dentro da transação de qualquer alteração de eventos (registo, edição ou
+     * eliminação), para que editar — p. ex. uma substituição — atualize de imediato e
+     * automaticamente o tempo de jogo dos jogadores envolvidos, ficando correto também
+     * para quem consultar o jogo mais tarde (ficha do atleta, estatísticas, PDF), e não
+     * apenas para quem tem o ecrã do jogo aberto.
+     */
+    private void persistirTemposJogo(Connection conn, int idJogo) throws SQLException {
+        Map<Integer, Integer> tempos = calcularTemposJogo(conn, idJogo);
+        if (tempos.isEmpty()) {
+            return;
+        }
+        PreparedStatement ps = conn.prepareStatement(
+                "UPDATE jogo_jogador SET tempo_jogo_segundos = ? WHERE id_jogo = ? AND id_jogador = ?");
+        for (Map.Entry<Integer, Integer> entry : tempos.entrySet()) {
+            ps.setInt(1, Math.max(0, entry.getValue()));
+            ps.setInt(2, idJogo);
+            ps.setInt(3, entry.getKey());
+            ps.executeUpdate();
+        }
+        ps.close();
+    }
+
+    /**
+     * Reconstrói, a partir da timeline, o tempo de jogo acumulado de cada jogador
+     * (id de jogador -> segundos). Espelha exatamente a lógica usada no front-end
+     * (recomputarEstadoJogoDesdeTimeline):
+     *
+     *  - INICIO_JOGO   -> o inicial entra em campo e o relógio abre;
+     *  - INICIO_PARTE  -> quem continua em campo volta a contar (é isto que faz o
+     *                     tempo de jogo da 2ª parte em diante ser contabilizado);
+     *  - SUBSTITUICAO  -> a posição em campo muda sempre; a contagem só é trocada se
+     *                     o relógio estiver a decorrer (no intervalo apenas troca quem
+     *                     vai jogar a parte seguinte, sem contar tempo);
+     *  - AZUL/VERMELHO -> sai de campo (e pára a contagem, se estiver a correr);
+     *  - FIM_PARTE/FIM_JOGO -> pára a contagem de todos e fecha o relógio;
+     *  - CORRECAO_TEMPO -> aplica o ajuste manual de segundos (detalhe com sinal).
+     */
+    private Map<Integer, Integer> calcularTemposJogo(Connection conn, int idJogo) throws SQLException {
+        Map<Integer, Integer> tempos = new HashMap<>();
+        Map<Integer, Boolean> titulares = new HashMap<>();
+        Map<Integer, Boolean> emCampo = new HashMap<>();
+        // jogador -> instante absoluto em que começou a contar tempo
+        Map<Integer, Integer> emContagem = new HashMap<>();
+
+        PreparedStatement psj = conn.prepareStatement(
+                "SELECT id_jogador, titular FROM jogo_jogador WHERE id_jogo = ?");
+        psj.setInt(1, idJogo);
+        ResultSet rsj = psj.executeQuery();
+        while (rsj.next()) {
+            int id = rsj.getInt("id_jogador");
+            titulares.put(id, rsj.getBoolean("titular"));
+            emCampo.put(id, false);
+            tempos.put(id, 0);
+        }
+        rsj.close();
+        psj.close();
+
+        boolean relogioAberto = false;
+        int ultimoTempo = 0;
+
+        for (JogoEventoData ev : carregarEventosParaCalculo(conn, idJogo)) {
+            int t = Math.max(0, ev.getTempo_segundos());
+            ultimoTempo = Math.max(ultimoTempo, t);
+            String tipo = ev.getTipo_evento();
+            if (tipo == null) {
+                continue;
+            }
+            switch (tipo) {
+            case JogoEventoData.TIPO_INICIO_JOGO:
+                for (Integer id : titulares.keySet()) {
+                    if (Boolean.TRUE.equals(titulares.get(id))) {
+                        emCampo.put(id, true);
+                        iniciarContagem(emContagem, id, t);
+                    }
+                }
+                relogioAberto = true;
+                break;
+            case JogoEventoData.TIPO_INICIO_PARTE:
+                for (Integer id : emCampo.keySet()) {
+                    if (Boolean.TRUE.equals(emCampo.get(id))) {
+                        iniciarContagem(emContagem, id, t);
+                    }
+                }
+                relogioAberto = true;
+                break;
+            case JogoEventoData.TIPO_SUBSTITUICAO:
+                if (ev.getId_jogador_secundario() > 0) {
+                    emCampo.put(ev.getId_jogador_secundario(), false);
+                }
+                if (ev.getId_jogador() > 0) {
+                    emCampo.put(ev.getId_jogador(), true);
+                }
+                if (relogioAberto) {
+                    pararContagem(emContagem, tempos, ev.getId_jogador_secundario(), t);
+                    iniciarContagem(emContagem, ev.getId_jogador(), t);
+                }
+                break;
+            case JogoEventoData.TIPO_AZUL:
+            case JogoEventoData.TIPO_VERMELHO:
+                if (ev.getId_jogador() > 0) {
+                    emCampo.put(ev.getId_jogador(), false);
+                }
+                if (relogioAberto) {
+                    pararContagem(emContagem, tempos, ev.getId_jogador(), t);
+                }
+                break;
+            case JogoEventoData.TIPO_FIM_PARTE:
+            case JogoEventoData.TIPO_FIM_JOGO:
+                for (Integer id : new ArrayList<>(emContagem.keySet())) {
+                    pararContagem(emContagem, tempos, id, t);
+                }
+                relogioAberto = false;
+                break;
+            case JogoEventoData.TIPO_CORRECAO_TEMPO: {
+                String detalhe = ev.getDetalhe();
+                int id = ev.getId_jogador();
+                if (id > 0 && detalhe != null && !detalhe.isBlank() && tempos.containsKey(id)) {
+                    try {
+                        int delta = Integer.parseInt(detalhe.trim());
+                        if (delta != 0) {
+                            tempos.computeIfPresent(id, (k, v) -> Math.max(0, v + delta));
+                        }
+                    } catch (NumberFormatException e) {
+                        // detalhe fora do formato esperado (ex.: "+120") — ignorar
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
+        // fechar intervalos em aberto (jogo ainda em andamento) no último evento conhecido
+        for (Integer id : new ArrayList<>(emContagem.keySet())) {
+            pararContagem(emContagem, tempos, id, ultimoTempo);
+        }
+        return tempos;
+    }
+
+    /**
+     * Carrega os eventos do jogo na mesma ordem cronológica usada no front-end:
+     * parte, tempo absoluto, "fase" do evento (início antes, fim depois) e, por fim,
+     * a ordem de criação. Sem este desempate por fase, um FIM_PARTE gravado com o
+     * mesmo tempo de um evento normal podia ser processado primeiro e a contagem do
+     * tempo de jogo ficava errada.
+     */
+    private ArrayList<JogoEventoData> carregarEventosParaCalculo(Connection conn, int idJogo) throws SQLException {
+        ArrayList<JogoEventoData> eventos = new ArrayList<>();
+        PreparedStatement ps = conn.prepareStatement(
+                "SELECT id, id_jogo, id_parte, tempo_evento, tempo_segundos, tipo_evento, "
+                        + "id_jogador, id_jogador_secundario, detalhe, obs "
+                        + "FROM jogo_evento WHERE id_jogo = ? ORDER BY id ASC");
+        ps.setInt(1, idJogo);
+        ResultSet rs = ps.executeQuery();
+        while (rs.next()) {
+            eventos.add(new JogoEventoData(rs.getInt("id"), rs.getInt("id_jogo"), rs.getInt("id_parte"),
+                    rs.getString("tempo_evento"), rs.getInt("tempo_segundos"), rs.getString("tipo_evento"),
+                    rs.getInt("id_jogador"), rs.getInt("id_jogador_secundario"), rs.getString("detalhe"),
+                    rs.getString("obs")));
+        }
+        rs.close();
+        ps.close();
+        eventos.sort(Comparator
+                .comparingInt((JogoEventoData e) -> e.getId_parte() > 0 ? e.getId_parte() : 1)
+                .thenComparingInt(e -> Math.max(0, e.getTempo_segundos()))
+                .thenComparingInt(e -> faseOrdemEvento(e.getTipo_evento()))
+                .thenComparingInt(JogoEventoData::getId));
+        return eventos;
+    }
+
+    /** Mesmo desempate por "fase" usado no front-end (compararEventos). */
+    private int faseOrdemEvento(String tipo) {
+        if (JogoEventoData.TIPO_INICIO_JOGO.equals(tipo)) {
+            return 0;
+        }
+        if (JogoEventoData.TIPO_INICIO_PARTE.equals(tipo)) {
+            return 1;
+        }
+        if (JogoEventoData.TIPO_FIM_PARTE.equals(tipo)) {
+            return 8;
+        }
+        if (JogoEventoData.TIPO_FIM_JOGO.equals(tipo)) {
+            return 9;
+        }
+        return 5;
+    }
+
+    /** Inicia a contagem de tempo de um jogador (no-op se já estiver a contar). */
+    private void iniciarContagem(Map<Integer, Integer> emContagem, int idJogador, int tempo) {
+        if (idJogador <= 0) {
+            return;
+        }
+        emContagem.putIfAbsent(idJogador, tempo);
+    }
+
+    /** Pára a contagem de tempo de um jogador e acumula o tempo em campo. */
+    private void pararContagem(Map<Integer, Integer> emContagem, Map<Integer, Integer> tempos, int idJogador,
+            int tempo) {
+        if (idJogador <= 0) {
+            return;
+        }
+        Integer inicio = emContagem.remove(idJogador);
+        if (inicio == null || !tempos.containsKey(idJogador)) {
+            return;
+        }
+        int delta = tempo - inicio;
+        if (delta > 0) {
+            tempos.computeIfPresent(idJogador, (k, v) -> v + delta);
+        }
     }
 
     // ==================================================================
@@ -1053,43 +1222,4 @@ public class JogoCronometroHelper {
         }
     }
 
-    // ==================================================================
-    // Estado interno para cálculo do tempo de jogo
-    // ==================================================================
-
-    /**
-     * Estado transitório de um jogador durante a reconstrução dos intervalos
-     * em campo a partir da timeline.
-     */
-    private static class PlayerTempo {
-        int idJogador;
-        String nome;
-        boolean titular;
-        boolean emCampo;
-        Integer excluidoAt;
-        int acumulado;
-        Integer inicioIntervalo;
-        boolean emCampoSimulado;
-
-        void entrarEmCampo(int t) {
-            this.inicioIntervalo = t;
-            this.emCampoSimulado = true;
-        }
-
-        void sairDeCampo(int t) {
-            acumular(t);
-            this.emCampoSimulado = false;
-            this.inicioIntervalo = null;
-        }
-
-        void acumular(int t) {
-            if (this.inicioIntervalo != null) {
-                int delta = t - this.inicioIntervalo;
-                if (delta > 0) {
-                    this.acumulado += delta;
-                }
-                this.inicioIntervalo = null;
-            }
-        }
-    }
 }

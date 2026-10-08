@@ -28,6 +28,7 @@ public class JogoEventoData {
     public static final String TIPO_INICIO_PARTE = "INICIO_PARTE";
     public static final String TIPO_FIM_PARTE = "FIM_PARTE";
     public static final String TIPO_FIM_JOGO = "FIM_JOGO";
+    public static final String TIPO_CORRECAO_TEMPO = "CORRECAO_TEMPO";
 
     // Constantes para id_equipa (identifica a equipa à qual o evento pertence)
     public static final int EQUIPA_NOSSA = 0;
