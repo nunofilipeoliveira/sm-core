@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,17 +65,20 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = AuthTokens.extract(request, auth.getTokenHeaders(), auth.getTokenQueryParameter());
-        Claims claims = AuthTokens.validate(token);
+        Identidade identidade = AuthTokens.validateIdentidade(token);
 
-        if (claims != null) {
-            request.setAttribute(AuthTokens.USER_ATTRIBUTE, claims.getSubject());
+        if (identidade != null) {
+            request.setAttribute(AuthTokens.USER_ATTRIBUTE, identidade.getUser());
+            request.setAttribute(AuthTokens.IDENTIDADE_ATTRIBUTE, identidade);
             log.debug("TokenAuthenticationFilter | token valido (user={}) path={}",
-                    claims.getSubject(), request.getRequestURI());
+                    identidade.getUser(), request.getRequestURI());
             chain.doFilter(request, response);
             return;
         }
 
-        String motivo = token == null ? "sem token" : "token invalido";
+        // Token assinado e nao expirado mas sem ver=2: emitido antes do token v2
+        String motivo = token == null ? "sem token"
+                : AuthTokens.validate(token) != null ? "token antigo" : "token invalido";
         if (auth.isEnforce()) {
             logBlocked(motivo, request);
             reject(response);

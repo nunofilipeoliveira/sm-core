@@ -18,8 +18,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import sm.core.data.PresencaData;
 import sm.core.data.UtilizadorData;
+import jakarta.servlet.http.HttpServletRequest;
+import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.LoginHelper;
 import sm.core.helper.PresencaHelper;
+import sm.core.security.TipoRecurso;
 
 @RestController
 @RequestMapping("/sm")
@@ -34,8 +37,13 @@ public class PresencaWS {
 	@Autowired
 	private LoginHelper loginHelper;
 
+	@Autowired
+	private AutorizacaoHelper autorizacaoHelper;
+
 	@PutMapping("/presenca/{parmTenantId}")
-	public String createPresenca(@RequestBody PresencaData presencaData, @PathVariable String parmTenantId) {
+	public String createPresenca(@RequestBody PresencaData presencaData, @PathVariable String parmTenantId,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.EQUIPA, presencaData.getId_escalao());
 		// Faz o login e obtem informação do utilizador
 
 		boolean resultado = false;
@@ -64,7 +72,9 @@ public class PresencaWS {
 
 	@PutMapping("/updatepresenca/{idUtilizador}")
 	@ResponseBody
-	public String updatePresenca(@PathVariable String idUtilizador, @RequestBody PresencaData presencaData) {
+	public String updatePresenca(@PathVariable String idUtilizador, @RequestBody PresencaData presencaData,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.PRESENCA, presencaData.getId());
 		// Faz o login e obtem informação do utilizador
 
 		boolean resultado = false;

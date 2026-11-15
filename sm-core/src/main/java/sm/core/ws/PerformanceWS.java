@@ -20,9 +20,12 @@ import sm.core.data.PerformanceConfigData;
 import sm.core.data.PerformanceEquipaData;
 import sm.core.data.PerformanceResumoJogadorData;
 import sm.core.data.UtilizadorData;
+import jakarta.servlet.http.HttpServletRequest;
+import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.JogadorHelper;
 import sm.core.helper.LoginHelper;
 import sm.core.helper.PerformanceHelper;
+import sm.core.security.TipoRecurso;
 
 /**
  * Endpoints de análise de Performance dos atletas nos treinos. Acesso restrito
@@ -42,6 +45,9 @@ public class PerformanceWS {
 
 	@Autowired
 	private JogadorHelper jogadorHelper;
+
+	@Autowired
+	private AutorizacaoHelper autorizacaoHelper;
 
 	private boolean temPermissao(int idUtilizador, int tenantId) {
 		UtilizadorData utilizador = loginHelper.getUser(idUtilizador, tenantId);
@@ -183,7 +189,9 @@ public class PerformanceWS {
 	@PutMapping("/performance/config/{idUtilizador}/{tenantId}")
 	@ResponseBody
 	public String gravarPerformanceConfig(@PathVariable String idUtilizador, @PathVariable String tenantId,
-			@RequestBody PerformanceConfigData parmConfig) {
+			@RequestBody PerformanceConfigData parmConfig, HttpServletRequest request) {
+
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.EQUIPA, parmConfig.getId_equipa());
 
 		log.info("PerformanceWS | gravarPerformanceConfig | idUtilizador:{} idEquipa:{}", idUtilizador,
 				parmConfig.getId_equipa());

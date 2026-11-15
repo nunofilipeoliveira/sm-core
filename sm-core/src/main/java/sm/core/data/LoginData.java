@@ -2,15 +2,42 @@ package sm.core.data;
 
 import java.util.ArrayList;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class LoginData {
 
 	private int id;
 	private String nome;
 	private String user;
+	// so de escrita: vem no pedido de ativacao, nunca vai nas respostas (R19)
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private String password;
-	private ArrayList<EscalaoEpocaData> escalaoEpoca;
+	private ArrayList<EscalaoEpocaData> escalaoEpoca = new ArrayList<EscalaoEpocaData>();
 	private String token;
 	private String perfil;
+	private Integer idJogador;
+	// codigo de ativacao, so no pedido de createuser
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+	private String code;
+
+	public LoginData() {
+	}
+
+	public Integer getIdJogador() {
+		return idJogador;
+	}
+
+	public void setIdJogador(Integer idJogador) {
+		this.idJogador = idJogador;
+	}
+
+	public String getCode() {
+		return code;
+	}
+
+	public void setCode(String code) {
+		this.code = code;
+	}
 
 	public String getToken() {
 		return token;

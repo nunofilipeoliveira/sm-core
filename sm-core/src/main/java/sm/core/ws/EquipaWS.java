@@ -1,10 +1,17 @@
 package sm.core.ws;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 
 import sm.core.data.ContadorPresencaData;
 import sm.core.data.ElementoSeleccao;
@@ -25,9 +33,20 @@ import sm.core.data.FichaJogadorPresencasData;
 import sm.core.data.HistoricoJogadorData;
 import sm.core.data.JogadorData;
 import sm.core.data.StaffData;
+import jakarta.servlet.http.HttpServletRequest;
+import sm.core.data.EpocaHistoricoData;
+import sm.core.data.JogoData;
+import sm.core.data.PresencaData;
+import sm.core.data.PresencaJogadorData;
+import sm.core.data.PresencaStaffData;
+import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.EquipaHelper;
 import sm.core.helper.JogadorHelper;
 import sm.core.helper.StaffHelper;
+import sm.core.security.AcessoNegadoException;
+import sm.core.security.Identidade;
+import sm.core.security.PedidoInvalidoException;
+import sm.core.security.TipoRecurso;
 
 @RestController
 @RequestMapping("/sm")
@@ -43,6 +62,9 @@ public class EquipaWS {
 
 	@Autowired
 	private StaffHelper staffHelper;
+
+	@Autowired
+	private AutorizacaoHelper autorizacaoHelper;
 
 	@PutMapping("/getEquipa/{id}")
 	@ResponseBody
@@ -332,7 +354,9 @@ public class EquipaWS {
 	@PutMapping("/deleteEscalaoEpoca/{tenant_id}")
 	@ResponseBody
 	public String deleteEscalaoEpoca(@PathVariable String tenant_id,
-			@RequestBody EscalaoEpocaData parmEscalaoEpocaData) {
+			@RequestBody EscalaoEpocaData parmEscalaoEpocaData, HttpServletRequest request) {
+
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.EQUIPA, parmEscalaoEpocaData.getId_escalao_epoca());
 
 		// Carregar equipa
 
@@ -457,13 +481,28 @@ public class EquipaWS {
 
 	@PutMapping("/updateJogador/{idUtilizador}")
 	@ResponseBody
-	public String updateJogador(@PathVariable String idUtilizador, @RequestBody JogadorData jogadorData) {
+	public String updateJogador(@PathVariable String idUtilizador, @RequestBody JogadorData jogadorData,
+			HttpServletRequest request) {
 		boolean resultado = false;
 		log.info("updateJogador | Start");
 		log.info("updateJogador | ID:" + idUtilizador);
 
-		
-		resultado = jogadorHelper.updateJogador(jogadorData, Integer.parseInt(idUtilizador));
+		Identidade identidade = Identidade.de(request);
+		if (identidade != null && identidade.isAtleta()) {
+			// ATLETA: so a propria ficha e so os campos da lista branca (Q4)
+			if (identidade.getIdJogador() == null || jogadorData.getId() != identidade.getIdJogador()) {
+				throw new AcessoNegadoException();
+			}
+			JogadorData gravado = jogadorHelper.getJogadorbyID(identidade.getIdJogador());
+			if (gravado == null) {
+				throw new AcessoNegadoException();
+			}
+			copiaListaBrancaAtleta(jogadorData, gravado);
+			resultado = jogadorHelper.updateJogador(gravado, identidade.getIdUtilizador());
+		} else {
+			autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGADOR, jogadorData.getId());
+			resultado = jogadorHelper.updateJogador(jogadorData, Integer.parseInt(idUtilizador));
+		}
 
 		ObjectMapper mapper = new ObjectMapper();
 		try {
@@ -477,7 +516,9 @@ public class EquipaWS {
 
 	@PutMapping("/equipa/addJogadorEquipa/{idEquipa}")
 	@ResponseBody
-	public String addJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
+	public String addJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGADOR, jogadorData.getId());
 		boolean resultado = false;
 		log.info("equipaAddJogador | Start");
 		log.info("equipaAddJogador | Equipa:" + idEquipa);
@@ -497,7 +538,9 @@ public class EquipaWS {
 
 	@PutMapping("/equipa/addStaffEquipa/{idEquipa}")
 	@ResponseBody
-	public String addStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
+	public String addStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.STAFF, staffData.getId());
 		boolean resultado = false;
 		log.info("addStaffEquipa | Start");
 		log.info("addStaffEquipa | Equipa:" + idEquipa);
@@ -524,7 +567,12 @@ public class EquipaWS {
 		boolean resultado = false;
 		log.info("addStaff | Start");
 
-		
+		// staff.licença e decimal(10,0): texto livre dava erro de SQL
+		String licenca = staffData.getLicenca();
+		if (licenca != null && !licenca.isEmpty() && !licenca.matches("\\d{1,10}")) {
+			throw new PedidoInvalidoException("A licença tem de ser numérica (até 10 dígitos).");
+		}
+
 		resultado = staffHelper.addStaff(staffData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -544,6 +592,14 @@ public class EquipaWS {
 		int jogadorId = 0;
 		log.info("addJogador | Start");
 
+		// jogador.nome e varchar(30). NIF e licenca sao int: o Jackson ja recusa nao numericos (ver handleCorpoInvalido)
+		String nome = jogadorData.getNome();
+		if (nome == null || nome.isBlank()) {
+			throw new PedidoInvalidoException("O nome é obrigatório.");
+		}
+		if (nome.codePointCount(0, nome.length()) > 30) {
+			throw new PedidoInvalidoException("O nome não pode ter mais de 30 caracteres.");
+		}
 
 		jogadorId = jogadorHelper.addJogador(jogadorData, Integer.valueOf(tenant_id), Integer.valueOf(utilizador_id));
 
@@ -557,9 +613,36 @@ public class EquipaWS {
 		}
 	}
 
+	/**
+	 * Corpo JSON que o Jackson nao consegue ler (ex.: NIF ou licenca do jogador com letras ou espacos).
+	 * Devolve 400 no mesmo formato do GlobalExceptionHandler, em vez da pagina de erro do Spring.
+	 * So se aplica aos endpoints deste controller.
+	 */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<Map<String, String>> handleCorpoInvalido(HttpMessageNotReadableException e) {
+		String mensagem = "O corpo do pedido é inválido.";
+		if (e.getCause() instanceof MismatchedInputException mie && !mie.getPath().isEmpty()) {
+			String campo = mie.getPath().get(mie.getPath().size() - 1).getFieldName();
+			Class<?> tipo = mie.getTargetType();
+			boolean numerico = tipo != null && (tipo.isPrimitive() || Number.class.isAssignableFrom(tipo));
+			if (campo != null) {
+				mensagem = numerico ? "O campo " + campo + " tem de ser numérico."
+						: "O campo " + campo + " tem um valor inválido.";
+			}
+		}
+		// sem o valor recebido no log (pode ser um dado pessoal)
+		log.info("handleCorpoInvalido | pedido invalido: {}", mensagem);
+		Map<String, String> corpo = new LinkedHashMap<>();
+		corpo.put("error", "pedido_invalido");
+		corpo.put("message", mensagem);
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(corpo);
+	}
+
 	@PutMapping("/equipa/removeJogadorEquipa/{idEquipa}")
 	@ResponseBody
-	public String removeJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData) {
+	public String removeJogadorEquipa(@PathVariable String idEquipa, @RequestBody JogadorData jogadorData,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGADOR, jogadorData.getId());
 		boolean resultado = false;
 		log.info("removeJogadorEquipa | Start");
 		log.info("removeJogadorEquipa | Equipa:" + idEquipa);
@@ -579,7 +662,9 @@ public class EquipaWS {
 
 	@PutMapping("/equipa/removeStaffEquipa/{idEquipa}")
 	@ResponseBody
-	public String removeStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData) {
+	public String removeStaffEquipa(@PathVariable String idEquipa, @RequestBody StaffData staffData,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.STAFF, staffData.getId());
 		boolean resultado = false;
 		log.info("removeStaffEquipa | Start");
 		log.info("removeStaffEquipa | Equipa:" + idEquipa);
@@ -600,7 +685,9 @@ public class EquipaWS {
 
 	@PutMapping("/updateStaff/{idUtilizador}")
 	@ResponseBody
-	public String updateStaff(@PathVariable String idUtilizador, @RequestBody StaffData staffData) {
+	public String updateStaff(@PathVariable String idUtilizador, @RequestBody StaffData staffData,
+			HttpServletRequest request) {
+		autorizacaoHelper.verificaCorpo(request, TipoRecurso.STAFF, staffData.getId());
 		boolean resultado = false;
 		log.info("updateStaff | Start");
 		log.info("updateStaff | ID:" + idUtilizador);
@@ -620,7 +707,7 @@ public class EquipaWS {
 
 	@PutMapping("/getJogador/{id}")
 	@ResponseBody
-	public String loadJogadorbyID(@PathVariable String id) {
+	public String loadJogadorbyID(@PathVariable String id, HttpServletRequest request) {
 
 		// Carregar equipa
 
@@ -629,6 +716,9 @@ public class EquipaWS {
 
 		
 		JogadorData jogador = jogadorHelper.getJogadorbyID(Integer.parseInt(id));
+		if (jogador != null && isAtleta(request)) {
+			jogador.setObservacoes(null);
+		}
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -678,7 +768,7 @@ public class EquipaWS {
 
 	@PutMapping("/getFaltas/{id}")
 	@ResponseBody
-	public String getFaltasByJogador(@PathVariable String id) {
+	public String getFaltasByJogador(@PathVariable String id, HttpServletRequest request) {
 
 		// Carregar equipa
 
@@ -687,6 +777,11 @@ public class EquipaWS {
 
 		
 		ArrayList<FichaJogadorPresencasData> faltas = jogadorHelper.getFaltasByJogador(Integer.parseInt(id));
+		if (faltas != null && isAtleta(request)) {
+			for (FichaJogadorPresencasData falta : faltas) {
+				falta.setMotivo(null);
+			}
+		}
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -765,7 +860,8 @@ public class EquipaWS {
 
 	@PutMapping("/getHistoricobyJogador/{idJogador}/{tenant_id}")
 	@ResponseBody
-	public String getHistoricobyJogador(@PathVariable String idJogador, @PathVariable String tenant_id) {
+	public String getHistoricobyJogador(@PathVariable String idJogador, @PathVariable String tenant_id,
+			HttpServletRequest request) {
 
 		// Carregar histórico do jogador
 
@@ -775,6 +871,9 @@ public class EquipaWS {
 
 		
 		HistoricoJogadorData historico = equipaHelper.getHistoricobyJogador(Integer.parseInt(idJogador), Integer.parseInt(tenant_id));
+		if (historico != null && isAtleta(request)) {
+			limpaHistoricoAtleta(historico);
+		}
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -791,6 +890,76 @@ public class EquipaWS {
 
 		log.error("getHistoricobyJogador | Error End");
 		return "";
+	}
+
+	private static boolean isAtleta(HttpServletRequest request) {
+		Identidade identidade = Identidade.de(request);
+		return identidade != null && identidade.isAtleta();
+	}
+
+	/** Q5: o atleta nao ve o motivo das faltas nos treinos nem o obs dos jogadores nos jogos. */
+	private static void limpaHistoricoAtleta(HistoricoJogadorData historico) {
+		if (historico.getEpocas() == null) {
+			return;
+		}
+		for (EpocaHistoricoData epoca : historico.getEpocas()) {
+			if (epoca.getTreinos() != null) {
+				for (PresencaData treino : epoca.getTreinos()) {
+					if (treino.getJogadoresPresenca() != null) {
+						for (PresencaJogadorData jogador : treino.getJogadoresPresenca()) {
+							jogador.setMotivo(null);
+						}
+					}
+					if (treino.getStaffPresenca() != null) {
+						for (PresencaStaffData staff : treino.getStaffPresenca()) {
+							staff.setMotivo(null);
+						}
+					}
+				}
+			}
+			if (epoca.getJogos() != null) {
+				for (JogoData jogo : epoca.getJogos()) {
+					AutorizacaoHelper.limpaObsJogadores(jogo);
+				}
+			}
+		}
+	}
+
+	/** Q4: campos da ficha que o atleta pode alterar. Os restantes ficam como estao gravados. */
+	private static void copiaListaBrancaAtleta(JogadorData pedido, JogadorData gravado) {
+		if (pedido.getEmail() != null) {
+			gravado.setEmail(pedido.getEmail());
+		}
+		if (pedido.getTelemovel() != null) {
+			gravado.setTelemovel(pedido.getTelemovel());
+		}
+		if (pedido.getPai_nome() != null) {
+			gravado.setPai_nome(pedido.getPai_nome());
+		}
+		if (pedido.getPai_email() != null) {
+			gravado.setPai_email(pedido.getPai_email());
+		}
+		if (pedido.getPai_telemovel() != null) {
+			gravado.setPai_telemovel(pedido.getPai_telemovel());
+		}
+		if (pedido.getMae_nome() != null) {
+			gravado.setMae_nome(pedido.getMae_nome());
+		}
+		if (pedido.getMae_email() != null) {
+			gravado.setMae_email(pedido.getMae_email());
+		}
+		if (pedido.getMae_telemovel() != null) {
+			gravado.setMae_telemovel(pedido.getMae_telemovel());
+		}
+		if (pedido.getMorada() != null) {
+			gravado.setMorada(pedido.getMorada());
+		}
+		if (pedido.getCidade() != null) {
+			gravado.setCidade(pedido.getCidade());
+		}
+		if (pedido.getCodigo_postal() != null) {
+			gravado.setCodigo_postal(pedido.getCodigo_postal());
+		}
 	}
 
 }

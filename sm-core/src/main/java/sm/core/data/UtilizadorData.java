@@ -8,6 +8,8 @@ public class UtilizadorData {
 	private String perfil;
 	private String email;
 	private String estado;
+	private Integer idJogador;
+	private java.sql.Timestamp ultimoAcesso;
 
 	public String getEstado() {
 		return estado;
@@ -65,6 +67,22 @@ public class UtilizadorData {
 
 	public void setEmail(String email) {
 		this.email = email;
+	}
+
+	public Integer getIdJogador() {
+		return idJogador;
+	}
+
+	public void setIdJogador(Integer idJogador) {
+		this.idJogador = idJogador;
+	}
+
+	public java.sql.Timestamp getUltimoAcesso() {
+		return ultimoAcesso;
+	}
+
+	public void setUltimoAcesso(java.sql.Timestamp ultimoAcesso) {
+		this.ultimoAcesso = ultimoAcesso;
 	}
 
 }

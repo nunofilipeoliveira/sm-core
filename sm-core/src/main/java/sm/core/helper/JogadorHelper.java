@@ -9,6 +9,8 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import sm.core.data.ContadorPresencaData;
@@ -18,6 +20,8 @@ import sm.core.data.JogadorData;
 
 @Component
 public class JogadorHelper {
+
+	private static final Logger log = LoggerFactory.getLogger(JogadorHelper.class);
 
 	private final DBUtils dbUtils;
 
@@ -456,6 +460,9 @@ public class JogadorHelper {
 		int generatedId = 0;
 
 		try (Connection conn = dbUtils.getConnection()) {
+			// insert do jogador e historico na mesma transacao: se o historico falhar, o jogador nao fica gravado
+			conn.setAutoCommit(false);
+			try {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO jogador(nome, data_nascimento, email, telemovel, pai_nome, pai_email, pai_telemovel, mae_nome, mae_email, mae_telemovel, morada, cidade, codigo_postal, observacoes, numero, nome_completo, nif, cc, licença, tenant_id, estado) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
@@ -526,7 +533,7 @@ public class JogadorHelper {
 						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Nome",
 								jogadorData.getMae_nome(), parmJogador.getMae_nome());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Nome",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Mãe - Telemovel",
 								jogadorData.getMae_telemovel(), parmJogador.getMae_telemovel());
 
 						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Email",
@@ -535,7 +542,7 @@ public class JogadorHelper {
 						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Nome",
 								jogadorData.getPai_nome(), parmJogador.getPai_nome());
 
-						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Nome",
+						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Pai - Telemovel",
 								jogadorData.getPai_telemovel(), parmJogador.getPai_telemovel());
 
 						registaHistorico(parmIdUtilizador, parmJogador.getId(), conn, "Morada",
@@ -562,12 +569,18 @@ public class JogadorHelper {
 				}
 			}
 
-
+			conn.commit();
 			return generatedId;
 
+			} catch (SQLException | RuntimeException e) {
+				conn.rollback();
+				throw e;
+			} finally {
+				conn.setAutoCommit(true);
+			}
+
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("addJogador | Erro SQL ao criar jogador (rollback feito)", e);
 		}
 
 		return 0;
@@ -580,8 +593,8 @@ public class JogadorHelper {
 
 		preparedStatement.setInt(1, id_Jogador);
 		preparedStatement.setString(2, campo);
-		preparedStatement.setString(3, valorAntigo);
-		preparedStatement.setString(4, valorNovo);
+		preparedStatement.setString(3, HistoricoUtils.truncaValor(valorAntigo));
+		preparedStatement.setString(4, HistoricoUtils.truncaValor(valorNovo));
 		Date date = new Date();
 		preparedStatement.setString(5, String.valueOf(new Timestamp(date.getTime())));
 		preparedStatement.setInt(6, parmIdUtilizador);

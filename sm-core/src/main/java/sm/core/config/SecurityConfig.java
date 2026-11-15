@@ -8,10 +8,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.web.servlet.config.annotation.CorsRegistration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import sm.core.helper.AutorizacaoHelper;
+import sm.core.security.AutorizacaoInterceptor;
 import sm.core.security.RateLimitFilter;
 import sm.core.security.TokenAuthenticationFilter;
+import sm.core.utils.TokenGenerator;
 
 /**
  * Registo das protecoes HTTP: filtro de rate limiting/limites de carga,
@@ -42,6 +46,8 @@ public class SecurityConfig {
     @Bean
     public FilterRegistrationBean<TokenAuthenticationFilter> tokenAuthenticationFilterRegistration(
             SecurityProperties properties) {
+        // Chave JWT da propriedade (se definida), antes de o servidor aceitar pedidos
+        TokenGenerator.setSecretKey(properties.getAuth().getJwtSecret());
         FilterRegistrationBean<TokenAuthenticationFilter> registration =
                 new FilterRegistrationBean<>(new TokenAuthenticationFilter(properties));
         registration.setName("tokenAuthenticationFilter");
@@ -60,8 +66,16 @@ public class SecurityConfig {
      * — ver docs/DoS-PROTECTION.md.</p>
      */
     @Bean
-    public WebMvcConfigurer corsConfigurer(SecurityProperties properties) {
+    public WebMvcConfigurer corsConfigurer(SecurityProperties properties, AutorizacaoHelper autorizacaoHelper) {
         return new WebMvcConfigurer() {
+            /** Matriz de acesso (perfil, tenant e recurso) em todos os controllers /sm. */
+            @Override
+            public void addInterceptors(InterceptorRegistry registry) {
+                registry.addInterceptor(new AutorizacaoInterceptor(properties, autorizacaoHelper))
+                        .addPathPatterns("/sm/**");
+            }
+
+
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 Cors cors = properties.getCors();

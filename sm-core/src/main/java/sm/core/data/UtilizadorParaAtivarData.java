@@ -9,7 +9,9 @@ public class UtilizadorParaAtivarData {
 	private String email;
 	private String perfil;
 	private String code;
-	
+	private Integer id_jogador;
+	private int tenant_id;
+
 	
 	public UtilizadorParaAtivarData(String user, String estado, String iDsEscalao, String nome, String email,
 			String perfil, String code) {
@@ -63,6 +65,18 @@ public class UtilizadorParaAtivarData {
 	}
 	public void setCode(String code) {
 		this.code = code;
+	}
+	public Integer getId_jogador() {
+		return id_jogador;
+	}
+	public void setId_jogador(Integer id_jogador) {
+		this.id_jogador = id_jogador;
+	}
+	public int getTenant_id() {
+		return tenant_id;
+	}
+	public void setTenant_id(int tenant_id) {
+		this.tenant_id = tenant_id;
 	}
 	
 	

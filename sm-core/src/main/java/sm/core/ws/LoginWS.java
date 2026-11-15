@@ -2,6 +2,7 @@ package sm.core.ws;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.servlet.http.HttpServletRequest;
+import sm.core.data.AcessoAtletaData;
+import sm.core.data.ConviteAtletaData;
 import sm.core.data.EscalaoData;
 import sm.core.data.HistoricoLoginData;
 import sm.core.data.LoginData;
@@ -24,6 +28,11 @@ import sm.core.data.TokenData;
 import sm.core.data.UtilizadorData;
 import sm.core.data.UtilizadorParaAtivarData;
 import sm.core.helper.LoginHelper;
+import sm.core.security.AcessoNegadoException;
+import sm.core.security.ConflitoException;
+import sm.core.security.Identidade;
+import sm.core.security.PedidoInvalidoException;
+import sm.core.utils.TokenGenerator;
 import sm.core.utils.TokenValidator; // Importando a classe TokenValidator
 import sm.core.ws.requesdata.LoginRequest;
 
@@ -35,6 +44,9 @@ public class LoginWS {
 	
 	@Autowired
 	private LoginHelper loginHelper;
+
+	/** Perfis que o ADMIN pode criar por createUtilizador. */
+	private static final Set<String> PERFIS_STAFF = Set.of("ADMIN", "TREINADOR", "UTILIZADOR");
 
 	@PutMapping("/login")
 	@ResponseBody
@@ -102,11 +114,20 @@ public class LoginWS {
 
 	@PutMapping("/updateUser/{parmUserId}")
 	@ResponseBody
-	public String updateUser(@PathVariable String parmUserId, @RequestBody UtilizadorData parmUtilizadorData) {
+	public String updateUser(@PathVariable String parmUserId, @RequestBody UtilizadorData parmUtilizadorData,
+			HttpServletRequest request) {
 		// Faz o login e obtem informação do utilizador
 
 		log.info("updateUser | Start");
 		log.info("updateUser | parmUserId:" + parmUserId);
+
+		// Q7: o ADMIN nao retira o seu proprio perfil ADMIN
+		Identidade identidade = Identidade.de(request);
+		String perfil = parmUtilizadorData.getPerfil();
+		if (identidade != null && identidade.getIdUtilizador() == Integer.parseInt(parmUserId)
+				&& (perfil == null || !Identidade.PERFIL_ADMIN.equalsIgnoreCase(perfil.trim()))) {
+			throw new ConflitoException("Não pode retirar o perfil de administrador à sua própria conta.");
+		}
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -131,7 +152,6 @@ public class LoginWS {
 		// Verifica se o token é válido
 
 		log.info("isAuthenticated | Start");
-		log.info("isAuthenticated | token:" + token.getToken());
 
 		
 		return loginHelper.isAuthenticated(token.getToken());
@@ -162,12 +182,16 @@ public class LoginWS {
 
 	@PutMapping("/getcode/{parmCode}")
 	@ResponseBody
-	public String getCode(@PathVariable String parmCode) {
+	public String getCode(@PathVariable String parmCode, HttpServletRequest request) {
 		log.info("getCode | Start");
 		log.info("getCode | code:" + parmCode);
 
-		
-		String code = loginHelper.getCodebyUser(parmCode);
+		// o parametro e o username; o tenant vem do token (E2)
+		Identidade identidade = Identidade.de(request);
+		if (identidade == null) {
+			throw new AcessoNegadoException();
+		}
+		String code = loginHelper.getCodebyUser(parmCode, identidade.getTenantId());
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -330,9 +354,15 @@ public class LoginWS {
 	
 	@PutMapping("/disableUser/{parmUserId}")
 	@ResponseBody
-	public String disableUser(@PathVariable String parmUserId) {
+	public String disableUser(@PathVariable String parmUserId, HttpServletRequest request) {
 		log.info("disableUser | Start");
 		log.info("disableUser | parmUserId:" + parmUserId);
+
+		// Q7: o ADMIN nao desativa a sua propria conta
+		Identidade identidade = Identidade.de(request);
+		if (identidade != null && identidade.getIdUtilizador() == Integer.parseInt(parmUserId)) {
+			throw new ConflitoException("Não pode desativar a sua própria conta.");
+		}
 	
 
 		
@@ -409,7 +439,13 @@ public class LoginWS {
 		log.info("LoginWS | createUtilizador  | Start");
 		log.info("LoginWS | createUtilizador  | user:" + parmUtilizadorData.getUser());
 
-		
+		// ATLETA so por convite (convidarAtleta); perfil nulo e tratado como UTILIZADOR
+		String perfil = parmUtilizadorData.getPerfil();
+		if (perfil != null && !perfil.isBlank()
+				&& !PERFIS_STAFF.contains(perfil.trim().toUpperCase())) {
+			throw new PedidoInvalidoException("Perfil inválido: " + perfil);
+		}
+
 		codigoGeradoUtilizador = loginHelper.createUtilizadorParaAtivar(parmUtilizadorData,
 				Integer.parseInt(parmTenantId));
 
@@ -485,21 +521,132 @@ public class LoginWS {
 	@ResponseBody
 	public TokenData extendSession(@RequestBody TokenData tokenData) {
 		log.info("extendSession | Start");
-		log.info("extendSession | token:" + tokenData.getToken());
 
-		String newToken = TokenValidator.handleExpiredToken(tokenData.getToken());
 		TokenData newTokenData = new TokenData();
 
-		if (!newToken.isEmpty()) {
-			log.info("extendSession | New token generated");
-			newTokenData.setToken(newToken);
-			return newTokenData; // Retorna o novo token
-		} else {
-			log.info("extendSession | Token extended");
-			//informacao do token
-			log.info("extendSession | Decoding existing token to extend expiration time: " + tokenData.getToken());
-			
+		// so tokens v2 expirados ha pouco; o utilizador e revalidado na BD (E6)
+		Identidade identidadeToken = TokenValidator
+				.identidadeDe(TokenValidator.getClaimsExpiradasRecentes(tokenData.getToken()));
+		if (identidadeToken == null) {
+			log.info("extendSession | Token nao renovavel");
 			return newTokenData; // Retorna vazio se não for possível estender a sessão
 		}
+
+		Identidade identidade = loginHelper.carregaIdentidadeAtiva(identidadeToken.getIdUtilizador());
+		if (identidade == null || identidade.getTenantId() != identidadeToken.getTenantId()) {
+			log.info("extendSession | Utilizador inativo ou sem acesso: " + identidadeToken.getUser());
+			return newTokenData;
+		}
+
+		newTokenData.setToken(TokenGenerator.generateToken(identidade));
+		log.info("extendSession | New token generated");
+		return newTokenData; // Retorna o novo token
+	}
+
+	@PutMapping("/convidarAtleta/{parmTenantId}")
+	@ResponseBody
+	public String convidarAtleta(@PathVariable String parmTenantId, @RequestBody ConviteAtletaData parmConvite) {
+		log.info("LoginWS | convidarAtleta | Start");
+		log.info("LoginWS | convidarAtleta | idJogador:" + parmConvite.getIdJogador());
+
+		String codigo = loginHelper.convidarAtleta(parmConvite, Integer.parseInt(parmTenantId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			log.info("LoginWS | convidarAtleta | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(codigo);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("LoginWS | convidarAtleta | Error End");
+		}
+
+		return "";
+	}
+
+	@PutMapping("/getAcessoAtleta/{idJogador}/{parmTenantId}")
+	@ResponseBody
+	public String getAcessoAtleta(@PathVariable String idJogador, @PathVariable String parmTenantId) {
+		log.info("LoginWS | getAcessoAtleta | Start");
+		log.info("LoginWS | getAcessoAtleta | idJogador:" + idJogador);
+
+		AcessoAtletaData acesso = loginHelper.getAcessoAtleta(Integer.parseInt(idJogador),
+				Integer.parseInt(parmTenantId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			log.info("LoginWS | getAcessoAtleta | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(acesso);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("LoginWS | getAcessoAtleta | Error End");
+		}
+
+		return "";
+	}
+
+	@PutMapping("/getAcessoAtletas/{parmTenantId}")
+	@ResponseBody
+	public String getAcessoAtletas(@PathVariable String parmTenantId) {
+		log.info("LoginWS | getAcessoAtletas | Start");
+
+		ArrayList<AcessoAtletaData> acessos = loginHelper.getAcessoAtletas(Integer.parseInt(parmTenantId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			log.info("LoginWS | getAcessoAtletas | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(acessos);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("LoginWS | getAcessoAtletas | Error End");
+		}
+
+		return "";
+	}
+
+	@PutMapping("/cancelarConvite/{parmTenantId}")
+	@ResponseBody
+	public String cancelarConvite(@PathVariable String parmTenantId,
+			@RequestBody UtilizadorParaAtivarData parmUtilizadorData) {
+		log.info("LoginWS | cancelarConvite | Start");
+		log.info("LoginWS | cancelarConvite | user:" + parmUtilizadorData.getUser());
+
+		boolean resultado = loginHelper.cancelarConvite(parmUtilizadorData.getUser(), Integer.parseInt(parmTenantId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			log.info("LoginWS | cancelarConvite | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultado);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("LoginWS | cancelarConvite | Error End");
+		}
+
+		return "";
+	}
+
+	@PutMapping("/reenviarConvite/{parmTenantId}")
+	@ResponseBody
+	public String reenviarConvite(@PathVariable String parmTenantId,
+			@RequestBody UtilizadorParaAtivarData parmUtilizadorData) {
+		log.info("LoginWS | reenviarConvite | Start");
+		log.info("LoginWS | reenviarConvite | user:" + parmUtilizadorData.getUser());
+
+		String mensagem = loginHelper.reenviarConvite(parmUtilizadorData, Integer.parseInt(parmTenantId));
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			log.info("LoginWS | reenviarConvite | End");
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mensagem);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("LoginWS | reenviarConvite | Error End");
+		}
+
+		return "";
 	}
 }

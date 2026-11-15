@@ -8,7 +8,7 @@
             "cwd": "${workspaceFolder}",
             "mainClass": "sm.core.Start_SMCore",
             "projectName": "sm-core",
-            "args": "DEV",
+            "args": "DEV --spring.datasource.password=123 --spring.datasource.url=jdbc:mysql://178.105.141.106:3306/teste --spring.mail.password=z4hyXkTb2H38TWA",
             "envFile": "${workspaceFolder}/.env"
         },
                 {

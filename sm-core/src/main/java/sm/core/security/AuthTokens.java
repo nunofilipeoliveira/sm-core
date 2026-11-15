@@ -19,6 +19,9 @@ public final class AuthTokens {
     /** Atributo do pedido onde fica o utilizador autenticado. */
     public static final String USER_ATTRIBUTE = "sm.auth.user";
 
+    /** Atributo do pedido onde fica a {@link Identidade} (token v2). */
+    public static final String IDENTIDADE_ATTRIBUTE = Identidade.ATTRIBUTE;
+
     private AuthTokens() {
     }
 
@@ -59,6 +62,11 @@ public final class AuthTokens {
     /** Valida a assinatura/expiracao do token. */
     public static Claims validate(String token) {
         return TokenValidator.parseValidToken(token);
+    }
+
+    /** Valida o token e devolve a identidade v2 ({@code null} se invalido ou antigo). */
+    public static Identidade validateIdentidade(String token) {
+        return TokenValidator.parseIdentidade(token);
     }
 
     /** Remove o prefixo {@code Bearer } e valida o formato minimo. */

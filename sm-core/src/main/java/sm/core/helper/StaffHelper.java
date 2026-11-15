@@ -9,6 +9,8 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import sm.core.data.ElementoSeleccao;
@@ -16,6 +18,8 @@ import sm.core.data.StaffData;
 
 @Component
 public class StaffHelper {
+
+	private static final Logger log = LoggerFactory.getLogger(StaffHelper.class);
 
 	private final DBUtils dbUtils;
 
@@ -167,6 +171,9 @@ public class StaffHelper {
 		StaffData staffData = new StaffData();
 
 		try (Connection conn = dbUtils.getConnection()) {
+			// insert do staff e historico na mesma transacao: se o historico falhar, o staff nao fica gravado
+			conn.setAutoCommit(false);
+			try {
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,tenant_id, licença) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,0,1,?,?)",
@@ -200,7 +207,7 @@ public class StaffHelper {
 								parmStaff.getNome());
 
 						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Código Postal",
-								parmStaff.getCodigo_postal(), staffData.getCodigo_postal());
+								staffData.getCodigo_postal(), parmStaff.getCodigo_postal());
 
 						registaHistoricoStaff(parmIdUtilizador, parmStaff.getId(), conn, "Data Nascimento",
 								String.valueOf(staffData.getData_nascimento()),
@@ -224,12 +231,18 @@ public class StaffHelper {
 				}
 			}
 
-
+			conn.commit();
 			return true;
 
+			} catch (SQLException | RuntimeException e) {
+				conn.rollback();
+				throw e;
+			} finally {
+				conn.setAutoCommit(true);
+			}
+
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("addStaff | Erro SQL ao criar staff (rollback feito)", e);
 		}
 
 		return false;
@@ -242,8 +255,8 @@ public class StaffHelper {
 
 		preparedStatement.setInt(1, id_Staff);
 		preparedStatement.setString(2, campo);
-		preparedStatement.setString(3, valorAntigo);
-		preparedStatement.setString(4, valorNovo);
+		preparedStatement.setString(3, HistoricoUtils.truncaValor(valorAntigo));
+		preparedStatement.setString(4, HistoricoUtils.truncaValor(valorNovo));
 		Date date = new Date();
 		preparedStatement.setString(5, String.valueOf(new Timestamp(date.getTime())));
 		preparedStatement.setInt(6, parmIdUtilizador);

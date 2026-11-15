@@ -21,20 +21,27 @@ public class Auth {
     private String mode = "REPORT";
 
     /**
+     * Autorizacao por perfil/tenant (matriz de acesso): REPORT (so regista o que
+     * seria negado) ou ENFORCE (recusa). As regras do perfil ATLETA aplicam-se
+     * sempre, em qualquer modo.
+     */
+    private String authorizationMode = "REPORT";
+
+    /**
      * Caminhos que nao exigem token (comparados por prefixo): autenticacao,
-     * registo, ativacao de conta, sonda e monitorizacao.
+     * ativacao de conta, sonda, monitorizacao e o handshake do WebSocket
+     * (autenticado a parte pelo {@code WebSocketSessionGuard}).
      */
     private List<String> publicPaths = new ArrayList<>(List.of(
             "/sm/login",
             "/sm/isAuthenticated",
             "/sm/extendSession",
-            "/sm/createUtilizador",
-            "/sm/reenviarEmailAtivacao",
             "/sm/activateuser",
-            "/sm/getcode",
+            "/sm/createuser",
             "/sm/sonda",
             "/sm/helloworld",
-            "/actuator"));
+            "/actuator",
+            "/ws-tournament"));
 
     /** Cabecalhos onde o token pode ser enviado (por ordem de tentativa). */
     private List<String> tokenHeaders = new ArrayList<>(List.of(
@@ -45,6 +52,12 @@ public class Auth {
 
     /** Exigir token valido no handshake WebSocket (via ?token=xxx). */
     private boolean websocketEnforce = false;
+
+    /**
+     * Chave de assinatura dos tokens JWT ({@code sm.core.security.auth.jwt-secret}).
+     * Vazia: usa o valor por omissao definido no {@code TokenGenerator}.
+     */
+    private String jwtSecret;
 
     /** Intervalo minimo entre avisos de autenticacao no log (ms). */
     private long reportLogIntervalMillis = 5000L;
@@ -68,6 +81,19 @@ public class Auth {
     /** Indica se os pedidos sem token valido devem ser bloqueados. */
     public boolean isEnforce() {
         return mode != null && "ENFORCE".equalsIgnoreCase(mode.trim());
+    }
+
+    public String getAuthorizationMode() {
+        return authorizationMode;
+    }
+
+    public void setAuthorizationMode(String authorizationMode) {
+        this.authorizationMode = authorizationMode;
+    }
+
+    /** Indica se as negacoes da matriz de acesso (perfis de staff) devem ser aplicadas. */
+    public boolean isAuthorizationEnforce() {
+        return authorizationMode != null && "ENFORCE".equalsIgnoreCase(authorizationMode.trim());
     }
 
     public List<String> getPublicPaths() {
@@ -100,6 +126,14 @@ public class Auth {
 
     public void setWebsocketEnforce(boolean websocketEnforce) {
         this.websocketEnforce = websocketEnforce;
+    }
+
+    public String getJwtSecret() {
+        return jwtSecret;
+    }
+
+    public void setJwtSecret(String jwtSecret) {
+        this.jwtSecret = jwtSecret;
     }
 
     public long getReportLogIntervalMillis() {

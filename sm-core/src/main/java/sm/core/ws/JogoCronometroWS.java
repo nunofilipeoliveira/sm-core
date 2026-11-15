@@ -19,7 +19,11 @@ import sm.core.data.AtualizarTempoJogoRequest;
 import sm.core.data.JogadorJogo;
 import sm.core.data.JogoConfigData;
 import sm.core.data.JogoEventoData;
+import jakarta.servlet.http.HttpServletRequest;
+import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.JogoCronometroHelper;
+import sm.core.security.Identidade;
+import sm.core.security.TipoRecurso;
 
 /**
  * Web Services de suporte ao registo de atividade no jogo:
@@ -34,6 +38,14 @@ public class JogoCronometroWS {
 
     @Autowired
     private JogoCronometroHelper jogoCronometroHelper;
+
+    @Autowired
+    private AutorizacaoHelper autorizacaoHelper;
+
+    private static boolean isAtleta(HttpServletRequest request) {
+        Identidade identidade = Identidade.de(request);
+        return identidade != null && identidade.isAtleta();
+    }
 
     private String toJson(Object obj) {
         ObjectMapper mapper = new ObjectMapper();
@@ -51,16 +63,20 @@ public class JogoCronometroWS {
 
     @PutMapping("/getConfigJogo/{idJogo}")
     @ResponseBody
-    public String getConfigJogo(@PathVariable String idJogo) {
+    public String getConfigJogo(@PathVariable String idJogo, HttpServletRequest request) {
         log.info("getConfigJogo | Start | idJogo: " + idJogo);
         JogoConfigData config = jogoCronometroHelper.getConfigJogo(Integer.valueOf(idJogo));
+        if (config != null && isAtleta(request)) {
+            AutorizacaoHelper.limpaObsJogadores(config.getJogadores());
+        }
         log.info("getConfigJogo | End");
         return toJson(config);
     }
 
     @PutMapping("/guardarConfigJogo")
     @ResponseBody
-    public String guardarConfigJogo(@RequestBody JogoConfigData config) {
+    public String guardarConfigJogo(@RequestBody JogoConfigData config, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGO, config.getId_jogo());
         log.info("guardarConfigJogo | Start | idJogo: " + config.getId_jogo());
         boolean saved = jogoCronometroHelper.guardarConfigJogo(config);
         log.info("guardarConfigJogo | End");
@@ -73,7 +89,8 @@ public class JogoCronometroWS {
 
     @PutMapping("/registarEvento")
     @ResponseBody
-    public String registarEvento(@RequestBody JogoEventoData evento) {
+    public String registarEvento(@RequestBody JogoEventoData evento, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGO, evento.getId_jogo());
         log.info("registarEvento | Start | evento: " + evento);
         JogoEventoData saved = jogoCronometroHelper.registarEvento(evento);
         log.info("registarEvento | End");
@@ -82,7 +99,8 @@ public class JogoCronometroWS {
 
     @PutMapping("/marcarSubstituicao")
     @ResponseBody
-    public String marcarSubstituicao(@RequestBody JogoEventoData evento) {
+    public String marcarSubstituicao(@RequestBody JogoEventoData evento, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGO, evento.getId_jogo());
         log.info("marcarSubstituicao | Start | idJogo: " + evento.getId_jogo());
         JogoEventoData saved = jogoCronometroHelper.marcarSubstituicao(evento);
         log.info("marcarSubstituicao | End");
@@ -109,7 +127,8 @@ public class JogoCronometroWS {
 
     @PutMapping("/editarEvento")
     @ResponseBody
-    public String editarEvento(@RequestBody JogoEventoData evento) {
+    public String editarEvento(@RequestBody JogoEventoData evento, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.EVENTO, evento.getId());
         log.info("editarEvento | Start | id: " + evento.getId());
         boolean saved = jogoCronometroHelper.editarEvento(evento);
         log.info("editarEvento | End");
@@ -131,16 +150,21 @@ public class JogoCronometroWS {
 
     @PutMapping("/getTemposJogo/{idJogo}")
     @ResponseBody
-    public String getTemposJogo(@PathVariable String idJogo) {
+    public String getTemposJogo(@PathVariable String idJogo, HttpServletRequest request) {
         log.info("getTemposJogo | Start | idJogo: " + idJogo);
         ArrayList<JogadorJogo> tempos = jogoCronometroHelper.getTemposJogo(Integer.valueOf(idJogo));
+        if (isAtleta(request)) {
+            AutorizacaoHelper.limpaObsJogadores(tempos);
+        }
         log.info("getTemposJogo | End");
         return toJson(tempos);
     }
 
     @PutMapping("/atualizarTempoAtual")
     @ResponseBody
-    public String atualizarTempoAtual(@RequestBody AtualizarTempoJogoRequest request) {
+    public String atualizarTempoAtual(@RequestBody AtualizarTempoJogoRequest request,
+            HttpServletRequest httpRequest) {
+        autorizacaoHelper.verificaCorpo(httpRequest, TipoRecurso.JOGO, request.getId_jogo());
         log.info("atualizarTempoAtual | Start | idJogo: " + request.getId_jogo());
         boolean saved = jogoCronometroHelper.atualizarTempoAtual(request.getId_jogo(), request.getTempo_atual_segundos());
         log.info("atualizarTempoAtual | End");

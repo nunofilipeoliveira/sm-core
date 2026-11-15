@@ -17,7 +17,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import sm.core.data.CompeticaoData;
 import sm.core.data.ConvocatoriaData;
 import sm.core.data.JogoData;
+import jakarta.servlet.http.HttpServletRequest;
+import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.JogoHelper;
+import sm.core.security.Identidade;
+import sm.core.security.TipoRecurso;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
@@ -28,6 +32,9 @@ public class JogoWS {
 
     @Autowired
     private JogoHelper jogoHelper;
+
+    @Autowired
+    private AutorizacaoHelper autorizacaoHelper;
 
     @PutMapping("/getAllJogosByEquipa/{id}")
     @ResponseBody
@@ -87,7 +94,8 @@ public class JogoWS {
 
     @PutMapping("/createJogo")
     @ResponseBody
-    public String createJogo(@RequestBody JogoData entity) {
+    public String createJogo(@RequestBody JogoData entity, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.EQUIPA, entity.getEquipa_id());
         log.info("createJogo | Start");
         // TODO: process PUT request
         log.info("createJogo | Jogo:" + entity.toString());
@@ -110,7 +118,9 @@ public class JogoWS {
 
     @PutMapping("/updateJogo")
     @ResponseBody
-    public String updateJogo(@RequestBody JogoData entity) {
+    public String updateJogo(@RequestBody JogoData entity, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGO, entity.getId());
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.EQUIPA, entity.getEquipa_id());
         log.info("updateJogo | Start");
         
         jogoHelper.updateJogo(entity);
@@ -147,14 +157,18 @@ public class JogoWS {
 
     }
 
-    @PutMapping("getJogoById/{id}")
+    @PutMapping("/getJogoById/{id}")
     @ResponseBody
-    public String getJogoById(@PathVariable String id) {    
+    public String getJogoById(@PathVariable String id, HttpServletRequest request) {
         log.info("getJogoById | Start");
         log.info("getJogoById | ID:" + id);
 
         
         JogoData jogo = jogoHelper.getJogoById(Integer.valueOf(id));
+        Identidade identidade = Identidade.de(request);
+        if (identidade != null && identidade.isAtleta()) {
+            AutorizacaoHelper.limpaObsJogadores(jogo);
+        }
 
         ObjectMapper mapper = new ObjectMapper();
 
@@ -175,7 +189,8 @@ public class JogoWS {
 
     @PutMapping("/salvarConvocatoria")
     @ResponseBody
-    public String salvarConvocatoria(@RequestBody ConvocatoriaData convocatoriaData) {
+    public String salvarConvocatoria(@RequestBody ConvocatoriaData convocatoriaData, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGO, convocatoriaData.getId());
         log.info("salvarConvocatoria | Start");
      
 
@@ -223,7 +238,9 @@ public class JogoWS {
 
     @PutMapping("/atualizarJogo")
     @ResponseBody
-    public String atualizarJogo(@RequestBody JogoData entity) {
+    public String atualizarJogo(@RequestBody JogoData entity, HttpServletRequest request) {
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.JOGO, entity.getId());
+        autorizacaoHelper.verificaCorpo(request, TipoRecurso.EQUIPA, entity.getEquipa_id());
         log.info("atualizarJogo | Start");
         
         jogoHelper.updateJogo(entity);

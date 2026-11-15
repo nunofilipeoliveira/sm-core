@@ -1,12 +1,20 @@
 package sm.core.config;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+
+import sm.core.security.AcessoNegadoException;
+import sm.core.security.ConflitoException;
+import sm.core.security.PedidoInvalidoException;
 
 /**
  * Respostas controladas para situacoes tipicas de abuso (evita 500/stacktrace
@@ -25,5 +33,33 @@ public class GlobalExceptionHandler {
                 .header("Retry-After", "1")
                 .body("{\"error\":\"payload_too_large\",\"message\":"
                         + "\"Ficheiro maior que o limite permitido.\"}");
+    }
+
+    /** Sem permissao sobre o recurso (D5). O log com throttling e feito por quem recusa. */
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<Map<String, String>> handleAcessoNegado(AcessoNegadoException e) {
+        return resposta(HttpStatus.FORBIDDEN, "forbidden", "Sem permissão para este recurso.");
+    }
+
+    /** Conflito com o estado atual (ex.: username ja existe, jogador ja tem conta). */
+    @ExceptionHandler(ConflitoException.class)
+    public ResponseEntity<Map<String, String>> handleConflito(ConflitoException e) {
+        log.info("GlobalExceptionHandler | conflito: {}", e.getMessage());
+        return resposta(HttpStatus.CONFLICT, "conflito", e.getMessage());
+    }
+
+    /** Dados do pedido invalidos (ex.: email invalido). */
+    @ExceptionHandler(PedidoInvalidoException.class)
+    public ResponseEntity<Map<String, String>> handlePedidoInvalido(PedidoInvalidoException e) {
+        log.info("GlobalExceptionHandler | pedido invalido: {}", e.getMessage());
+        return resposta(HttpStatus.BAD_REQUEST, "pedido_invalido", e.getMessage());
+    }
+
+    // Map serializado pelo Spring: o message fica escapado em JSON
+    private ResponseEntity<Map<String, String>> resposta(HttpStatus status, String erro, String mensagem) {
+        Map<String, String> corpo = new LinkedHashMap<>();
+        corpo.put("error", erro);
+        corpo.put("message", mensagem);
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(corpo);
     }
 }

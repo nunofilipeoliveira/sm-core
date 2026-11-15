@@ -401,14 +401,13 @@ public class EquipaHelper {
 
 		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("delete from escalao_epoca where id=?");
+					.prepareStatement("delete ee from escalao_epoca ee inner join epoca e on e.id=ee.id_epoca where ee.id=? and e.tenant_id=?");
 
 			preparedStatement.setInt(1, parmEscalaoEpocaData.getId_escalao_epoca());
+			preparedStatement.setInt(2, parmTenantID);
 
-			preparedStatement.executeUpdate();
-
-
-			return true;
+			// 0 linhas: equipa inexistente ou de outro tenant (Q8)
+			return preparedStatement.executeUpdate() > 0;
 
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
