@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +33,9 @@ public class AutorizacaoHelper {
 	private final Auth auth;
 	private final AtomicLong negadosDesdeUltimoLog = new AtomicLong();
 	private final AtomicLong ultimoLogMillis = new AtomicLong();
+
+	@Autowired
+	private FuncionalidadeHelper funcionalidadeHelper;
 
 	public AutorizacaoHelper(DBUtils dbUtils, SecurityProperties properties) {
 		this.dbUtils = dbUtils;
@@ -58,6 +62,11 @@ public class AutorizacaoHelper {
 		case EVENTO:
 			return "select 1 from jogo_evento ev inner join jogo j on j.id=ev.id_jogo "
 					+ "inner join epoca e on e.id=j.epoca_id where ev.id=? and e.tenant_id=? LIMIT 1";
+		case MICRO_CICLO:
+			return "select 1 from micro_ciclo where id=? and tenant_id=? LIMIT 1";
+		case TREINO:
+			return "select 1 from treino t inner join micro_ciclo m on m.id=t.id_micro_ciclo "
+					+ "where t.id=? and m.tenant_id=? LIMIT 1";
 		default:
 			throw new IllegalArgumentException("Tipo de recurso sem regra: " + parmTipo);
 		}
@@ -91,6 +100,30 @@ public class AutorizacaoHelper {
 	}
 
 	/**
+	 * D24: treino aprovado alguma vez, em APROVADO ou CANCELADO, do tenant, em que o
+	 * jogador (ativo) e convocado efetivo (ACRESCENTADO ou ainda na equipa).
+	 */
+	public boolean treinoDoAtleta(int parmIdTreino, int parmIdJogador, int parmTenantId) {
+		try (Connection conn = dbUtils.getConnection()) {
+			PreparedStatement preparedStatement = conn.prepareStatement("select 1 from treino t "
+					+ "inner join micro_ciclo m on m.id=t.id_micro_ciclo "
+					+ "inner join treino_convocado tc on tc.id_treino=t.id and tc.id_jogador=? and tc.estado='1' "
+					+ "inner join jogador j on j.id=tc.id_jogador and j.estado='1' "
+					+ "where t.id=? and m.tenant_id=? and t.estado in ('APROVADO','CANCELADO') "
+					+ "and t.data_aprovacao is not null and (tc.origem='ACRESCENTADO' or exists (select 1 "
+					+ "from escalao_epoca_jogador eej where eej.id_escalao_epoca=t.id_equipa and eej.id_jogador=tc.id_jogador)) "
+					+ "LIMIT 1");
+			preparedStatement.setInt(1, parmIdJogador);
+			preparedStatement.setInt(2, parmIdTreino);
+			preparedStatement.setInt(3, parmTenantId);
+			return preparedStatement.executeQuery().next();
+		} catch (SQLException e) {
+			log.error("Erro em treinoDoAtleta: " + e.getMessage(), e);
+			return false;
+		}
+	}
+
+	/**
 	 * Staff: o recurso e do tenant do token. ATLETA: so o proprio jogador e os seus jogos.
 	 */
 	public boolean temAcessoAoRecurso(Identidade parmIdentidade, TipoRecurso parmTipo, int parmId) {
@@ -104,6 +137,9 @@ public class AutorizacaoHelper {
 			}
 			if (parmTipo == TipoRecurso.JOGO) {
 				return jogoDoAtleta(parmId, jid);
+			}
+			if (parmTipo == TipoRecurso.TREINO) {
+				return treinoDoAtleta(parmId, jid, parmIdentidade.getTenantId());
 			}
 			return false;
 		}
@@ -133,6 +169,33 @@ public class AutorizacaoHelper {
 		if (aplica) {
 			throw new AcessoNegadoException();
 		}
+	}
+
+	/**
+	 * Identidade obrigatoria (token v2) e tenant da rota igual ao do token. Aplicado
+	 * sempre, em REPORT e em ENFORCE (D9).
+	 *
+	 * @throws AcessoNegadoException sem identidade ou com outro tenant
+	 */
+	public Identidade exigeIdentidade(HttpServletRequest parmRequest, int parmTenantRota) {
+		Identidade identidade = Identidade.de(parmRequest);
+		if (identidade == null || identidade.getTenantId() != parmTenantRota) {
+			throw new AcessoNegadoException();
+		}
+		return identidade;
+	}
+
+	/**
+	 * {@link #exigeIdentidade} e a funcionalidade ligada no tenant. Aplicado sempre (D9, R59).
+	 *
+	 * @throws AcessoNegadoException sem identidade, com outro tenant ou funcionalidade desligada
+	 */
+	public Identidade exigeFuncionalidade(HttpServletRequest parmRequest, int parmTenantRota, String parmCodigo) {
+		Identidade identidade = exigeIdentidade(parmRequest, parmTenantRota);
+		if (!funcionalidadeHelper.isAtiva(identidade.getTenantId(), parmCodigo)) {
+			throw new AcessoNegadoException();
+		}
+		return identidade;
 	}
 
 	/** Q7: para o ATLETA, o obs de cada jogador do jogo (motivo de indisponibilidade) vem a null. */

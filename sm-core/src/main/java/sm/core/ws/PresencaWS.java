@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.LoginHelper;
 import sm.core.helper.PresencaHelper;
+import sm.core.security.Identidade;
 import sm.core.security.TipoRecurso;
 
 @RestController
@@ -353,7 +354,7 @@ public class PresencaWS {
 
 	@PutMapping("/eliminarPresenca/{parms}")
 	@ResponseBody
-	public String eliminarPresenca(@PathVariable String parms) {
+	public String eliminarPresenca(@PathVariable String parms, HttpServletRequest request) {
 
 		// parms = idPresenca_idUtilizador_tenantId
 
@@ -368,14 +369,26 @@ public class PresencaWS {
 		int idUtilizador = Integer.parseInt(tmpParms[1]);
 		int tenantId = Integer.parseInt(tmpParms[2]);
 
+		// revisao I1: com token v2, o utilizador e o tenant sao os do token (autor do
+		// historico do Micro Ciclo), nao os da rota
+		Identidade identidade = Identidade.de(request);
+		if (identidade != null) {
+			idUtilizador = identidade.getIdUtilizador();
+			tenantId = identidade.getTenantId();
+		}
+
 		// valida se o utilizador tem perfil de Administrador
 		UtilizadorData utilizador = loginHelper.getUser(idUtilizador, tenantId);
 
-		if (utilizador != null && "ADMIN".equalsIgnoreCase(utilizador.getPerfil())) {
+		if (!autorizacaoHelper.pertenceAoTenant(TipoRecurso.PRESENCA, idPresenca, tenantId)) {
+
+			log.warn("PresencaWS | eliminarPresenca | Presença:" + idPresenca + " não pertence ao tenant:" + tenantId);
+
+		} else if (utilizador != null && "ADMIN".equalsIgnoreCase(utilizador.getPerfil())) {
 
 			log.info("PresencaWS | eliminarPresenca | Utilizador com perfil ADMIN, a eliminar a ficha:" + idPresenca);
 
-			resultado = presencaHelper.deletePresenca(idPresenca);
+			resultado = presencaHelper.deletePresenca(idPresenca, idUtilizador);
 
 		} else {
 

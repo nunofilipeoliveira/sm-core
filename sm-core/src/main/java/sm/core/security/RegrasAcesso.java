@@ -266,6 +266,56 @@ public final class RegrasAcesso {
         admin("/reenviarConvite/{parmTenantId}").tenant("parmTenantId");
         admin("/getcode/{parmCode}");
         admin("/gethistoricoLogins");
+
+        // FuncionalidadeWS (o controller exige sempre identidade, tenant e, nas de ADMIN, o perfil)
+        staffEAtleta("/getFuncionalidades/{tenantId}").tenant("tenantId");
+        admin("/getFuncionalidadesAdmin/{tenantId}").tenant("tenantId");
+        admin("/setFuncionalidade/{tenantId}").tenant("tenantId");
+
+        // MicroCicloWS (o controller exige sempre a funcionalidade, o perfil e as equipas do treinador)
+        staff("/getMicroCiclo/{tenantId}/{data}").tenant("tenantId");
+        admin("/createMicroCiclo/{tenantId}").tenant("tenantId");
+        admin("/publicarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+        admin("/cancelarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+        admin("/eliminarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+        admin("/gravarTreino/{tenantId}").tenant("tenantId");
+        admin("/eliminarTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staff("/getTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staff("/mudarEstadoTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staff("/ajustarConvocatoria/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        // v5 (o controller/helper aplicam sempre o perfil e as equipas)
+        staff("/aprovarLote/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+        admin("/gravarGrupoEvento/{tenantId}").tenant("tenantId");
+        staffEAtleta("/getMicroCicloAtleta/{tenantId}/{idJogador}/{data}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+        staff("/getPendentesMeus/{tenantId}").tenant("tenantId");
+        // v4
+        admin("/reativarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+        admin("/copiarTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staffEAtleta("/getJogosAtleta/{tenantId}/{idJogador}/{data}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+        // equipa do corpo: pertenca verificada no helper (sempre)
+        admin("/setCorEquipa/{tenantId}").tenant("tenantId");
+        staff("/getTreinosEquipaDia/{tenantId}/{idEquipa}/{data}").tenant("tenantId")
+                .recurso(TipoRecurso.EQUIPA, "idEquipa");
+        staff("/getPresencaTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staff("/marcarPresencaTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staff("/ligarPresencaTreino/{tenantId}/{idTreino}/{idPresenca}").tenant("tenantId")
+                .recurso(TipoRecurso.TREINO, "idTreino");
+        staffEAtleta("/getTreinosAtleta/{tenantId}/{idJogador}/{data}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+        staffEAtleta("/indicarAusencia/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+
+        // NotificacaoWS (so as do proprio utilizador; v5: tambem o ATLETA, so as de convocatoria)
+        staffEAtleta("/getNotificacoesNaoLidas/{tenantId}").tenant("tenantId");
+        staffEAtleta("/getNotificacoes/{tenantId}").tenant("tenantId");
+        staffEAtleta("/marcarNotificacaoLida/{tenantId}/{idNotificacao}").tenant("tenantId");
+        staffEAtleta("/marcarNotificacoesLidas/{tenantId}").tenant("tenantId");
     }
 
     private RegrasAcesso() {

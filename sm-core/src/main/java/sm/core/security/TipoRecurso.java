@@ -9,5 +9,7 @@ public enum TipoRecurso {
     EQUIPA,
     JOGO,
     PRESENCA,
-    EVENTO
+    EVENTO,
+    MICRO_CICLO,
+    TREINO
 }

@@ -14,6 +14,7 @@ public final class Identidade {
     public static final String PERFIL_ADMIN = "ADMIN";
     public static final String PERFIL_ATLETA = "ATLETA";
     public static final String PERFIL_UTILIZADOR = "UTILIZADOR";
+    public static final String PERFIL_TREINADOR = "TREINADOR";
 
     private final int idUtilizador;
     private final String user;
@@ -62,5 +63,9 @@ public final class Identidade {
 
     public boolean isAdmin() {
         return PERFIL_ADMIN.equals(perfil);
+    }
+
+    public boolean isTreinador() {
+        return PERFIL_TREINADOR.equals(perfil);
     }
 }

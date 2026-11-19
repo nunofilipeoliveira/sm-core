@@ -405,15 +405,48 @@ public class PresencaHelper {
 
 	public boolean createPresenca(PresencaData parmPresencaData, String parmTenantId) {
 
+		Connection conn = null;
+		try {
+			conn = dbUtils.getConnection();
+			inserePresenca(conn, parmPresencaData);
+
+			dbUtils.closeConnection(conn);
+			conn = null; // to avoid closing again in catch
+
+			// enviar email de registo presenca
+			sendEmailPresencaRegisto(parmPresencaData, parmTenantId);
+
+			return true;
+
+		} catch (SQLException e) {
+			if (conn != null) {
+				try {
+					dbUtils.closeConnection(conn);
+				} catch (Exception ex) {
+					// ignore
+				}
+			}
+			return false;
+		}
+
+	}
+
+	/**
+	 * Insere a presença (cabeçalho, jogadores e staff) na ligação indicada, sem
+	 * commit nem email. Usado por createPresenca (autocommit) e pelo Micro Ciclo
+	 * (em transação, D19).
+	 *
+	 * @return o id da presença criada
+	 */
+	public int inserePresenca(Connection conn, PresencaData parmPresencaData) throws SQLException {
+
 		// Configuração de performance: se a equipa não permite o registo de
 		// classificações, as classificações recebidas são ignoradas.
 		if (!performanceHelper.permiteRegistoClassificacao(parmPresencaData.getId_escalao())) {
 			limparClassificacoes(parmPresencaData);
 		}
 
-		Connection conn = null;
-		try {
-			conn = dbUtils.getConnection();
+		{
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"insert into presencas(data, hora, id_equipa, datacriacao, utilizador_criacao)\r\n"
 							+ "values (?, ?, ?, NOW(), ?)",
@@ -463,23 +496,7 @@ public class PresencaHelper {
 
 			}
 
-			dbUtils.closeConnection(conn);
-			conn = null; // to avoid closing again in catch
-
-			// enviar email de registo presenca
-			sendEmailPresencaRegisto(parmPresencaData, parmTenantId);
-
-			return true;
-
-		} catch (SQLException e) {
-			if (conn != null) {
-				try {
-					dbUtils.closeConnection(conn);
-				} catch (Exception ex) {
-					// ignore
-				}
-			}
-			return false;
+			return parmPresencaData.getId();
 		}
 
 	}
@@ -746,13 +763,33 @@ public class PresencaHelper {
 	 * @param parmIdPresenca id da ficha de presenças a eliminar
 	 * @return true se a ficha foi eliminada, false caso contrário
 	 */
-	public boolean deletePresenca(int parmIdPresenca) {
+	public boolean deletePresenca(int parmIdPresenca, int parmIdUtilizador) {
 
 		Connection conn = null;
 
 		try {
 			conn = dbUtils.getConnection();
 			conn.setAutoCommit(false);
+
+			// Micro Ciclo (R18): o treino ligado volta a Aprovado, com historico. Lido antes
+			// do delete porque a FK ON DELETE SET NULL o desligaria sem registo.
+			PreparedStatement psTreinos = conn
+					.prepareStatement("select id, id_micro_ciclo from treino where id_presenca = ?");
+			psTreinos.setInt(1, parmIdPresenca);
+			ResultSet rsTreinos = psTreinos.executeQuery();
+			PreparedStatement psHistoricoTreino = conn.prepareStatement("insert into micro_ciclo_historico("
+					+ "id_micro_ciclo, id_treino, `data`, id_utilizador, alteracao) values (?, ?, now(), ?, ?)");
+			while (rsTreinos.next()) {
+				psHistoricoTreino.setInt(1, rsTreinos.getInt("id_micro_ciclo"));
+				psHistoricoTreino.setInt(2, rsTreinos.getInt("id"));
+				psHistoricoTreino.setInt(3, parmIdUtilizador);
+				psHistoricoTreino.setString(4, "Presença eliminada: o treino volta a Aprovado");
+				psHistoricoTreino.executeUpdate();
+			}
+			PreparedStatement psDesliga = conn
+					.prepareStatement("update treino set id_presenca = null, versao = versao + 1 where id_presenca = ?");
+			psDesliga.setInt(1, parmIdPresenca);
+			psDesliga.executeUpdate();
 
 			// apagar o historico da ficha de presencas
 			PreparedStatement psHistorico = conn
@@ -821,6 +858,14 @@ public class PresencaHelper {
 	}
 
 	public void sendEmailPresencaRegisto(PresencaData parmPresencaData, String parmTenantId) {
+		sendEmailPresencaRegisto(parmPresencaData, parmTenantId, false);
+	}
+
+	/**
+	 * @param parmSemMotivos decisao do dono: na presenca marcada a partir de um treino
+	 *                       o email nao leva os motivos (nem categoria nem texto)
+	 */
+	public void sendEmailPresencaRegisto(PresencaData parmPresencaData, String parmTenantId, boolean parmSemMotivos) {
 
 		String destinatario = "nunooliveira8@gmail.com"; // substituir pelo email real
 		String assunto = "Sports Manager - Registo de Presença";
@@ -864,7 +909,7 @@ public class PresencaHelper {
 			htmlCorpo += "<div class='player-card'>"
 					+ "<strong>" + jogador.getNome_jogador() + "</strong><br/>"
 					+ "Estado: " + jogador.getEstado()
-					+ (jogador.getMotivo() != null && !jogador.getMotivo().isEmpty()
+					+ (!parmSemMotivos && jogador.getMotivo() != null && !jogador.getMotivo().isEmpty()
 							? " | Motivo: " + jogador.getMotivo()
 							: "")
 					+ "</div>";
