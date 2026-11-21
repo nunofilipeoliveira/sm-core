@@ -293,6 +293,8 @@ public final class RegrasAcesso {
         staffEAtleta("/getMicroCicloAtleta/{tenantId}/{idJogador}/{data}").tenant("tenantId")
                 .recurso(TipoRecurso.JOGADOR, "idJogador");
         staff("/getPendentesMeus/{tenantId}").tenant("tenantId");
+        // v7 (as equipas pedidas sao verificadas no helper)
+        staff("/getMeusAtletas/{tenantId}/{data}").tenant("tenantId");
         // v4
         admin("/reativarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
                 .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
@@ -310,6 +312,12 @@ public final class RegrasAcesso {
         staffEAtleta("/getTreinosAtleta/{tenantId}/{idJogador}/{data}").tenant("tenantId")
                 .recurso(TipoRecurso.JOGADOR, "idJogador");
         staffEAtleta("/indicarAusencia/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        // v8 (so ATLETA: o staff recebe 403 no helper)
+        staffEAtleta("/responderTreino/{tenantId}/{idTreino}").tenant("tenantId").recurso(TipoRecurso.TREINO, "idTreino");
+        staffEAtleta("/confirmarTodos/{tenantId}/{idJogador}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+        staffEAtleta("/getPorConfirmarAtleta/{tenantId}/{idJogador}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
 
         // NotificacaoWS (so as do proprio utilizador; v5: tambem o ATLETA, so as de convocatoria)
         staffEAtleta("/getNotificacoesNaoLidas/{tenantId}").tenant("tenantId");

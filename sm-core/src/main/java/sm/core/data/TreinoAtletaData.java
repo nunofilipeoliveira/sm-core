@@ -32,8 +32,66 @@ public class TreinoAtletaData {
 	private boolean sobreposto;
 	private boolean prazoTerminado;
 	private TreinoAusenciaData ausencia;
+	/** v6: fisicos ligados a este treino (so horas, local, sub-grupo e posicao). */
+	private java.util.List<FisicoAtletaData> fisicos;
+
+	/** v8: VOU, NAO_VOU ou null (sem resposta). So dados do proprio atleta. */
+	private String resposta;
+	private boolean caducada;
+	private java.sql.Timestamp dataConfirmacao;
+	/** v8 (Y6): a sessao que o atleta ve; vai no pedido VOU. */
+	private String sessao;
+	private boolean podeResponder;
 
 	public TreinoAtletaData() {
+	}
+
+	public String getResposta() {
+		return resposta;
+	}
+
+	public void setResposta(String resposta) {
+		this.resposta = resposta;
+	}
+
+	public boolean isCaducada() {
+		return caducada;
+	}
+
+	public void setCaducada(boolean caducada) {
+		this.caducada = caducada;
+	}
+
+	public java.sql.Timestamp getDataConfirmacao() {
+		return dataConfirmacao;
+	}
+
+	public void setDataConfirmacao(java.sql.Timestamp dataConfirmacao) {
+		this.dataConfirmacao = dataConfirmacao;
+	}
+
+	public String getSessao() {
+		return sessao;
+	}
+
+	public void setSessao(String sessao) {
+		this.sessao = sessao;
+	}
+
+	public boolean isPodeResponder() {
+		return podeResponder;
+	}
+
+	public void setPodeResponder(boolean podeResponder) {
+		this.podeResponder = podeResponder;
+	}
+
+	public java.util.List<FisicoAtletaData> getFisicos() {
+		return fisicos;
+	}
+
+	public void setFisicos(java.util.List<FisicoAtletaData> fisicos) {
+		this.fisicos = fisicos;
 	}
 
 	public int getId() {

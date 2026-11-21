@@ -222,6 +222,17 @@ public class MicroCicloWS {
 		return json(microCicloHelper.pendentesMeus(identidade), "getPendentesMeus");
 	}
 
+	/** v7 (X8): "Os meus atletas"; ADMIN e TREINADOR (UTILIZADOR: 403 no helper), equipas verificadas no helper. */
+	@PutMapping("/getMeusAtletas/{tenantId}/{data}")
+	@ResponseBody
+	public String getMeusAtletas(@PathVariable String tenantId, @PathVariable String data,
+			@RequestBody(required = false) sm.core.data.PedidoMeusAtletasData parmPedido, HttpServletRequest request) {
+		Identidade identidade = semAtleta(exige(request, tenantId));
+		log.info("MicroCicloWS | getMeusAtletas | tenant:{} data:{}", identidade.getTenantId(), data);
+		return json(microCicloHelper.getMeusAtletas(identidade, numero(data, "Data"),
+				parmPedido == null ? null : parmPedido.getEquipas()), "getMeusAtletas");
+	}
+
 	@PutMapping("/reativarMicroCiclo/{tenantId}/{idMicroCiclo}")
 	@ResponseBody
 	public String reativarMicroCiclo(@PathVariable String tenantId, @PathVariable String idMicroCiclo,
@@ -327,5 +338,37 @@ public class MicroCicloWS {
 		// sem o motivo no log (dados de saude, RGPD)
 		log.info("MicroCicloWS | indicarAusencia | idTreino:{} acao:{}", idTreino, parmPedido.getAcao());
 		return json(microCicloHelper.ausencia(identidade, numero(idTreino, "Treino"), parmPedido), "indicarAusencia");
+	}
+
+	/** v8 (Y8): "Vou" / anular a confirmacao; so ATLETA (staff: 403 no helper). */
+	@PutMapping("/responderTreino/{tenantId}/{idTreino}")
+	@ResponseBody
+	public String responderTreino(@PathVariable String tenantId, @PathVariable String idTreino,
+			@RequestBody(required = false) sm.core.data.PedidoRespostaData parmPedido, HttpServletRequest request) {
+		Identidade identidade = exige(request, tenantId);
+		log.info("MicroCicloWS | responderTreino | idTreino:{} acao:{}", idTreino,
+				parmPedido == null ? null : parmPedido.getAcao());
+		return json(microCicloHelper.responde(identidade, numero(idTreino, "Treino"), parmPedido), "responderTreino");
+	}
+
+	/** v8 (Y8): "Confirmar todos"; so ATLETA, o proprio jogador. */
+	@PutMapping("/confirmarTodos/{tenantId}/{idJogador}")
+	@ResponseBody
+	public String confirmarTodos(@PathVariable String tenantId, @PathVariable String idJogador,
+			@RequestBody(required = false) sm.core.data.PedidoConfirmarTodosData parmPedido, HttpServletRequest request) {
+		Identidade identidade = exige(request, tenantId);
+		log.info("MicroCicloWS | confirmarTodos | idJogador:{}", idJogador);
+		return json(microCicloHelper.confirmaTodos(identidade, numero(idJogador, "Jogador"), parmPedido),
+				"confirmarTodos");
+	}
+
+	/** v8 (R225): treinos por confirmar da semana atual e da seguinte; so ATLETA, o proprio jogador. */
+	@PutMapping("/getPorConfirmarAtleta/{tenantId}/{idJogador}")
+	@ResponseBody
+	public String getPorConfirmarAtleta(@PathVariable String tenantId, @PathVariable String idJogador,
+			HttpServletRequest request) {
+		Identidade identidade = exige(request, tenantId);
+		return json(microCicloHelper.porConfirmarAtleta(identidade, numero(idJogador, "Jogador")),
+				"getPorConfirmarAtleta");
 	}
 }

@@ -35,8 +35,18 @@ public class SemanaClubeAtletaData {
 		private boolean meu;
 		/** So com meu = true (Q76). */
 		private String observacoes;
+		/** v6: fisicos ligados (so horas, local, sub-grupo e posicao; nada de R138). */
+		private List<FisicoAtletaData> fisicos;
 
 		public Item() {
+		}
+
+		public List<FisicoAtletaData> getFisicos() {
+			return fisicos;
+		}
+
+		public void setFisicos(List<FisicoAtletaData> fisicos) {
+			this.fisicos = fisicos;
 		}
 
 		public int getId() {

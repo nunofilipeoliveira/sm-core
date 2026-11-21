@@ -30,6 +30,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import sm.core.data.FisicoAtletaData;
+import sm.core.data.FisicoData;
+import sm.core.data.FisicoStaffData;
+import sm.core.data.SemanaAtletasData;
 import sm.core.data.JogoSemanaData;
 import sm.core.data.MicroCicloData;
 import sm.core.data.PedidoAusenciaData;
@@ -81,14 +85,19 @@ public class MicroCicloHelper {
 	static final String MSG_VERSAO = "O treino foi alterado entretanto. Recarregue.";
 	private static final String MSG_TRANSICAO = "Transição não permitida.";
 	private static final String MSG_JA_COMECOU = "O treino já começou.";
+	private static final String MSG_PRESENCA_PRINCIPAL = "A presença marca-se no treino principal.";
 
 	private static final String SQL_TREINO = "select t.id, t.id_micro_ciclo, t.id_equipa, t.tipo, t.tipo_descricao, "
 			+ "t.sub_grupo, t.`data`, t.hora_inicio, t.hora_fim, t.local_treino, t.observacoes, t.estado, "
 			+ "t.motivo_estado, t.versao, t.id_presenca, t.data_aprovacao, ua.nome as aprovado_por, "
 			+ "t.origem_cancelamento, ee.id_epoca as equipa_epoca, "
 			+ "t.id_grupo, g.nome as nome_grupo, t.aprovar_ao_publicar, "
-			+ "m.estado as mc_estado, m.data_inicio, m.id_epoca, coalesce(nullif(ee.nome, ''), es.nome) as nome_equipa "
+			+ "m.estado as mc_estado, m.data_inicio, m.id_epoca, coalesce(nullif(ee.nome, ''), es.nome) as nome_equipa, "
+			// v6 (V11): fisico ligado ao principal; realizado e inicio da sessao derivados do principal
+			+ "t.id_treino_principal, tp.id_presenca as presenca_principal, "
+			+ "(select min(f.hora_inicio) from treino f where f.id_treino_principal = t.id) as inicio_fisicos "
 			+ "from treino t inner join micro_ciclo m on m.id = t.id_micro_ciclo "
+			+ "left join treino tp on tp.id = t.id_treino_principal "
 			// v5 (W1): left join, para os eventos sem equipa (id_equipa NULL, id_grupo preenchido)
 			+ "left join escalao_epoca ee on ee.id = t.id_equipa "
 			+ "left join grupo_evento g on g.id = t.id_grupo and g.tenant_id = m.tenant_id "
@@ -128,9 +137,26 @@ public class MicroCicloHelper {
 		String origemCancelamento;
 		/** Epoca da equipa (escalao_epoca.id_epoca). */
 		int equipaEpoca;
+		/** v6: principal de um fisico ligado (null = treino autonomo). */
+		Integer idPrincipal;
+		/** v6: hora de inicio mais cedo dos fisicos ligados a este treino (null = sem fisicos). */
+		String inicioFisicos;
+		/** v6: o principal deste fisico ligado ja tem presenca. */
+		boolean presencaPrincipal;
 
 		boolean realizado() {
-			return APROVADO.equals(estadoBD) && d.getIdPresenca() != null;
+			return APROVADO.equals(estadoBD) && (d.getIdPresenca() != null || presencaPrincipal);
+		}
+
+		/** v6 (X1): fisico ligado a um treino principal. */
+		boolean ligado() {
+			return idPrincipal != null;
+		}
+
+		/** v6 (X7, R176): o inicio mais cedo da sessao (HH:MM compara-se como texto). */
+		String inicioSessao() {
+			return inicioFisicos != null && inicioFisicos.compareTo(d.getHoraInicio()) < 0 ? inicioFisicos
+					: d.getHoraInicio();
 		}
 
 		/** v5 (W1): evento do clube (grupo, sem equipa nem convocatoria). */
@@ -362,8 +388,136 @@ public class MicroCicloHelper {
 		d.setIdGrupo(rs.getInt("id_grupo")); // 0 nos treinos; id_equipa NULL da 0 nos eventos
 		d.setNomeGrupo(rs.getString("nome_grupo"));
 		d.setAprovarAoPublicar("1".equals(rs.getString("aprovar_ao_publicar")));
+		t.idPrincipal = getInteger(rs, "id_treino_principal");
+		t.presencaPrincipal = getInteger(rs, "presenca_principal") != null;
+		t.inicioFisicos = rs.getString("inicio_fisicos");
+		d.setIdTreinoPrincipal(t.idPrincipal);
+		d.setInicioSessao(t.inicioSessao());
+		if ("ESCALAO".equals(d.getTipo()) && !t.evento()) {
+			d.setFisicos(new ArrayList<>()); // v6: so os ESCALAO de equipa tem fisicos (null nos outros)
+		}
 		d.setEstado(t.realizado() ? REALIZADO : t.estadoBD);
 		return t;
+	}
+
+	/** v6 (X6): ANTES, DURANTE (sem fim conta se comecar antes do fim do principal) ou DEPOIS. */
+	static String posicaoFisico(TreinoData parmPrincipal, String parmInicio, String parmFim) {
+		int inicio = minutos(parmInicio);
+		int fimPrincipal = minutosFim(parmPrincipal);
+		if (inicio < minutos(parmPrincipal.getHoraInicio())) {
+			return "ANTES";
+		}
+		if (inicio < fimPrincipal && (parmFim == null || minutos(parmFim) <= fimPrincipal)) {
+			return "DURANTE";
+		}
+		return "DEPOIS";
+	}
+
+	static String intervalo(FisicoData parmFisico) {
+		return parmFisico.getHoraFim() != null ? parmFisico.getHoraInicio() + "–" + parmFisico.getHoraFim()
+				: "a partir das " + parmFisico.getHoraInicio();
+	}
+
+	/** v6: " (inclui físico 17:00–18:00, ...)" ou "" (texto do historico). */
+	static String incluiFisicos(List<? extends FisicoData> parmFisicos) {
+		if (parmFisicos == null || parmFisicos.isEmpty()) {
+			return "";
+		}
+		List<String> intervalos = new ArrayList<>();
+		for (FisicoData f : parmFisicos) {
+			intervalos.add(intervalo(f));
+		}
+		return " (inclui físico " + String.join(", ", intervalos) + ")";
+	}
+
+	/** v6: fisicos ligados aos principais pedidos (do tenant), por hora, com a posicao. */
+	static Map<Integer, List<FisicoStaffData>> fisicosDe(Connection conn, int parmTenantId,
+			java.util.Collection<Integer> parmIdsPrincipais) throws SQLException {
+		Map<Integer, List<FisicoStaffData>> mapa = new HashMap<>();
+		if (parmIdsPrincipais == null || parmIdsPrincipais.isEmpty()) {
+			return mapa;
+		}
+		String marcas = String.join(", ", java.util.Collections.nCopies(parmIdsPrincipais.size(), "?"));
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select f.id, f.id_treino_principal, "
+				+ "f.hora_inicio, f.hora_fim, f.local_treino, f.sub_grupo, p.hora_inicio as p_inicio, p.hora_fim as p_fim "
+				+ "from treino f inner join treino p on p.id = f.id_treino_principal "
+				+ "inner join micro_ciclo m on m.id = p.id_micro_ciclo where m.tenant_id = ? "
+				+ "and f.id_treino_principal in (" + marcas + ") order by f.hora_inicio, f.id")) {
+			int i = 1;
+			preparedStatement.setInt(i++, parmTenantId);
+			for (Integer id : parmIdsPrincipais) {
+				preparedStatement.setInt(i++, id);
+			}
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					TreinoData principal = new TreinoData();
+					principal.setHoraInicio(rs.getString("p_inicio"));
+					principal.setHoraFim(rs.getString("p_fim"));
+					FisicoStaffData f = new FisicoStaffData();
+					f.setId(rs.getInt("id"));
+					f.setHoraInicio(rs.getString("hora_inicio"));
+					f.setHoraFim(rs.getString("hora_fim"));
+					f.setLocal(rs.getString("local_treino"));
+					f.setSubGrupo(rs.getString("sub_grupo"));
+					f.setPosicao(posicaoFisico(principal, f.getHoraInicio(), f.getHoraFim()));
+					mapa.computeIfAbsent(rs.getInt("id_treino_principal"), k -> new ArrayList<>()).add(f);
+				}
+			}
+		}
+		return mapa;
+	}
+
+	/** v6: fisicos de um so principal (lista vazia se nao tiver). */
+	static List<FisicoStaffData> fisicosDe(Connection conn, int parmTenantId, int parmIdPrincipal) throws SQLException {
+		return fisicosDe(conn, parmTenantId, List.of(parmIdPrincipal)).getOrDefault(parmIdPrincipal, new ArrayList<>());
+	}
+
+	/**
+	 * v6 (X2): copia do principal para os fisicos ligados o estado, a aprovacao, a equipa e a data. Por um
+	 * principal (parmIdPrincipal) ou por todos os de um micro ciclo (parmIdMicroCiclo); o outro a null.
+	 */
+	static void propagaSessao(Connection conn, int parmTenantId, Integer parmIdPrincipal, Integer parmIdMicroCiclo)
+			throws SQLException {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("update treino f "
+				+ "inner join treino p on p.id = f.id_treino_principal inner join micro_ciclo m on m.id = p.id_micro_ciclo "
+				+ "set f.estado = p.estado, f.motivo_estado = p.motivo_estado, f.origem_cancelamento = p.origem_cancelamento, "
+				+ "f.data_aprovacao = p.data_aprovacao, f.id_utilizador_aprovacao = p.id_utilizador_aprovacao, "
+				+ "f.id_equipa = p.id_equipa, f.`data` = p.`data`, f.versao = f.versao + 1 "
+				+ "where m.tenant_id = ? and (p.id = ? or p.id_micro_ciclo = ?)")) {
+			preparedStatement.setInt(1, parmTenantId);
+			if (parmIdPrincipal == null) {
+				preparedStatement.setNull(2, java.sql.Types.INTEGER);
+			} else {
+				preparedStatement.setInt(2, parmIdPrincipal);
+			}
+			if (parmIdMicroCiclo == null) {
+				preparedStatement.setNull(3, java.sql.Types.INTEGER);
+			} else {
+				preparedStatement.setInt(3, parmIdMicroCiclo);
+			}
+			preparedStatement.executeUpdate();
+		}
+	}
+
+	/** v6: insere um fisico ligado (sem convocatoria propria); o estado e acertado por propagaSessao. */
+	private static int insereFisico(Connection conn, int parmIdMicroCiclo, int parmIdPrincipal, int parmIdEquipa,
+			int parmData, FisicoData parmFisico, String parmEstado, int parmIdUtilizador) throws SQLException {
+		TreinoData f = new TreinoData();
+		f.setIdEquipa(parmIdEquipa);
+		f.setTipo("FISICO");
+		f.setSubGrupo(parmFisico.getSubGrupo());
+		f.setData(parmData);
+		f.setHoraInicio(parmFisico.getHoraInicio());
+		f.setHoraFim(parmFisico.getHoraFim());
+		f.setLocal(parmFisico.getLocal());
+		int id = insereTreino(conn, parmIdMicroCiclo, f, parmEstado, parmIdUtilizador);
+		try (PreparedStatement preparedStatement = conn
+				.prepareStatement("update treino set id_treino_principal = ? where id = ?")) {
+			preparedStatement.setInt(1, parmIdPrincipal);
+			preparedStatement.setInt(2, id);
+			preparedStatement.executeUpdate();
+		}
+		return id;
 	}
 
 	/** @throws AcessoNegadoException treino inexistente ou de outro tenant */
@@ -406,7 +560,7 @@ public class MicroCicloHelper {
 	}
 
 	private static void preencheDerivados(Treino t, Identidade parmIdentidade, Set<Integer> parmEquipas) {
-		boolean passou = inicioPassou(t.d.getData(), t.d.getHoraInicio());
+		boolean passou = inicioPassou(t.d.getData(), t.inicioSessao());
 		boolean pendente = PENDENTE.equals(t.estadoBD);
 		t.d.setNaoAprovadoATempo(pendente && passou);
 		t.d.setPodeAprovar(pendente && !passou && podeAgirNaEquipa(parmIdentidade, t.d.getIdEquipa(), parmEquipas));
@@ -486,18 +640,234 @@ public class MicroCicloHelper {
 		preparedStatement.executeUpdate();
 	}
 
-	private static Map<Integer, Integer> ausenciasAtivasPorTreino(Connection conn, int parmIdMicroCiclo)
+	/** v7: jogadores com ausencia ativa, por treino do micro ciclo (a contagem e o tamanho do conjunto). */
+	private static Map<Integer, Set<Integer>> ausenciasAtivasPorTreino(Connection conn, int parmIdMicroCiclo)
 			throws SQLException {
-		PreparedStatement preparedStatement = conn.prepareStatement("select ta.id_treino, count(*) from treino_ausencia ta "
-				+ "inner join treino t on t.id = ta.id_treino where t.id_micro_ciclo = ? and ta.estado = 'ATIVA' "
-				+ "group by ta.id_treino");
-		preparedStatement.setInt(1, parmIdMicroCiclo);
-		ResultSet rs = preparedStatement.executeQuery();
-		Map<Integer, Integer> contagens = new HashMap<>();
-		while (rs.next()) {
-			contagens.put(rs.getInt(1), rs.getInt(2));
+		Map<Integer, Set<Integer>> ausencias = new HashMap<>();
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select ta.id_treino, ta.id_jogador "
+				+ "from treino_ausencia ta inner join treino t on t.id = ta.id_treino where t.id_micro_ciclo = ? "
+				+ "and ta.estado = 'ATIVA'")) {
+			preparedStatement.setInt(1, parmIdMicroCiclo);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					ausencias.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
+				}
+			}
 		}
-		return contagens;
+		return ausencias;
+	}
+
+	/** v7 (X1): quem nao faz cada fisico (treino_fisico_excluido), dos fisicos pedidos do tenant. */
+	static Map<Integer, Set<Integer>> excluidosDe(Connection conn, int parmTenantId,
+			java.util.Collection<Integer> parmIdsFisicos) throws SQLException {
+		Map<Integer, Set<Integer>> mapa = new HashMap<>();
+		if (parmIdsFisicos == null || parmIdsFisicos.isEmpty()) {
+			return mapa;
+		}
+		String marcas = String.join(", ", java.util.Collections.nCopies(parmIdsFisicos.size(), "?"));
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select x.id_treino, x.id_jogador "
+				+ "from treino_fisico_excluido x inner join treino f on f.id = x.id_treino "
+				+ "inner join micro_ciclo m on m.id = f.id_micro_ciclo where m.tenant_id = ? "
+				+ "and x.id_treino in (" + marcas + ")")) {
+			int i = 1;
+			preparedStatement.setInt(i++, parmTenantId);
+			for (Integer id : parmIdsFisicos) {
+				preparedStatement.setInt(i++, id);
+			}
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					mapa.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
+				}
+			}
+		}
+		return mapa;
+	}
+
+	// ==================== v8: confirmacao "Vou" (Y1, Y2) ====================
+
+	static final String VOU = "VOU";
+	static final String NAO_VOU = "NAO_VOU";
+	static final String SEM_RESPOSTA = "SEM_RESPOSTA";
+	static final String CADUCADA = "CADUCADA";
+	static final String SEM_CONTA = "SEM_CONTA";
+
+	/** Linha de treino_confirmacao. */
+	static final class Confirmacao {
+		String sessao;
+		String avisada;
+		Timestamp data;
+	}
+
+	private static String parteSessao(String parmInicio, String parmFim, String parmLocal) {
+		return parmInicio + "|" + (parmFim == null ? "" : parmFim) + "|"
+				+ (parmLocal == null ? "" : parmLocal.trim().toLowerCase());
+	}
+
+	/**
+	 * Y2: texto canonico da sessao do atleta: "data|inicio|fim|local" do principal e, por inicio, ";inicio|fim|local"
+	 * de cada fisico que faz. Ex.: "20261118|18:00|19:30|pavilhão;17:00|18:00|ginásio".
+	 */
+	static String sessaoDoAtleta(TreinoData parmPrincipal, List<? extends FisicoData> parmFisicosDoAtleta) {
+		StringBuilder sessao = new StringBuilder(parmPrincipal.getData() + "|"
+				+ parteSessao(parmPrincipal.getHoraInicio(), parmPrincipal.getHoraFim(), parmPrincipal.getLocal()));
+		List<FisicoData> fisicos = new ArrayList<>(parmFisicosDoAtleta);
+		fisicos.sort(java.util.Comparator.comparing(FisicoData::getHoraInicio));
+		for (FisicoData f : fisicos) {
+			sessao.append(';').append(parteSessao(f.getHoraInicio(), f.getHoraFim(), f.getLocal()));
+		}
+		return sessao.toString();
+	}
+
+	/**
+	 * Y2, R227: caducou se a parte do principal mudou ou se um fisico que o atleta faz agora nao estava na confirmada.
+	 * Sair de um fisico nao faz caducar. Ex.: caducou("d|18:00|19:30|p;17:00|18:00|g", "d|18:00|19:30|p") = false.
+	 */
+	static boolean caducou(String parmConfirmada, String parmAtual) {
+		String[] confirmada = parmConfirmada.split(";", -1);
+		String[] atual = parmAtual.split(";", -1);
+		if (!confirmada[0].equals(atual[0])) {
+			return true;
+		}
+		Set<String> fisicosConfirmados = new HashSet<>(java.util.Arrays.asList(confirmada).subList(1, confirmada.length));
+		for (int i = 1; i < atual.length; i++) {
+			if (!fisicosConfirmados.contains(atual[i])) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Confirmacoes das sessoes pedidas (do tenant): sessao -> jogador -> confirmacao. */
+	static Map<Integer, Map<Integer, Confirmacao>> confirmacoesDe(Connection conn, int parmTenantId,
+			java.util.Collection<Integer> parmIdsSessoes) throws SQLException {
+		Map<Integer, Map<Integer, Confirmacao>> mapa = new HashMap<>();
+		if (parmIdsSessoes == null || parmIdsSessoes.isEmpty()) {
+			return mapa;
+		}
+		String marcas = String.join(", ", java.util.Collections.nCopies(parmIdsSessoes.size(), "?"));
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select c.id_treino, c.id_jogador, "
+				+ "c.sessao_confirmada, c.sessao_avisada, c.data_confirmacao from treino_confirmacao c "
+				+ "inner join treino t on t.id = c.id_treino inner join micro_ciclo m on m.id = t.id_micro_ciclo "
+				+ "where m.tenant_id = ? and c.id_treino in (" + marcas + ")")) {
+			int i = 1;
+			preparedStatement.setInt(i++, parmTenantId);
+			for (Integer id : parmIdsSessoes) {
+				preparedStatement.setInt(i++, id);
+			}
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					Confirmacao c = new Confirmacao();
+					c.sessao = rs.getString(3);
+					c.avisada = rs.getString(4);
+					c.data = rs.getTimestamp(5);
+					mapa.computeIfAbsent(rs.getInt(1), k -> new HashMap<>()).put(rs.getInt(2), c);
+				}
+			}
+		}
+		return mapa;
+	}
+
+	/** §1.1: jogadores com conta ATLETA ativa no tenant (a regra de notificaAtleta). */
+	static Set<Integer> comConta(Connection conn, int parmTenantId, java.util.Collection<Integer> parmIdsJogadores)
+			throws SQLException {
+		Set<Integer> contas = new HashSet<>();
+		if (parmIdsJogadores == null || parmIdsJogadores.isEmpty()) {
+			return contas;
+		}
+		String marcas = String.join(", ", java.util.Collections.nCopies(parmIdsJogadores.size(), "?"));
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select distinct u.id_jogador from utilizadores u "
+				+ "where u.tenant_id = ? and u.estado = '1' and upper(u.perfil) = 'ATLETA' and u.id_jogador in (" + marcas
+				+ ")")) {
+			int i = 1;
+			preparedStatement.setInt(i++, parmTenantId);
+			for (Integer id : parmIdsJogadores) {
+				preparedStatement.setInt(i++, id);
+			}
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					contas.add(rs.getInt(1));
+				}
+			}
+		}
+		return contas;
+	}
+
+	/** Ordem: ausencia ativa -> NAO_VOU; sem conta -> SEM_CONTA; caducada -> CADUCADA; confirmacao -> VOU; SEM_RESPOSTA. */
+	static String estadoResposta(boolean parmAusente, boolean parmComConta, Confirmacao parmConfirmacao,
+			String parmSessaoAtual) {
+		if (parmAusente) {
+			return NAO_VOU;
+		}
+		if (!parmComConta) {
+			return SEM_CONTA;
+		}
+		if (parmConfirmacao != null) {
+			return caducou(parmConfirmacao.sessao, parmSessaoAtual) ? CADUCADA : VOU;
+		}
+		return SEM_RESPOSTA;
+	}
+
+	/** v8 (Y5): apaga as confirmacoes de uma sessao (todas, ou so a do jogador). */
+	private static void apagaConfirmacoes(Connection conn, int parmIdTreino, Integer parmIdJogador) throws SQLException {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("delete from treino_confirmacao where id_treino = ?"
+				+ (parmIdJogador != null ? " and id_jogador = ?" : ""))) {
+			preparedStatement.setInt(1, parmIdTreino);
+			if (parmIdJogador != null) {
+				preparedStatement.setInt(2, parmIdJogador);
+			}
+			preparedStatement.executeUpdate();
+		}
+	}
+
+	/** v8: grava (ou renova) o "Vou" com a sessao que o atleta viu; limpa a sessao_avisada. */
+	private static void gravaConfirmacao(Connection conn, int parmIdTreino, int parmIdJogador, String parmSessao,
+			int parmIdUtilizador) throws SQLException {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("insert into treino_confirmacao(id_treino, "
+				+ "id_jogador, sessao_confirmada, sessao_avisada, data_confirmacao, id_utilizador) values (?, ?, ?, null, now(), ?) "
+				+ "on duplicate key update sessao_confirmada = values(sessao_confirmada), sessao_avisada = null, "
+				+ "data_confirmacao = now(), id_utilizador = values(id_utilizador)")) {
+			preparedStatement.setInt(1, parmIdTreino);
+			preparedStatement.setInt(2, parmIdJogador);
+			preparedStatement.setString(3, parmSessao);
+			preparedStatement.setInt(4, parmIdUtilizador);
+			preparedStatement.executeUpdate();
+		}
+	}
+
+	/** v8: a sessao atual do jogador: o principal e os fisicos dele de que nao esta excluido. */
+	static String sessaoDoJogador(TreinoData parmPrincipal, List<? extends FisicoData> parmFisicos,
+			Map<Integer, Set<Integer>> parmExcluidos, int parmIdJogador) {
+		List<FisicoData> meus = new ArrayList<>();
+		if (parmFisicos != null) {
+			for (FisicoData f : parmFisicos) {
+				if (!parmExcluidos.getOrDefault(f.getId(), Set.of()).contains(parmIdJogador)) {
+					meus.add(f);
+				}
+			}
+		}
+		return sessaoDoAtleta(parmPrincipal, meus);
+	}
+
+	/** v8: um fisico ligado (linha de treino) como FisicoData, para a sessao do atleta. */
+	private static FisicoData comoFisico(TreinoData parmFisico) {
+		FisicoData f = new FisicoData();
+		f.setId(parmFisico.getId());
+		f.setHoraInicio(parmFisico.getHoraInicio());
+		f.setHoraFim(parmFisico.getHoraFim());
+		f.setLocal(parmFisico.getLocal());
+		return f;
+	}
+
+	/** v7: a convocatoria sem os excluidos (os participantes do fisico). */
+	private static List<TreinoConvocadoData> participantes(List<TreinoConvocadoData> parmConvocatoria,
+			Set<Integer> parmExcluidos) {
+		List<TreinoConvocadoData> lista = new ArrayList<>();
+		for (TreinoConvocadoData c : parmConvocatoria) {
+			if (parmExcluidos == null || !parmExcluidos.contains(c.getIdJogador())) {
+				lista.add(c);
+			}
+		}
+		return lista;
 	}
 
 	/** Treinos do micro ciclo, com contagens, derivados e avisos (R12, R17). */
@@ -512,16 +882,97 @@ public class MicroCicloHelper {
 			treinos.add(lerTreino(rs));
 		}
 		Set<Integer> equipas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
-		Map<Integer, Integer> ausencias = ausenciasAtivasPorTreino(conn, parmIdMicroCiclo);
+		Map<Integer, Set<Integer>> ausencias = ausenciasAtivasPorTreino(conn, parmIdMicroCiclo);
 		Map<Integer, List<TreinoConvocadoData>> convocatorias = new HashMap<>();
 		Map<Integer, String> cores = coresEquipas(conn, parmIdentidade.getTenantId());
+		Map<Integer, Treino> porId = new HashMap<>();
+		List<Integer> idsLigados = new ArrayList<>();
+		for (Treino t : treinos) {
+			porId.put(t.d.getId(), t);
+			if (t.ligado()) {
+				idsLigados.add(t.d.getId());
+			}
+		}
+		Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, parmIdentidade.getTenantId(), idsLigados);
+		Map<Integer, FisicoStaffData> resumos = new HashMap<>();
 		for (Treino t : treinos) {
 			t.d.setCorEquipa(cores.get(t.d.getIdEquipa()));
-			List<TreinoConvocadoData> conv = convocatoriaEfetiva(conn, t);
-			convocatorias.put(t.d.getId(), conv);
-			t.d.setNumConvocados(conv.size());
-			t.d.setNumAusencias(ausencias.getOrDefault(t.d.getId(), 0));
+			Treino principal = t.ligado() ? porId.get(t.idPrincipal) : null;
+			if (t.ligado() && principal != null) {
+				// v6 (X3): o fisico ligado entra no resumo do principal; a convocatoria e a do principal
+				FisicoStaffData f = new FisicoStaffData();
+				f.setId(t.d.getId());
+				f.setHoraInicio(t.d.getHoraInicio());
+				f.setHoraFim(t.d.getHoraFim());
+				f.setLocal(t.d.getLocal());
+				f.setSubGrupo(t.d.getSubGrupo());
+				f.setPosicao(posicaoFisico(principal.d, f.getHoraInicio(), f.getHoraFim()));
+				if (principal.d.getFisicos() != null) {
+					principal.d.getFisicos().add(f);
+				}
+				resumos.put(t.d.getId(), f);
+			} else {
+				List<TreinoConvocadoData> conv = convocatoriaEfetiva(conn, t);
+				convocatorias.put(t.d.getId(), conv);
+				t.d.setNumConvocados(conv.size());
+				t.d.setNumAusencias(ausencias.getOrDefault(t.d.getId(), Set.of()).size());
+			}
 			preencheDerivados(t, parmIdentidade, equipas);
+		}
+		for (Treino t : treinos) {
+			Treino principal = t.ligado() ? porId.get(t.idPrincipal) : null;
+			if (principal != null) {
+				// v7 (R201): os avisos de jogadores do fisico so contam os participantes
+				List<TreinoConvocadoData> part = participantes(
+						convocatorias.getOrDefault(principal.d.getId(), new ArrayList<>()), excluidos.get(t.d.getId()));
+				convocatorias.put(t.d.getId(), part);
+				t.d.setNumConvocados(principal.d.getNumConvocados()); // compativel com os builds v6
+				t.d.setNumAusencias(principal.d.getNumAusencias());
+				Set<Integer> ausentes = ausencias.getOrDefault(principal.d.getId(), Set.of());
+				int numAusencias = 0;
+				for (TreinoConvocadoData c : part) {
+					if (ausentes.contains(c.getIdJogador())) {
+						numAusencias++;
+					}
+				}
+				FisicoStaffData resumo = resumos.get(t.d.getId());
+				resumo.setNumParticipantes(part.size());
+				resumo.setNumAusencias(numAusencias);
+			}
+		}
+		// v8 (Y9): respostas das sessoes Aprovadas (e Realizadas), com 2 consultas por micro ciclo
+		List<Integer> idsSessoes = new ArrayList<>();
+		Set<Integer> idsConvocados = new HashSet<>();
+		for (Treino t : treinos) {
+			if (!t.ligado() && !t.evento() && APROVADO.equals(t.estadoBD)) {
+				idsSessoes.add(t.d.getId());
+				for (TreinoConvocadoData c : convocatorias.getOrDefault(t.d.getId(), new ArrayList<>())) {
+					idsConvocados.add(c.getIdJogador());
+				}
+			}
+		}
+		Map<Integer, Map<Integer, Confirmacao>> confirmacoes = confirmacoesDe(conn, parmIdentidade.getTenantId(),
+				idsSessoes);
+		Set<Integer> contas = comConta(conn, parmIdentidade.getTenantId(), idsConvocados);
+		for (Integer idSessao : idsSessoes) {
+			Treino t = porId.get(idSessao);
+			sm.core.data.ContagemRespostasData r = new sm.core.data.ContagemRespostasData();
+			for (TreinoConvocadoData c : convocatorias.getOrDefault(idSessao, new ArrayList<>())) {
+				String estado = estadoResposta(ausencias.getOrDefault(idSessao, Set.of()).contains(c.getIdJogador()),
+						contas.contains(c.getIdJogador()), confirmacoes.getOrDefault(idSessao, Map.of()).get(c.getIdJogador()),
+						sessaoDoJogador(t.d, t.d.getFisicos(), excluidos, c.getIdJogador()));
+				if (VOU.equals(estado)) {
+					r.setVao(r.getVao() + 1);
+				} else if (NAO_VOU.equals(estado)) {
+					r.setNaoVao(r.getNaoVao() + 1);
+				} else {
+					r.setSemResposta(r.getSemResposta() + 1);
+					if (SEM_CONTA.equals(estado)) {
+						r.setSemConta(r.getSemConta() + 1);
+					}
+				}
+			}
+			t.d.setRespostas(r);
 		}
 		List<JogoSemanaData> jogos = treinos.isEmpty() ? new ArrayList<>()
 				: jogosSemana(conn, parmIdentidade.getTenantId(), treinos.get(0).dataInicio, null);
@@ -535,10 +986,18 @@ public class MicroCicloHelper {
 	/** R12, R17, R97: so avisam, nunca bloqueiam. Cancelados nao contam. */
 	private static void avisos(List<Treino> parmTreinos, Map<Integer, List<TreinoConvocadoData>> parmConvocatorias,
 			List<JogoSemanaData> parmJogos) {
+		Map<Integer, Treino> porId = new HashMap<>();
+		for (Treino t : parmTreinos) {
+			porId.put(t.d.getId(), t);
+		}
 		for (Treino a : parmTreinos) {
 			if (CANCELADO.equals(a.estadoBD)) {
 				continue;
 			}
+			// v6 (R173): os avisos de um fisico ligado vao para o principal, com o prefixo do fisico
+			Treino principalA = a.ligado() ? porId.get(a.idPrincipal) : null;
+			List<String> destino = principalA != null ? principalA.d.getAvisos() : a.d.getAvisos();
+			String prefixo = principalA != null ? "Físico " + intervalo(a.d) + ": " : "";
 			// v4 (W4): treino da mesma equipa sobreposto a [concentracao, hora + 90]
 			for (JogoSemanaData j : parmJogos) {
 				if (j.getIdEquipa() != a.d.getIdEquipa() || j.getData() != a.d.getData() || j.getHora() == null
@@ -546,22 +1005,22 @@ public class MicroCicloHelper {
 					continue;
 				}
 				boolean temConcentracao = j.getHoraConcentracao() != null && HORA.matcher(j.getHoraConcentracao()).matches();
-				int inicioJogo = temConcentracao ? minutos(j.getHoraConcentracao()) : minutos(j.getHora()) - 60;
-				int fimJogo = minutos(j.getHora()) + DURACAO_JOGO_MIN;
-				if (minutos(a.d.getHoraInicio()) < fimJogo && inicioJogo < minutosFim(a.d)) {
-					a.d.getAvisos().add("Coincide com o jogo da equipa ("
+				int[] intervaloJogo = intervaloJogo(j);
+				if (minutos(a.d.getHoraInicio()) < intervaloJogo[1] && intervaloJogo[0] < minutosFim(a.d)) {
+					destino.add(prefixo + "Coincide com o jogo da equipa ("
 							+ (temConcentracao ? "concentração " + j.getHoraConcentracao() + ", " : "") + "jogo "
 							+ j.getHora() + ")");
 				}
 			}
 			for (Treino b : parmTreinos) {
-				if (a == b || CANCELADO.equals(b.estadoBD) || !sobrepostos(a.d, b.d)) {
+				// v6 (R173): sem avisos dentro da mesma sessao (principal e os seus fisicos)
+				if (sessao(a) == sessao(b) || CANCELADO.equals(b.estadoBD) || !sobrepostos(a.d, b.d)) {
 					continue;
 				}
 				if (a.evento() || b.evento()) {
 					// v5 (R130): os eventos so entram no aviso de local
 				} else if (a.d.getIdEquipa() == b.d.getIdEquipa()) {
-					a.d.getAvisos().add(b.d.getNomeEquipa() + " já tem treino " + intervaloTexto(b.d) + " neste dia");
+					destino.add(prefixo + b.d.getNomeEquipa() + " já tem treino " + intervaloTexto(b.d) + " neste dia");
 				} else {
 					Set<Integer> idsB = new HashSet<>();
 					for (TreinoConvocadoData c : parmConvocatorias.get(b.d.getId())) {
@@ -569,17 +1028,29 @@ public class MicroCicloHelper {
 					}
 					for (TreinoConvocadoData c : parmConvocatorias.get(a.d.getId())) {
 						if (idsB.contains(c.getIdJogador())) {
-							a.d.getAvisos().add(c.getNome() + " também está convocado para " + b.d.getNomeEquipa()
+							destino.add(prefixo + c.getNome() + " também está convocado para " + b.d.getNomeEquipa()
 									+ " (" + intervalo(b.d) + ")");
 						}
 					}
 				}
 				if (a.d.getLocal() != null && b.d.getLocal() != null && a.d.getLocal().equalsIgnoreCase(b.d.getLocal())) {
-					a.d.getAvisos().add(a.d.getLocal() + " já está ocupado " + intervaloTexto(b.d) + " ("
+					destino.add(prefixo + a.d.getLocal() + " já está ocupado " + intervaloTexto(b.d) + " ("
 							+ b.d.getNomeEquipa() + ")");
 				}
 			}
 		}
+	}
+
+	/** Q54: o jogo ocupa [concentracao (ou hora - 60), hora + 90], em minutos. Exige hora HH:MM valida. */
+	static int[] intervaloJogo(JogoSemanaData j) {
+		boolean temConcentracao = j.getHoraConcentracao() != null && HORA.matcher(j.getHoraConcentracao()).matches();
+		int inicio = temConcentracao ? minutos(j.getHoraConcentracao()) : minutos(j.getHora()) - 60;
+		return new int[] { inicio, minutos(j.getHora()) + DURACAO_JOGO_MIN };
+	}
+
+	/** v6: a sessao de um treino (o principal, para um fisico ligado). */
+	private static int sessao(Treino t) {
+		return t.idPrincipal != null ? t.idPrincipal : t.d.getId();
 	}
 
 	private static String intervaloTexto(TreinoData parmTreino) {
@@ -660,6 +1131,10 @@ public class MicroCicloHelper {
 						semana.getEquipasSemTreinador().add(idEquipa);
 					}
 				}
+				int atual = segundaDe(hoje());
+				if (parmIdentidade.isAdmin() && (segunda == atual || segunda == somaDias(atual, 7))) {
+					semana.setFisicosLigaveis(fisicosLigaveis(conn, tenant, mc.getId()));
+				}
 			}
 
 			PreparedStatement psFora = conn.prepareStatement("select p.id, p.id_equipa, "
@@ -691,6 +1166,49 @@ public class MicroCicloHelper {
 			}
 			return semana;
 		});
+	}
+
+	/**
+	 * v6 (X12, R186): fisicos avulsos (nao cancelados, nao realizados, por comecar) com exatamente um ESCALAO
+	 * candidato da mesma equipa e dia no micro ciclo (nao cancelado, nao realizado, sessao por comecar).
+	 */
+	private static List<Map<String, Integer>> fisicosLigaveis(Connection conn, int parmTenantId, int parmIdMicroCiclo)
+			throws SQLException {
+		Map<Integer, List<Integer>> candidatos = new LinkedHashMap<>();
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select f.id, f.`data`, f.hora_inicio, "
+				+ "p.id as id_p, p.hora_inicio as p_inicio, "
+				+ "(select min(x.hora_inicio) from treino x where x.id_treino_principal = p.id) as p_fisicos "
+				+ "from treino f inner join micro_ciclo m on m.id = f.id_micro_ciclo "
+				+ "inner join treino p on p.id_micro_ciclo = f.id_micro_ciclo and p.id_equipa = f.id_equipa "
+				+ "and p.`data` = f.`data` and p.tipo = 'ESCALAO' and p.id_grupo is null and p.id_treino_principal is null "
+				+ "and p.estado <> 'CANCELADO' and p.id_presenca is null "
+				+ "where m.tenant_id = ? and m.id = ? and f.tipo = 'FISICO' and f.id_treino_principal is null "
+				+ "and f.id_grupo is null and f.estado <> 'CANCELADO' and f.id_presenca is null order by f.id, p.id")) {
+			preparedStatement.setInt(1, parmTenantId);
+			preparedStatement.setInt(2, parmIdMicroCiclo);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					int data = rs.getInt("data");
+					String inicioP = rs.getString("p_inicio");
+					String fisicosP = rs.getString("p_fisicos");
+					String sessaoP = fisicosP != null && fisicosP.compareTo(inicioP) < 0 ? fisicosP : inicioP;
+					if (inicioPassou(data, rs.getString("hora_inicio")) || inicioPassou(data, sessaoP)) {
+						continue;
+					}
+					candidatos.computeIfAbsent(rs.getInt("id"), k -> new ArrayList<>()).add(rs.getInt("id_p"));
+				}
+			}
+		}
+		List<Map<String, Integer>> lista = new ArrayList<>();
+		candidatos.forEach((idFisico, principais) -> {
+			if (principais.size() == 1) {
+				Map<String, Integer> item = new LinkedHashMap<>();
+				item.put("idFisico", idFisico);
+				item.put("idPrincipal", principais.get(0));
+				lista.add(item);
+			}
+		});
+		return lista;
 	}
 
 	// ==================== 2. criar / copiar ====================
@@ -754,7 +1272,12 @@ public class MicroCicloHelper {
 				}
 				PreparedStatement psEquipa = conn
 						.prepareStatement("select 1 from escalao_epoca where id = ? and id_epoca = ?");
+				// v6 (R184): primeiro os treinos autonomos (idAntigo -> idNovo), depois os fisicos ligados
+				Map<Integer, Integer> copiados = new HashMap<>();
 				for (Treino t : treinos) {
+					if (t.ligado()) {
+						continue;
+					}
 					String descricao = (t.evento() ? t.d.getNomeGrupo() : t.d.getNomeEquipa()) + " " + dia(t.d.getData()) + " "
 							+ t.d.getHoraInicio();
 					psEquipa.setInt(1, t.d.getIdEquipa());
@@ -770,9 +1293,34 @@ public class MicroCicloHelper {
 						lista.add(descricao + ": o dia já passou, treino não copiado");
 						continue;
 					}
+					int idAntigo = t.d.getId();
 					t.d.setData(novaData);
 					int idTreino = insereTreino(conn, idMicroCiclo, t.d, RASCUNHO, utilizador);
 					insereConvocatoriaOmissao(conn, idTreino, t.d.getIdEquipa(), utilizador);
+					copiados.put(idAntigo, idTreino);
+				}
+				for (Treino t : treinos) {
+					if (!t.ligado()) {
+						continue;
+					}
+					String descricao = "Físico " + t.d.getNomeEquipa() + " " + dia(t.d.getData()) + " " + t.d.getHoraInicio();
+					Integer idPrincipalNovo = copiados.get(t.idPrincipal);
+					if (idPrincipalNovo == null) {
+						lista.add(descricao + ": treino principal não copiado, físico não copiado");
+						continue;
+					}
+					long dias = ChronoUnit.DAYS.between(paraData(copiarDe), paraData(t.d.getData()));
+					int novaData = somaDias(dataInicio, (int) dias);
+					if (inicioPassou(novaData, t.d.getHoraInicio())) {
+						lista.add(descricao + ": o dia já passou, treino não copiado");
+						continue;
+					}
+					FisicoStaffData f = new FisicoStaffData();
+					f.setHoraInicio(t.d.getHoraInicio());
+					f.setHoraFim(t.d.getHoraFim());
+					f.setLocal(t.d.getLocal());
+					f.setSubGrupo(t.d.getSubGrupo());
+					insereFisico(conn, idMicroCiclo, idPrincipalNovo, t.d.getIdEquipa(), novaData, f, RASCUNHO, utilizador);
 				}
 			}
 			historico(conn, idMicroCiclo, null, utilizador,
@@ -834,7 +1382,8 @@ public class MicroCicloHelper {
 			// v5 (W15): os eventos "Ja aprovado" passam logo a Aprovado
 			List<Integer> eventosAprovados = new ArrayList<>();
 			try (PreparedStatement psEventos = conn.prepareStatement("select id from treino where id_micro_ciclo = ? "
-					+ "and estado = 'RASCUNHO' and id_grupo is not null and aprovar_ao_publicar = '1'")) {
+					+ "and estado = 'RASCUNHO' and id_grupo is not null and aprovar_ao_publicar = '1' "
+					+ "and id_treino_principal is null")) {
 				psEventos.setInt(1, parmIdMicroCiclo);
 				try (ResultSet rsEventos = psEventos.executeQuery()) {
 					while (rsEventos.next()) {
@@ -850,16 +1399,17 @@ public class MicroCicloHelper {
 				}
 			}
 			PreparedStatement psTreinos = conn.prepareStatement("update treino set estado = 'PENDENTE', versao = versao + 1 "
-					+ "where id_micro_ciclo = ? and estado = 'RASCUNHO'");
+					+ "where id_micro_ciclo = ? and estado = 'RASCUNHO' and id_treino_principal is null");
 			psTreinos.setInt(1, parmIdMicroCiclo);
-			int n = psTreinos.executeUpdate() + eventosAprovados.size();
+			int n = psTreinos.executeUpdate() + eventosAprovados.size(); // v6 (R175): conta sessoes
+			propagaSessao(conn, tenant, null, parmIdMicroCiclo);
 			historico(conn, parmIdMicroCiclo, null, parmIdentidade.getIdUtilizador(),
 					"Micro ciclo publicado (" + n + " treinos)");
 
 			// Q31 (BK-12): uma notificacao por destinatario, com o numero de treinos das suas equipas
 			PreparedStatement psPendentes = conn.prepareStatement(
 					"select id, id_equipa from treino where id_micro_ciclo = ? and estado = 'PENDENTE' and id_grupo is null "
-					+ "order by `data`, hora_inicio");
+					+ "and id_treino_principal is null order by `data`, hora_inicio");
 			psPendentes.setInt(1, parmIdMicroCiclo);
 			ResultSet rsPendentes = psPendentes.executeQuery();
 			Map<Integer, List<Integer>> treinosPorEquipa = new LinkedHashMap<>();
@@ -914,7 +1464,7 @@ public class MicroCicloHelper {
 		try (PreparedStatement preparedStatement = conn.prepareStatement(SQL_TREINO + "and t.id_micro_ciclo = ? "
 				+ "and t.estado = 'CANCELADO' and (t.origem_cancelamento = 'MICRO_CICLO' "
 				+ "or (t.origem_cancelamento is null and t.motivo_estado = ?)) and (t.id_grupo is not null or ee.id_epoca = ?) "
-				+ "order by t.`data`, t.hora_inicio, t.id")) {
+				+ "and t.id_treino_principal is null order by t.`data`, t.hora_inicio, t.id")) {
 			preparedStatement.setInt(1, parmTenantId);
 			preparedStatement.setInt(2, parmMc.getId());
 			preparedStatement.setString(3, parmMc.getMotivoCancelamento());
@@ -922,7 +1472,7 @@ public class MicroCicloHelper {
 			try (ResultSet rs = preparedStatement.executeQuery()) {
 				while (rs.next()) {
 					Treino t = lerTreino(rs);
-					if (!inicioPassou(t.d.getData(), t.d.getHoraInicio())) {
+					if (!inicioPassou(t.d.getData(), t.inicioSessao())) {
 						treinos.add(t);
 					}
 				}
@@ -933,7 +1483,8 @@ public class MicroCicloHelper {
 
 	private static int contaCancelados(Connection conn, int parmIdMicroCiclo) throws SQLException {
 		try (PreparedStatement preparedStatement = conn
-				.prepareStatement("select count(*) from treino where id_micro_ciclo = ? and estado = 'CANCELADO'")) {
+				.prepareStatement("select count(*) from treino where id_micro_ciclo = ? and estado = 'CANCELADO' "
+						+ "and id_treino_principal is null")) {
 			preparedStatement.setInt(1, parmIdMicroCiclo);
 			try (ResultSet rs = preparedStatement.executeQuery()) {
 				return rs.next() ? rs.getInt(1) : 0;
@@ -982,6 +1533,7 @@ public class MicroCicloHelper {
 					}
 				}
 			}
+			propagaSessao(conn, tenant, null, parmIdMicroCiclo);
 			historico(conn, parmIdMicroCiclo, null, utilizador, "Micro ciclo reativado (" + n
 					+ " treinos de volta a Pendente, " + (ficam + voltam.size() - n) + " ficam cancelados)");
 			notificaPendentes(conn, parmIdentidade, treinosPorEquipa,
@@ -1042,10 +1594,20 @@ public class MicroCicloHelper {
 			// v4 (W1): origem MICRO_CICLO, para a reativacao saber quais voltam
 			PreparedStatement psTreinos = conn.prepareStatement("update treino set estado = 'CANCELADO', motivo_estado = ?, "
 					+ "origem_cancelamento = 'MICRO_CICLO', versao = versao + 1 where id_micro_ciclo = ? and estado <> 'CANCELADO' "
-					+ "and not (estado = 'APROVADO' and id_presenca is not null)");
+					+ "and not (estado = 'APROVADO' and id_presenca is not null) and id_treino_principal is null");
 			psTreinos.setString(1, motivo);
 			psTreinos.setInt(2, parmIdMicroCiclo);
 			psTreinos.executeUpdate();
+			// v6 (§1.3): os fisicos ligados seguem o principal (um realizado protege o seu fisico)
+			propagaSessao(conn, tenant, null, parmIdMicroCiclo);
+			// v8 (Y5, Q129): sem confirmacoes nos cancelados
+			try (PreparedStatement psConfirmacoes = conn.prepareStatement("delete c from treino_confirmacao c "
+					+ "inner join treino t on t.id = c.id_treino inner join micro_ciclo m on m.id = t.id_micro_ciclo "
+					+ "where m.id = ? and m.tenant_id = ? and t.estado = 'CANCELADO'")) {
+				psConfirmacoes.setInt(1, parmIdMicroCiclo);
+				psConfirmacoes.setInt(2, tenant);
+				psConfirmacoes.executeUpdate();
+			}
 			historico(conn, parmIdMicroCiclo, null, parmIdentidade.getIdUtilizador(), "Micro ciclo cancelado | " + motivo);
 			return mc.getDataInicio();
 		});
@@ -1141,12 +1703,66 @@ public class MicroCicloHelper {
 		}
 	}
 
+	/** v6 (X13): maximo de fisicos ligados por treino principal. */
+	private static final int MAXIMO_FISICOS = 4;
+
+	private static boolean temPrincipal(TreinoData v) {
+		return v.getIdTreinoPrincipal() != null && v.getIdTreinoPrincipal() > 0;
+	}
+
+	/** v6 (R161, X13): fisicos so num ESCALAO de equipa; idTreinoPrincipal so num FISICO. Depois de validaTreino. */
+	private static void validaFisicos(TreinoData v) {
+		boolean escalaoEquipa = "ESCALAO".equals(v.getTipo()) && v.getIdGrupo() <= 0;
+		if (v.getFisicos() != null && !v.getFisicos().isEmpty() && !escalaoEquipa) {
+			throw new PedidoInvalidoException("Só um treino de escalão de uma equipa pode ter treino físico.");
+		}
+		if (temPrincipal(v) && !"FISICO".equals(v.getTipo())) {
+			throw new PedidoInvalidoException("Só um treino físico pode ser ligado a um treino principal.");
+		}
+		if (v.getFisicos() == null) {
+			return;
+		}
+		if (v.getFisicos().size() > MAXIMO_FISICOS) {
+			throw new PedidoInvalidoException("No máximo " + MAXIMO_FISICOS + " treinos físicos por treino.");
+		}
+		Set<Integer> ids = new HashSet<>();
+		for (FisicoStaffData f : v.getFisicos()) {
+			if (f == null || (f.getId() > 0 && !ids.add(f.getId()))) {
+				throw new PedidoInvalidoException("Treino físico inválido.");
+			}
+			String inicio = f.getHoraInicio() == null ? "" : f.getHoraInicio().trim();
+			if (!HORA.matcher(inicio).matches()) {
+				throw new PedidoInvalidoException("Hora de início do físico inválida (HH:MM).");
+			}
+			f.setHoraInicio(inicio);
+			String fim = limpa(f.getHoraFim(), 5, "A hora de fim do físico");
+			if (fim != null && !HORA.matcher(fim).matches()) {
+				throw new PedidoInvalidoException("Hora de fim do físico inválida (HH:MM).");
+			}
+			if (fim != null && minutos(fim) <= minutos(inicio)) {
+				throw new PedidoInvalidoException("A hora de fim do físico tem de ser depois da hora de início.");
+			}
+			f.setHoraFim(fim);
+			f.setLocal(limpa(f.getLocal(), 100, "O local do físico"));
+			f.setSubGrupo(limpa(f.getSubGrupo(), 50, "O sub-grupo do físico"));
+			f.setPosicao(null); // so resposta
+		}
+	}
+
+	/** v6 (R10, R182): o fisico nao pode ficar numa hora que ja passou (na data do principal). */
+	private static void exigeHoraFisico(int parmData, FisicoData f) {
+		if (inicioPassou(parmData, f.getHoraInicio())) {
+			throw new ConflitoException("O físico das " + f.getHoraInicio() + " ficaria numa hora que já passou.");
+		}
+	}
+
 	public TreinoData gravaTreino(Identidade parmIdentidade, TreinoData v) {
 		validaTreino(v);
+		validaFisicos(v);
 		int tenant = parmIdentidade.getTenantId();
 		int utilizador = parmIdentidade.getIdUtilizador();
 		boolean evento = v.getIdGrupo() > 0;
-		int idTreino = emTransacao("gravaTreino", conn -> {
+		Trabalho<Integer> grava = conn -> {
 			String nomeGrupo = null;
 			if (evento) {
 				nomeGrupo = validaGrupo(conn, tenant, v.getIdGrupo(), v.getId() <= 0);
@@ -1160,6 +1776,10 @@ public class MicroCicloHelper {
 				}
 			}
 
+			if (temPrincipal(v)) {
+				return ligaFisico(conn, parmIdentidade, v); // v6 (R163): a resposta e o principal
+			}
+
 			if (v.getId() <= 0) {
 				MicroCicloData mc = v.getIdMicroCiclo() > 0 ? carregaMicroCiclo(conn, v.getIdMicroCiclo(), tenant)
 						: microCicloDaSemana(conn, tenant, segundaDe(v.getData()));
@@ -1170,12 +1790,27 @@ public class MicroCicloHelper {
 				if (evento) {
 					return criaEvento(conn, mc, v, nomeGrupo, utilizador);
 				}
+				// v6: os fisicos criados com o principal (novos: id 0)
+				List<FisicoStaffData> fisicos = v.getFisicos() == null ? new ArrayList<>() : v.getFisicos();
+				for (FisicoStaffData f : fisicos) {
+					if (f.getId() > 0) {
+						throw new PedidoInvalidoException("Treino físico inválido.");
+					}
+					exigeHoraFisico(v.getData(), f);
+				}
 				// Q8: num micro ciclo publicado o treino fica logo Pendente
 				String estado = RASCUNHO.equals(mc.getEstado()) ? RASCUNHO : PENDENTE;
 				int id = insereTreino(conn, mc.getId(), v, estado, utilizador);
 				insereConvocatoriaOmissao(conn, id, v.getIdEquipa(), utilizador);
+				for (FisicoStaffData f : fisicos) {
+					insereFisico(conn, mc.getId(), id, v.getIdEquipa(), v.getData(), f, estado, utilizador);
+				}
+				if (!fisicos.isEmpty()) {
+					propagaSessao(conn, tenant, id, null);
+				}
 				String nome = nomeEquipa(conn, v.getIdEquipa());
-				historico(conn, mc.getId(), id, utilizador, "Treino criado | " + nome + " " + dia(v.getData()) + " " + intervalo(v));
+				historico(conn, mc.getId(), id, utilizador, "Treino criado | " + nome + " " + dia(v.getData()) + " " + intervalo(v)
+						+ incluiFisicos(fisicos));
 				if (PENDENTE.equals(estado)) {
 					// v4 (R76, W7): treino novo num micro ciclo publicado
 					notifica(conn, parmIdentidade, notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant),
@@ -1186,124 +1821,375 @@ public class MicroCicloHelper {
 			}
 
 			Treino t = carregaTreino(conn, v.getId(), tenant);
-			if (v.getVersao() != t.d.getVersao()) {
-				throw new ConflitoException(MSG_VERSAO);
+			if (t.ligado()) {
+				throw new PedidoInvalidoException(msgFisicoLigado(conn, t, tenant));
 			}
-			if (CANCELADO.equals(t.estadoBD) || t.realizado()) {
-				throw new ConflitoException("Um treino cancelado ou realizado não pode ser alterado.");
-			}
-			if (inicioPassou(t.d.getData(), t.d.getHoraInicio())) {
-				throw new ConflitoException(MSG_JA_COMECOU);
-			}
-			if (t.evento() != evento) {
-				throw new PedidoInvalidoException("Não se pode converter um treino num evento, nem um evento num treino.");
-			}
-			if (evento && v.getIdGrupo() != t.d.getIdGrupo()) {
-				validaGrupo(conn, tenant, v.getIdGrupo(), true); // mudar para outro grupo: so ativos
-			}
-			validaPlaneamento(conn, tenant, t.dataInicio, t.mcEstado, t.idEpoca, v);
-			if (evento) {
-				return alteraEvento(conn, t, v, nomeGrupo, utilizador);
-			}
-
-			List<String> diferencas = new ArrayList<>();
-			boolean essencial = false;
-			boolean mudouEquipa = t.d.getIdEquipa() != v.getIdEquipa();
-			if (t.d.getData() != v.getData()) {
-				diferencas.add("Data | " + ddmm(t.d.getData()) + " => " + ddmm(v.getData()));
-				essencial = true;
-			}
-			essencial |= diferenca(diferencas, "Hora de início", t.d.getHoraInicio(), v.getHoraInicio());
-			essencial |= diferenca(diferencas, "Hora de fim", t.d.getHoraFim(), v.getHoraFim());
-			if (mudouEquipa) {
-				diferencas.add("Equipa | " + t.d.getNomeEquipa() + " => " + nomeEquipa(conn, v.getIdEquipa()));
-				essencial = true;
-			}
-			essencial |= diferenca(diferencas, "Tipo", t.d.getTipo(), v.getTipo());
-			essencial |= diferenca(diferencas, "Descrição do tipo", t.d.getTipoDescricao(), v.getTipoDescricao());
-			diferenca(diferencas, "Sub-grupo", t.d.getSubGrupo(), v.getSubGrupo());
-			diferenca(diferencas, "Local", t.d.getLocal(), v.getLocal());
-			diferenca(diferencas, "Observações", t.d.getObservacoes(), v.getObservacoes());
-			if (diferencas.isEmpty()) {
-				return t.d.getId();
-			}
-
-			// Q10, R8.4: campo essencial num Aprovado volta a Pendente
-			boolean voltaPendente = essencial && APROVADO.equals(t.estadoBD);
-			// v4 (R73, Q48): um Rejeitado alterado volta logo a Pendente, sem o motivo da rejeicao
-			boolean corrigido = REJEITADO.equals(t.estadoBD);
-			String novoEstado = voltaPendente || corrigido ? PENDENTE : t.estadoBD;
-			PreparedStatement psUpdate = conn.prepareStatement("update treino set id_equipa = ?, tipo = ?, "
-					+ "tipo_descricao = ?, sub_grupo = ?, `data` = ?, hora_inicio = ?, hora_fim = ?, local_treino = ?, "
-					+ "observacoes = ?, estado = ?, motivo_estado = " + (corrigido ? "null" : "motivo_estado")
-					+ ", versao = versao + 1 where id = ? and versao = ?");
-			psUpdate.setInt(1, v.getIdEquipa());
-			psUpdate.setString(2, v.getTipo());
-			psUpdate.setString(3, v.getTipoDescricao());
-			psUpdate.setString(4, v.getSubGrupo());
-			psUpdate.setInt(5, v.getData());
-			psUpdate.setString(6, v.getHoraInicio());
-			psUpdate.setString(7, v.getHoraFim());
-			psUpdate.setString(8, v.getLocal());
-			psUpdate.setString(9, v.getObservacoes());
-			psUpdate.setString(10, novoEstado);
-			psUpdate.setInt(11, t.d.getId());
-			psUpdate.setInt(12, t.d.getVersao());
-			if (psUpdate.executeUpdate() == 0) {
-				throw new ConflitoException(MSG_VERSAO);
-			}
-
-			if (mudouEquipa) {
-				PreparedStatement psApaga = conn.prepareStatement("delete from treino_convocado where id_treino = ?");
-				psApaga.setInt(1, t.d.getId());
-				psApaga.executeUpdate();
-				insereConvocatoriaOmissao(conn, t.d.getId(), v.getIdEquipa(), utilizador);
-				PreparedStatement psDescarta = conn.prepareStatement("update treino_ausencia set estado = 'DESCARTADA', "
-						+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'");
-				psDescarta.setInt(1, t.d.getId());
-				psDescarta.executeUpdate();
-			} else if (voltaPendente || (corrigido && essencial)) {
-				// R40: a ausencia mantem-se, assinalada, ate o atleta confirmar
-				PreparedStatement psPendente = conn.prepareStatement("update treino_ausencia set pendente_confirmacao = '1', "
-						+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'");
-				psPendente.setInt(1, t.d.getId());
-				psPendente.executeUpdate();
-			}
-			for (String diferenca : diferencas) {
-				historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, diferenca);
-			}
-			// W7: no maximo uma notificacao por destinatario e gravacao (ALTERADO > CORRIGIDO > INFO)
-			String nomeNovo = nomeEquipa(conn, v.getIdEquipa());
-			String treinoTexto = "Treino " + nomeNovo + " de " + dia(v.getData()) + " às " + v.getHoraInicio();
-			if (voltaPendente) {
-				historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, "Estado | APROVADO => PENDENTE");
-				aposTreinoAlterado(conn, parmIdentidade, t, v);
-			} else if (corrigido) {
-				historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, "Estado | REJEITADO => PENDENTE (corrigido)");
-				notifica(conn, parmIdentidade, notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant),
-						"TREINO_CORRIGIDO", t.d.getId(), null, treinoTexto + " foi corrigido e aguarda aprovação");
-			} else if (APROVADO.equals(t.estadoBD)) {
-				// Q47 (a): alteracao so informativa; so o nome dos campos, sem valores
-				List<String> campos = new ArrayList<>();
-				for (String diferenca : diferencas) {
-					campos.add(diferenca.substring(0, diferenca.indexOf(" | ")).toLowerCase());
-				}
-				notifica(conn, parmIdentidade, notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant),
-						"TREINO_INFO", t.d.getId(), null,
-						treinoTexto + " alterado (sem nova aprovação): " + String.join(", ", campos));
-			}
-			if (mudouEquipa && !PENDENTE.equals(t.estadoBD) && !RASCUNHO.equals(t.estadoBD)) {
-				// [O] equipa anterior, sem quem tambem e da nova (esses ja foram notificados acima)
-				List<Integer> anteriores = new ArrayList<>(
-						notificacaoHelper.destinatariosEquipa(conn, t.d.getIdEquipa(), tenant));
-				anteriores.removeAll(notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant));
-				notifica(conn, parmIdentidade, anteriores, "TREINO_MUDOU_EQUIPA", t.d.getId(), null, "Treino "
-						+ t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " às " + t.d.getHoraInicio()
-						+ " passou para " + nomeNovo);
-			}
-			return t.d.getId();
+			return alteraTreino(conn, parmIdentidade, t, v, nomeGrupo);
+		};
+		// v8 (Y3): na mesma transacao, avisa as confirmacoes caducadas da sessao gravada (principal ou avulso)
+		int idTreino = emTransacao("gravaTreino", conn -> {
+			int id = grava.executa(conn);
+			avisaCaducadas(conn, parmIdentidade, id, Set.of());
+			return id;
 		});
 		return getTreinoData(parmIdentidade, idTreino);
+	}
+
+	/** v6 (X5): "Este físico faz parte do treino {equipa} {hora}: altere-o no treino principal." */
+	private String msgFisicoLigado(Connection conn, Treino t, int parmTenantId) throws SQLException {
+		Treino p = carregaTreino(conn, t.idPrincipal, parmTenantId);
+		return "Este físico faz parte do treino " + p.d.getNomeEquipa() + " " + p.d.getHoraInicio()
+				+ ": altere-o no treino principal.";
+	}
+
+	/** Edicao de um treino ou evento existente (nao ligado). v6: sincroniza os fisicos quando v.fisicos != null. */
+	private int alteraTreino(Connection conn, Identidade parmIdentidade, Treino t, TreinoData v, String nomeGrupo)
+			throws SQLException {
+		int tenant = parmIdentidade.getTenantId();
+		int utilizador = parmIdentidade.getIdUtilizador();
+		boolean evento = v.getIdGrupo() > 0;
+		if (v.getVersao() != t.d.getVersao()) {
+			throw new ConflitoException(MSG_VERSAO);
+		}
+		if (CANCELADO.equals(t.estadoBD) || t.realizado()) {
+			throw new ConflitoException("Um treino cancelado ou realizado não pode ser alterado.");
+		}
+		if (inicioPassou(t.d.getData(), t.inicioSessao())) {
+			throw new ConflitoException(MSG_JA_COMECOU);
+		}
+		if (t.evento() != evento) {
+			throw new PedidoInvalidoException("Não se pode converter um treino num evento, nem um evento num treino.");
+		}
+		if (evento && v.getIdGrupo() != t.d.getIdGrupo()) {
+			validaGrupo(conn, tenant, v.getIdGrupo(), true); // mudar para outro grupo: so ativos
+		}
+		validaPlaneamento(conn, tenant, t.dataInicio, t.mcEstado, t.idEpoca, v);
+		if (evento) {
+			return alteraEvento(conn, t, v, nomeGrupo, utilizador);
+		}
+
+		// v6: fisicos atuais; um ESCALAO com fisicos nao muda de tipo
+		List<FisicoStaffData> existentes = fisicosDe(conn, tenant, t.d.getId());
+		if (!existentes.isEmpty() && !"ESCALAO".equals(v.getTipo())) {
+			throw new PedidoInvalidoException("Um treino com físico tem de ser de escalão.");
+		}
+		// R10, R182: cada fisico (os do pedido ou, sem a lista, os atuais) na data nova
+		for (FisicoStaffData f : v.getFisicos() != null ? v.getFisicos() : existentes) {
+			exigeHoraFisico(v.getData(), f);
+		}
+
+		List<String> diferencas = new ArrayList<>();
+		boolean essencial = false;
+		boolean mudouEquipa = t.d.getIdEquipa() != v.getIdEquipa();
+		if (t.d.getData() != v.getData()) {
+			diferencas.add("Data | " + ddmm(t.d.getData()) + " => " + ddmm(v.getData()));
+			essencial = true;
+		}
+		essencial |= diferenca(diferencas, "Hora de início", t.d.getHoraInicio(), v.getHoraInicio());
+		essencial |= diferenca(diferencas, "Hora de fim", t.d.getHoraFim(), v.getHoraFim());
+		if (mudouEquipa) {
+			diferencas.add("Equipa | " + t.d.getNomeEquipa() + " => " + nomeEquipa(conn, v.getIdEquipa()));
+			essencial = true;
+		}
+		essencial |= diferenca(diferencas, "Tipo", t.d.getTipo(), v.getTipo());
+		essencial |= diferenca(diferencas, "Descrição do tipo", t.d.getTipoDescricao(), v.getTipoDescricao());
+		diferenca(diferencas, "Sub-grupo", t.d.getSubGrupo(), v.getSubGrupo());
+		diferenca(diferencas, "Local", t.d.getLocal(), v.getLocal());
+		diferenca(diferencas, "Observações", t.d.getObservacoes(), v.getObservacoes());
+		// v6 (R180, Q91): acrescentar, remover e mudar as horas dos fisicos sao essenciais; local e sub-grupo nao
+		List<FisicoStaffData> novos = new ArrayList<>();
+		List<FisicoStaffData> alterados = new ArrayList<>();
+		List<FisicoStaffData> removidos = new ArrayList<>();
+		if (v.getFisicos() != null) {
+			essencial |= diferencasFisicos(existentes, v.getFisicos(), diferencas, novos, alterados, removidos);
+		}
+		if (diferencas.isEmpty()) {
+			return t.d.getId();
+		}
+		aposAlteracaoPrincipal(conn, parmIdentidade, t, v, diferencas, essencial);
+		sincronizaFisicos(conn, t, v, novos, alterados, removidos, utilizador);
+		propagaSessao(conn, tenant, t.d.getId(), null); // equipa, data e estado seguem o principal
+		return t.d.getId();
+	}
+
+	/** v6: diferencas dos fisicos (por id) para o historico; devolve se ha alteracao essencial. */
+	private static boolean diferencasFisicos(List<FisicoStaffData> parmExistentes, List<FisicoStaffData> parmPedidos,
+			List<String> parmDiferencas, List<FisicoStaffData> parmNovos, List<FisicoStaffData> parmAlterados,
+			List<FisicoStaffData> parmRemovidos) {
+		Map<Integer, FisicoStaffData> atuais = new LinkedHashMap<>();
+		for (FisicoStaffData a : parmExistentes) {
+			atuais.put(a.getId(), a);
+		}
+		boolean essencial = false;
+		for (FisicoStaffData f : parmPedidos) {
+			if (f.getId() <= 0) {
+				parmNovos.add(f);
+				parmDiferencas.add("Físico | + " + intervalo(f));
+				essencial = true;
+				continue;
+			}
+			FisicoStaffData a = atuais.remove(f.getId());
+			if (a == null) {
+				throw new PedidoInvalidoException("Treino físico inválido: " + f.getId());
+			}
+			boolean mudou = false;
+			if (!Objects.equals(a.getHoraInicio(), f.getHoraInicio()) || !Objects.equals(a.getHoraFim(), f.getHoraFim())) {
+				parmDiferencas.add("Físico | " + intervalo(a) + " => " + intervalo(f));
+				essencial = true;
+				mudou = true;
+			}
+			mudou |= diferenca(parmDiferencas, "Físico " + intervalo(a) + " | Local", a.getLocal(), f.getLocal());
+			mudou |= diferenca(parmDiferencas, "Físico " + intervalo(a) + " | Sub-grupo", a.getSubGrupo(), f.getSubGrupo());
+			if (mudou) {
+				parmAlterados.add(f);
+			}
+		}
+		for (FisicoStaffData a : atuais.values()) {
+			parmRemovidos.add(a);
+			parmDiferencas.add("Físico | − " + intervalo(a));
+			essencial = true;
+		}
+		return essencial;
+	}
+
+	/** v6: grava os fisicos novos, alterados e removidos do principal (sem convocatoria propria). */
+	private static void sincronizaFisicos(Connection conn, Treino t, TreinoData v, List<FisicoStaffData> parmNovos,
+			List<FisicoStaffData> parmAlterados, List<FisicoStaffData> parmRemovidos, int parmIdUtilizador) throws SQLException {
+		for (FisicoStaffData f : parmNovos) {
+			insereFisico(conn, t.d.getIdMicroCiclo(), t.d.getId(), v.getIdEquipa(), v.getData(), f, t.estadoBD,
+					parmIdUtilizador);
+		}
+		try (PreparedStatement psAltera = conn.prepareStatement("update treino set hora_inicio = ?, hora_fim = ?, "
+				+ "local_treino = ?, sub_grupo = ?, versao = versao + 1 where id = ? and id_treino_principal = ?")) {
+			for (FisicoStaffData f : parmAlterados) {
+				psAltera.setString(1, f.getHoraInicio());
+				psAltera.setString(2, f.getHoraFim());
+				psAltera.setString(3, f.getLocal());
+				psAltera.setString(4, f.getSubGrupo());
+				psAltera.setInt(5, f.getId());
+				psAltera.setInt(6, t.d.getId());
+				psAltera.executeUpdate();
+			}
+		}
+		try (PreparedStatement psApaga = conn
+				.prepareStatement("delete from treino where id = ? and id_treino_principal = ?")) {
+			for (FisicoStaffData f : parmRemovidos) {
+				psApaga.setInt(1, f.getId());
+				psApaga.setInt(2, t.d.getId());
+				psApaga.executeUpdate();
+			}
+		}
+	}
+
+	/**
+	 * Depois das diferencas de um treino (nao evento): update com o estado novo (Q10, R73), convocatoria e
+	 * ausencias, historico e notificacoes (W7). v6: tambem na ligacao de um fisico avulso.
+	 */
+	private void aposAlteracaoPrincipal(Connection conn, Identidade parmIdentidade, Treino t, TreinoData v,
+			List<String> diferencas, boolean essencial) throws SQLException {
+		int tenant = parmIdentidade.getTenantId();
+		int utilizador = parmIdentidade.getIdUtilizador();
+		boolean mudouEquipa = t.d.getIdEquipa() != v.getIdEquipa();
+		// Q10, R8.4: campo essencial num Aprovado volta a Pendente
+		boolean voltaPendente = essencial && APROVADO.equals(t.estadoBD);
+		// v4 (R73, Q48): um Rejeitado alterado volta logo a Pendente, sem o motivo da rejeicao
+		boolean corrigido = REJEITADO.equals(t.estadoBD);
+		String novoEstado = voltaPendente || corrigido ? PENDENTE : t.estadoBD;
+		PreparedStatement psUpdate = conn.prepareStatement("update treino set id_equipa = ?, tipo = ?, "
+				+ "tipo_descricao = ?, sub_grupo = ?, `data` = ?, hora_inicio = ?, hora_fim = ?, local_treino = ?, "
+				+ "observacoes = ?, estado = ?, motivo_estado = " + (corrigido ? "null" : "motivo_estado")
+				+ ", versao = versao + 1 where id = ? and versao = ?");
+		psUpdate.setInt(1, v.getIdEquipa());
+		psUpdate.setString(2, v.getTipo());
+		psUpdate.setString(3, v.getTipoDescricao());
+		psUpdate.setString(4, v.getSubGrupo());
+		psUpdate.setInt(5, v.getData());
+		psUpdate.setString(6, v.getHoraInicio());
+		psUpdate.setString(7, v.getHoraFim());
+		psUpdate.setString(8, v.getLocal());
+		psUpdate.setString(9, v.getObservacoes());
+		psUpdate.setString(10, novoEstado);
+		psUpdate.setInt(11, t.d.getId());
+		psUpdate.setInt(12, t.d.getVersao());
+		if (psUpdate.executeUpdate() == 0) {
+			throw new ConflitoException(MSG_VERSAO);
+		}
+
+		if (mudouEquipa) {
+			PreparedStatement psApaga = conn.prepareStatement("delete from treino_convocado where id_treino = ?");
+			psApaga.setInt(1, t.d.getId());
+			psApaga.executeUpdate();
+			apagaExcluidosDoPrincipal(conn, t.d.getId(), null); // v7 (X2): nova equipa, todos fazem os fisicos
+			apagaConfirmacoes(conn, t.d.getId(), null); // v8 (Y5)
+			insereConvocatoriaOmissao(conn, t.d.getId(), v.getIdEquipa(), utilizador);
+			PreparedStatement psDescarta = conn.prepareStatement("update treino_ausencia set estado = 'DESCARTADA', "
+					+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'");
+			psDescarta.setInt(1, t.d.getId());
+			psDescarta.executeUpdate();
+		} else if (voltaPendente || (corrigido && essencial)) {
+			// R40: a ausencia mantem-se, assinalada, ate o atleta confirmar
+			PreparedStatement psPendente = conn.prepareStatement("update treino_ausencia set pendente_confirmacao = '1', "
+					+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'");
+			psPendente.setInt(1, t.d.getId());
+			psPendente.executeUpdate();
+		}
+		for (String diferenca : diferencas) {
+			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, diferenca);
+		}
+		// W7: no maximo uma notificacao por destinatario e gravacao (ALTERADO > CORRIGIDO > INFO)
+		String nomeNovo = nomeEquipa(conn, v.getIdEquipa());
+		String treinoTexto = "Treino " + nomeNovo + " de " + dia(v.getData()) + " às " + v.getHoraInicio();
+		if (voltaPendente) {
+			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, "Estado | APROVADO => PENDENTE");
+			aposTreinoAlterado(conn, parmIdentidade, t, v);
+		} else if (corrigido) {
+			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, "Estado | REJEITADO => PENDENTE (corrigido)");
+			notifica(conn, parmIdentidade, notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant),
+					"TREINO_CORRIGIDO", t.d.getId(), null, treinoTexto + " foi corrigido e aguarda aprovação");
+		} else if (APROVADO.equals(t.estadoBD)) {
+			// Q47 (a): alteracao so informativa; so o nome dos campos, sem valores
+			List<String> campos = new ArrayList<>();
+			for (String diferenca : diferencas) {
+				campos.add(diferenca.substring(0, diferenca.indexOf(" | ")).toLowerCase());
+			}
+			notifica(conn, parmIdentidade, notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant),
+					"TREINO_INFO", t.d.getId(), null,
+					treinoTexto + " alterado (sem nova aprovação): " + String.join(", ", campos));
+		}
+		if (mudouEquipa && !PENDENTE.equals(t.estadoBD) && !RASCUNHO.equals(t.estadoBD)) {
+			// [O] equipa anterior, sem quem tambem e da nova (esses ja foram notificados acima)
+			List<Integer> anteriores = new ArrayList<>(
+					notificacaoHelper.destinatariosEquipa(conn, t.d.getIdEquipa(), tenant));
+			anteriores.removeAll(notificacaoHelper.destinatariosEquipa(conn, v.getIdEquipa(), tenant));
+			notifica(conn, parmIdentidade, anteriores, "TREINO_MUDOU_EQUIPA", t.d.getId(), null, "Treino "
+					+ t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " às " + t.d.getHoraInicio()
+					+ " passou para " + nomeNovo);
+		}
+	}
+
+	/** v6: o principal tal como esta gravado, para as alteracoes que so mexem nos fisicos. */
+	private static TreinoData copiaPrincipal(TreinoData d) {
+		TreinoData v = new TreinoData();
+		v.setId(d.getId());
+		v.setIdMicroCiclo(d.getIdMicroCiclo());
+		v.setIdEquipa(d.getIdEquipa());
+		v.setTipo(d.getTipo());
+		v.setTipoDescricao(d.getTipoDescricao());
+		v.setSubGrupo(d.getSubGrupo());
+		v.setData(d.getData());
+		v.setHoraInicio(d.getHoraInicio());
+		v.setHoraFim(d.getHoraFim());
+		v.setLocal(d.getLocal());
+		v.setObservacoes(d.getObservacoes());
+		v.setVersao(d.getVersao());
+		return v;
+	}
+
+	/**
+	 * v6 (R163, X4 b, X11): FISICO com idTreinoPrincipal. id 0 cria um fisico ligado (como acrescentar no
+	 * editor do principal); id > 0 liga um avulso (convocatoria propria apagada; ausencias ativas descartadas
+	 * so com descartarAusencias). Devolve o id do principal.
+	 */
+	private int ligaFisico(Connection conn, Identidade parmIdentidade, TreinoData v) throws SQLException {
+		int tenant = parmIdentidade.getTenantId();
+		Treino p = carregaTreino(conn, v.getIdTreinoPrincipal(), tenant); // 403 de outro tenant (CA129)
+		Treino avulso = v.getId() > 0 ? carregaTreino(conn, v.getId(), tenant) : null;
+		int idMicroCiclo;
+		if (avulso != null) {
+			idMicroCiclo = avulso.d.getIdMicroCiclo();
+		} else {
+			MicroCicloData mc = v.getIdMicroCiclo() > 0 ? carregaMicroCiclo(conn, v.getIdMicroCiclo(), tenant)
+					: microCicloDaSemana(conn, tenant, segundaDe(v.getData()));
+			if (mc == null) {
+				throw new ConflitoException("Não há micro ciclo nesta semana.");
+			}
+			idMicroCiclo = mc.getId();
+		}
+		if (!"ESCALAO".equals(p.d.getTipo()) || p.evento() || p.ligado()) {
+			throw new PedidoInvalidoException("O treino principal tem de ser um treino de escalão de uma equipa.");
+		}
+		if (p.d.getIdEquipa() != v.getIdEquipa()) {
+			throw new PedidoInvalidoException("O treino principal tem de ser da mesma equipa.");
+		}
+		if (p.d.getData() != v.getData()) {
+			throw new PedidoInvalidoException("O treino principal tem de ser do mesmo dia.");
+		}
+		if (p.d.getIdMicroCiclo() != idMicroCiclo) {
+			throw new PedidoInvalidoException("O treino principal tem de ser do mesmo micro ciclo.");
+		}
+		if (CANCELADO.equals(p.estadoBD) || p.realizado()) {
+			throw new PedidoInvalidoException("O treino principal está cancelado ou realizado.");
+		}
+		if (inicioPassou(p.d.getData(), p.inicioSessao())) {
+			throw new PedidoInvalidoException("O treino principal já começou.");
+		}
+		FisicoStaffData f = new FisicoStaffData();
+		f.setHoraInicio(v.getHoraInicio());
+		f.setHoraFim(v.getHoraFim());
+		f.setLocal(v.getLocal());
+		f.setSubGrupo(v.getSubGrupo());
+		List<FisicoStaffData> existentes = fisicosDe(conn, tenant, p.d.getId());
+		if (existentes.size() >= MAXIMO_FISICOS) {
+			throw new PedidoInvalidoException("No máximo " + MAXIMO_FISICOS + " treinos físicos por treino.");
+		}
+		TreinoData vp = copiaPrincipal(p.d);
+		if (avulso == null) {
+			// id 0: o mesmo que acrescentar um fisico ao principal
+			List<FisicoStaffData> lista = new ArrayList<>(existentes);
+			lista.add(f);
+			vp.setFisicos(lista);
+			return alteraTreino(conn, parmIdentidade, p, vp, null);
+		}
+
+		// id > 0: ligar um avulso existente
+		if (avulso.ligado()) {
+			throw new PedidoInvalidoException(msgFisicoLigado(conn, avulso, tenant));
+		}
+		if (!"FISICO".equals(avulso.d.getTipo()) || avulso.evento()) {
+			throw new PedidoInvalidoException("Só um treino físico pode ser ligado a um treino principal.");
+		}
+		if (v.getVersao() != avulso.d.getVersao()) {
+			throw new ConflitoException(MSG_VERSAO);
+		}
+		if (CANCELADO.equals(avulso.estadoBD) || avulso.realizado()) {
+			throw new ConflitoException("Um físico cancelado ou realizado não pode ser ligado.");
+		}
+		int ausencias = ausenciasAtivas(conn, avulso.d.getId());
+		if (ausencias > 0 && !Boolean.TRUE.equals(v.getDescartarAusencias())) {
+			throw new ConflitoException(ausencias == 1
+					? "1 ausência deste físico é descartada; vale o 'Não vou' do treino principal."
+					: ausencias + " ausências deste físico são descartadas; vale o 'Não vou' do treino principal.");
+		}
+		validaPlaneamento(conn, tenant, p.dataInicio, p.mcEstado, p.idEpoca, vp);
+		exigeHoraFisico(p.d.getData(), f);
+		try (PreparedStatement psConvocados = conn.prepareStatement("delete from treino_convocado where id_treino = ?")) {
+			psConvocados.setInt(1, avulso.d.getId());
+			psConvocados.executeUpdate();
+		}
+		try (PreparedStatement psDescarta = conn.prepareStatement("update treino_ausencia set estado = 'DESCARTADA', "
+				+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'")) {
+			psDescarta.setInt(1, avulso.d.getId());
+			psDescarta.executeUpdate();
+		}
+		try (PreparedStatement psLiga = conn.prepareStatement("update treino set id_treino_principal = ?, "
+				+ "hora_inicio = ?, hora_fim = ?, local_treino = ?, sub_grupo = ?, versao = versao + 1 "
+				+ "where id = ? and versao = ? and id_treino_principal is null")) {
+			psLiga.setInt(1, p.d.getId());
+			psLiga.setString(2, f.getHoraInicio());
+			psLiga.setString(3, f.getHoraFim());
+			psLiga.setString(4, f.getLocal());
+			psLiga.setString(5, f.getSubGrupo());
+			psLiga.setInt(6, avulso.d.getId());
+			psLiga.setInt(7, avulso.d.getVersao());
+			if (psLiga.executeUpdate() == 0) {
+				throw new ConflitoException(MSG_VERSAO);
+			}
+		}
+		List<String> diferencas = new ArrayList<>();
+		diferencas.add("Físico | + " + intervalo(f) + " (era avulso)");
+		aposAlteracaoPrincipal(conn, parmIdentidade, p, vp, diferencas, true);
+		propagaSessao(conn, tenant, p.d.getId(), null);
+		return p.d.getId();
 	}
 
 	/** Q31 (BK-12): treino aprovado que volta a Pendente, aos destinatarios da equipa (nova). */
@@ -1519,10 +2405,13 @@ public class MicroCicloHelper {
 		if (t.d.getIdMicroCiclo() != parmIdMicroCiclo) {
 			throw new ConflitoException("não pertence a esta semana");
 		}
+		if (t.ligado()) {
+			throw new ConflitoException("faz parte de outro treino"); // v6 (X5)
+		}
 		if (!PENDENTE.equals(t.estadoBD)) {
 			throw new ConflitoException("já não está pendente (" + t.d.getEstado().toLowerCase() + ")");
 		}
-		if (inicioPassou(t.d.getData(), t.d.getHoraInicio())) {
+		if (inicioPassou(t.d.getData(), t.inicioSessao())) {
 			throw new ConflitoException("não aprovado a tempo");
 		}
 		Set<Integer> equipas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
@@ -1545,7 +2434,10 @@ public class MicroCicloHelper {
 			}
 		}
 		historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), parmIdentidade.getIdUtilizador(),
-				"Aprovado (" + textoQualidade(qualidade(parmIdentidade, t.d.getIdEquipa(), equipas)) + ")");
+				"Aprovado (" + textoQualidade(qualidade(parmIdentidade, t.d.getIdEquipa(), equipas)) + ")"
+						+ incluiFisicos(fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId())));
+		propagaSessao(conn, parmIdentidade.getTenantId(), t.d.getId(), null);
+		avisaCaducadas(conn, parmIdentidade, t.d.getId(), Set.of()); // v8 (Y3): tambem no aprovaLote
 		return Boolean.TRUE;
 	}
 
@@ -1563,9 +2455,13 @@ public class MicroCicloHelper {
 			int atual = segundaDe(hoje());
 			List<int[]> linhas = leitura("pendentesMeus", conn -> {
 				List<int[]> lista = new ArrayList<>();
-				try (PreparedStatement preparedStatement = conn.prepareStatement("select t.id, t.`data`, t.hora_inicio, "
+				// v6 (R175, R176): por sessao (sem os fisicos ligados) e pelo inicio da sessao
+				try (PreparedStatement preparedStatement = conn.prepareStatement("select t.id, t.`data`, "
+						+ "least(t.hora_inicio, coalesce((select min(f.hora_inicio) from treino f "
+						+ "where f.id_treino_principal = t.id), t.hora_inicio)) as hora_inicio, "
 						+ "m.data_inicio from treino t inner join micro_ciclo m on m.id = t.id_micro_ciclo "
 						+ "where m.tenant_id = ? and m.estado = 'PUBLICADO' and t.estado = 'PENDENTE' "
+						+ "and t.id_treino_principal is null "
 						+ "and m.data_inicio in (?, ?) and exists (select 1 from utilizadores_escalao ue "
 						+ "inner join escalao_epoca ee on ee.id = ue.id_escalao_epoca inner join epoca e on e.id = ee.id_epoca "
 						+ "where e.estado = '1' and ue.id_utilizador = ? and ue.id_escalao_epoca = t.id_equipa) "
@@ -1699,6 +2595,11 @@ public class MicroCicloHelper {
 	public boolean eliminaTreino(Identidade parmIdentidade, int parmIdTreino) {
 		return emTransacao("eliminaTreino", conn -> {
 			Treino t = carregaTreino(conn, parmIdTreino, parmIdentidade.getTenantId());
+			if (t.ligado()) {
+				throw new PedidoInvalidoException("Remova o físico no editor do treino principal."); // v6 (X5)
+			}
+			// v6 (R183): os fisicos saem por cascata (fk_treino_principal); lidos antes, para o historico
+			String fisicos = incluiFisicos(fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId()));
 			PreparedStatement preparedStatement = conn
 					.prepareStatement("delete from treino where id = ? and estado = 'RASCUNHO'");
 			preparedStatement.setInt(1, parmIdTreino);
@@ -1706,7 +2607,7 @@ public class MicroCicloHelper {
 				throw new ConflitoException("Só se pode apagar um treino em rascunho.");
 			}
 			historico(conn, t.d.getIdMicroCiclo(), null, parmIdentidade.getIdUtilizador(), "Treino apagado | "
-					+ t.d.getNomeEquipa() + " " + dia(t.d.getData()) + " " + t.d.getHoraInicio());
+					+ t.d.getNomeEquipa() + " " + dia(t.d.getData()) + " " + t.d.getHoraInicio() + fisicos);
 			return true;
 		});
 	}
@@ -1728,11 +2629,14 @@ public class MicroCicloHelper {
 			if (!parmIdentidade.isAdmin() && (RASCUNHO.equals(t.estadoBD) || RASCUNHO.equals(t.mcEstado))) {
 				throw new AcessoNegadoException();
 			}
+			if (t.ligado()) {
+				throw new ConflitoException("Este físico faz parte de outro treino: mude o estado no treino principal.");
+			}
 			if (parmPedido.getVersao() != t.d.getVersao()) {
 				throw new ConflitoException(MSG_VERSAO);
 			}
 			Set<Integer> equipas = equipasDoUtilizador(conn, utilizador);
-			boolean passou = inicioPassou(t.d.getData(), t.d.getHoraInicio());
+			boolean passou = inicioPassou(t.d.getData(), t.inicioSessao());
 			if (t.evento() && !parmIdentidade.isAdmin()) {
 				throw new AcessoNegadoException(); // v5: so o ADMIN decide sobre eventos
 			}
@@ -1831,7 +2735,16 @@ public class MicroCicloHelper {
 			if (preparedStatement.executeUpdate() == 0) {
 				throw new ConflitoException(MSG_VERSAO);
 			}
-			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, texto);
+			// v6 (CA122): uma so linha por acao, com os fisicos; os fisicos seguem o estado do principal
+			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador,
+					texto + incluiFisicos(fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId())));
+			propagaSessao(conn, parmIdentidade.getTenantId(), t.d.getId(), null);
+			if ("APROVAR".equals(acao)) {
+				avisaCaducadas(conn, parmIdentidade, t.d.getId(), Set.of()); // v8 (Y3, CA161)
+			}
+			if ("CANCELAR".equals(acao)) {
+				apagaConfirmacoes(conn, t.d.getId(), null); // v8 (Y5, Q129): ao reativar, todos sem resposta
+			}
 			if ("REJEITAR".equals(acao) && !t.evento()) { // v5 (R128): eventos sem notificacoes
 				aposTreinoRejeitado(conn, parmIdentidade, t);
 			}
@@ -1875,6 +2788,9 @@ public class MicroCicloHelper {
 			if (!parmIdentidade.isAdmin() && (RASCUNHO.equals(t.estadoBD) || RASCUNHO.equals(t.mcEstado))) {
 				throw new AcessoNegadoException();
 			}
+			if (t.ligado()) {
+				throw new ConflitoException("A convocatória é a do treino principal."); // v6 (X5)
+			}
 			if (!podeAgirNaEquipa(parmIdentidade, t.d.getIdEquipa(), equipasDoUtilizador(conn, utilizador))) {
 				throw new AcessoNegadoException();
 			}
@@ -1884,9 +2800,38 @@ public class MicroCicloHelper {
 			if (CANCELADO.equals(t.estadoBD) || t.realizado()) {
 				throw new ConflitoException("Não se pode ajustar a convocatória de um treino cancelado ou realizado.");
 			}
-			if (inicioPassou(t.d.getData(), t.d.getHoraInicio())) {
+			// v7 (X4): a convocatoria fecha no inicio da sessao; os participantes de cada fisico no inicio desse fisico
+			boolean mexeConvocatoria = parmPedido.isRepor()
+					|| (parmPedido.getAdicionar() != null && !parmPedido.getAdicionar().isEmpty())
+					|| (parmPedido.getRetirar() != null && !parmPedido.getRetirar().isEmpty());
+			if (inicioPassou(t.d.getData(), t.inicioSessao()) && (mexeConvocatoria || parmPedido.getFisicos() == null)) {
 				throw new ConflitoException(MSG_JA_COMECOU);
 			}
+			// v7 (X3): fisicos do pedido, so deste principal e sem repetidos
+			Map<Integer, FisicoStaffData> fisicosPrincipal = new LinkedHashMap<>();
+			for (FisicoStaffData f : fisicosDe(conn, tenant, t.d.getId())) {
+				fisicosPrincipal.put(f.getId(), f);
+			}
+			Map<Integer, Set<Integer>> pedidosFisicos = new LinkedHashMap<>();
+			if (parmPedido.getFisicos() != null) {
+				for (PedidoConvocatoriaData.Fisico pf : parmPedido.getFisicos()) {
+					if (pf == null || pf.getIdFisico() == null || !fisicosPrincipal.containsKey(pf.getIdFisico())
+							|| pedidosFisicos.containsKey(pf.getIdFisico())) {
+						throw new PedidoInvalidoException("Treino físico inválido.");
+					}
+					Set<Integer> excluidosPedido = new HashSet<>();
+					if (pf.getExcluidos() != null) {
+						for (Integer idJogador : pf.getExcluidos()) {
+							if (idJogador == null) {
+								throw new PedidoInvalidoException("Jogador inválido: null");
+							}
+							excluidosPedido.add(idJogador);
+						}
+					}
+					pedidosFisicos.put(pf.getIdFisico(), excluidosPedido);
+				}
+			}
+			Map<Integer, Set<Integer>> excluidosAntes = excluidosDe(conn, tenant, fisicosPrincipal.keySet());
 			Map<Integer, String> antes = nomes(convocatoriaEfetiva(conn, t));
 
 			if (parmPedido.isRepor()) {
@@ -1960,6 +2905,66 @@ public class MicroCicloHelper {
 				psDescarta.executeUpdate();
 			}
 
+			// v7 (X2, R189): repor apaga todas as exclusoes; quem saiu do principal perde as suas
+			if (parmPedido.isRepor()) {
+				apagaExcluidosDoPrincipal(conn, t.d.getId(), null);
+			}
+			for (Integer idJogador : antes.keySet()) {
+				if (!depois.containsKey(idJogador)) {
+					apagaExcluidosDoPrincipal(conn, t.d.getId(), idJogador);
+					apagaConfirmacoes(conn, t.d.getId(), idJogador); // v8 (Y5): quem volta comeca sem resposta
+				}
+			}
+			// v7 (X3): cada entrada substitui os excluidos desse fisico
+			Map<Integer, Set<Integer>> excluidosAtuais = excluidosDe(conn, tenant, fisicosPrincipal.keySet());
+			for (Map.Entry<Integer, Set<Integer>> pedido : pedidosFisicos.entrySet()) {
+				FisicoStaffData f = fisicosPrincipal.get(pedido.getKey());
+				Set<Integer> atuais = new HashSet<>(excluidosAtuais.getOrDefault(f.getId(), Set.of()));
+				atuais.retainAll(depois.keySet()); // as exclusoes orfas (ver apagaExcluidosDoPrincipal) nao contam
+
+				Set<Integer> novos = pedido.getValue();
+				for (Integer idJogador : novos) {
+					if (!depois.containsKey(idJogador)) {
+						throw new PedidoInvalidoException("Jogador inválido: " + idJogador);
+					}
+				}
+				if (atuais.equals(novos)) {
+					continue;
+				}
+				if (inicioPassou(t.d.getData(), f.getHoraInicio())) {
+					throw new ConflitoException("O físico das " + f.getHoraInicio() + " já começou.");
+				}
+				List<String> menos = new ArrayList<>();
+				List<String> mais = new ArrayList<>();
+				try (PreparedStatement psInsere = conn.prepareStatement("insert into treino_fisico_excluido(id_treino, "
+						+ "id_jogador, data_alteracao, id_utilizador_alteracao) values (?, ?, now(), ?)");
+						PreparedStatement psApaga = conn.prepareStatement(
+								"delete from treino_fisico_excluido where id_treino = ? and id_jogador = ?")) {
+					for (Integer idJogador : novos) {
+						if (!atuais.contains(idJogador)) {
+							psInsere.setInt(1, f.getId());
+							psInsere.setInt(2, idJogador);
+							psInsere.setInt(3, utilizador);
+							psInsere.executeUpdate();
+							menos.add(depois.get(idJogador));
+						}
+					}
+					for (Integer idJogador : atuais) {
+						if (!novos.contains(idJogador)) {
+							psApaga.setInt(1, f.getId());
+							psApaga.setInt(2, idJogador);
+							psApaga.executeUpdate();
+							mais.add(depois.get(idJogador));
+						}
+					}
+				}
+				// R191: historico no principal, sem mudar o estado nem notificar o treinador
+				historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador, "Físico " + intervalo(f)
+						+ (menos.isEmpty() ? "" : " | − " + String.join(", ", menos))
+						+ (mais.isEmpty() ? "" : " | + " + String.join(", ", mais)));
+			}
+			Map<Integer, Set<Integer>> excluidosDepois = excluidosDe(conn, tenant, fisicosPrincipal.keySet());
+
 			List<String> entrou = new ArrayList<>();
 			List<String> saiu = new ArrayList<>();
 			depois.forEach((id, nome) -> {
@@ -1991,10 +2996,141 @@ public class MicroCicloHelper {
 								"Deixaste de estar convocado para o " + treino);
 					}
 				}
+				// v7 (X6): quem ficou e mudou nalgum fisico; vale o primeiro fisico alterado (por hora)
+				Map<Integer, String[]> notificacoesFisico = new LinkedHashMap<>(); // jogador -> {tipo, texto}
+				for (Integer idJogador : depois.keySet()) {
+					if (!antes.containsKey(idJogador)) {
+						continue;
+					}
+					for (FisicoStaffData f : fisicosPrincipal.values()) {
+						boolean fazia = !excluidosAntes.getOrDefault(f.getId(), Set.of()).contains(idJogador);
+						boolean faz = !excluidosDepois.getOrDefault(f.getId(), Set.of()).contains(idJogador);
+						if (fazia != faz) {
+							String fisico = "físico do " + t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " às "
+									+ f.getHoraInicio();
+							notificacoesFisico.put(idJogador, new String[] { faz ? "FISICO_ENTROU" : "FISICO_SAIU",
+									(faz ? "Passaste a fazer o " : "Deixaste de fazer o ") + fisico });
+							break;
+						}
+					}
+				}
+				// v8 (Y4): quem entra num fisico e tinha confirmado recebe uma so notificacao (FISICO_ENTROU + "Confirma de novo.")
+				Set<Integer> juntar = new HashSet<>();
+				notificacoesFisico.forEach((idJogador, n) -> {
+					if ("FISICO_ENTROU".equals(n[0])) {
+						juntar.add(idJogador);
+					}
+				});
+				Set<Integer> caducadas = avisaCaducadas(conn, parmIdentidade, t.d.getId(), juntar);
+				for (Map.Entry<Integer, String[]> n : notificacoesFisico.entrySet()) {
+					boolean confirmaDeNovo = juntar.contains(n.getKey()) && caducadas.contains(n.getKey());
+					notificaAtleta(conn, parmIdentidade, n.getKey(), t.d.getId(), n.getValue()[0],
+							n.getValue()[1] + (confirmaDeNovo ? ". Confirma de novo." : ""));
+				}
 			}
 			return true;
 		});
 		return getDetalhe(parmIdentidade, parmIdTreino);
+	}
+
+	/**
+	 * v7 (X2): apaga as exclusoes dos fisicos do principal (todas, ou so as do jogador). shortcut: quem sai da
+	 * convocatoria por inatividade ou por sair do plantel (sem gravacao) mantem a exclusao; limpar na leitura se for preciso.
+	 */
+	private static void apagaExcluidosDoPrincipal(Connection conn, int parmIdPrincipal, Integer parmIdJogador)
+			throws SQLException {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("delete x from treino_fisico_excluido x "
+				+ "inner join treino f on f.id = x.id_treino where f.id_treino_principal = ?"
+				+ (parmIdJogador != null ? " and x.id_jogador = ?" : ""))) {
+			preparedStatement.setInt(1, parmIdPrincipal);
+			if (parmIdJogador != null) {
+				preparedStatement.setInt(2, parmIdJogador);
+			}
+			preparedStatement.executeUpdate();
+		}
+	}
+
+	/**
+	 * v8 (Y3, Y4, R228): idempotente. Numa sessao que termina APROVADA (nao realizada), avisa cada convocado cuja
+	 * confirmacao caducou e cuja sessao atual ainda nao foi avisada (sessao_avisada). Os de parmJuntarEm nao recebem
+	 * CONFIRMACAO_CADUCOU (vao receber outra notificacao com "Confirma de novo."), mas a sessao_avisada grava-se.
+	 *
+	 * @return os jogadores com a confirmacao caducada nesta chamada
+	 */
+	private Set<Integer> avisaCaducadas(Connection conn, Identidade parmIdentidade, int parmIdSessao,
+			Set<Integer> parmJuntarEm) throws SQLException {
+		Set<Integer> avisados = new HashSet<>();
+		int tenant = parmIdentidade.getTenantId();
+		Treino t = carregaTreino(conn, parmIdSessao, tenant);
+		if (t.ligado() || t.evento() || !APROVADO.equals(t.estadoBD) || t.realizado()) {
+			return avisados;
+		}
+		Map<Integer, Confirmacao> confirmacoes = confirmacoesDe(conn, tenant, List.of(t.d.getId()))
+				.getOrDefault(t.d.getId(), Map.of());
+		if (confirmacoes.isEmpty()) {
+			return avisados;
+		}
+		List<FisicoStaffData> fisicos = fisicosDe(conn, tenant, t.d.getId());
+		List<Integer> idsFisicos = new ArrayList<>();
+		for (FisicoStaffData f : fisicos) {
+			idsFisicos.add(f.getId());
+		}
+		Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, tenant, idsFisicos);
+		Set<Integer> convocados = nomes(convocatoriaEfetiva(conn, t)).keySet();
+		try (PreparedStatement psAvisada = conn.prepareStatement(
+				"update treino_confirmacao set sessao_avisada = ? where id_treino = ? and id_jogador = ?")) {
+			for (Map.Entry<Integer, Confirmacao> c : confirmacoes.entrySet()) {
+				int idJogador = c.getKey();
+				if (!convocados.contains(idJogador)) {
+					continue; // orfa (saiu sem gravacao): nao se avisa
+				}
+				String atual = sessaoDoJogador(t.d, fisicos, excluidos, idJogador);
+				if (!caducou(c.getValue().sessao, atual) || atual.equals(c.getValue().avisada)) {
+					continue;
+				}
+				if (!parmJuntarEm.contains(idJogador)) {
+					List<FisicoData> meus = new ArrayList<>();
+					for (FisicoStaffData f : fisicos) {
+						if (!excluidos.getOrDefault(f.getId(), Set.of()).contains(idJogador)) {
+							meus.add(f);
+						}
+					}
+					String inicio = inicioDoAtleta(t.d.getHoraInicio(), meus);
+					String horas = t.d.getHoraFim() != null ? inicio + "–" + t.d.getHoraFim() : "a partir das " + inicio;
+					notificaAtleta(conn, parmIdentidade, idJogador, t.d.getId(), "CONFIRMACAO_CADUCOU", "O treino "
+							+ t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " mudou (" + horas
+							+ (t.d.getLocal() != null ? " · " + t.d.getLocal() : "") + "). Confirma de novo.");
+				}
+				psAvisada.setString(1, atual);
+				psAvisada.setInt(2, t.d.getId());
+				psAvisada.setInt(3, idJogador);
+				psAvisada.executeUpdate();
+				avisados.add(idJogador);
+			}
+		}
+		return avisados;
+	}
+
+	/** v7 (R202): copia as exclusoes da origem para o fisico copiado, so de quem e convocado efetivo da copia. */
+	private void copiaExcluidos(Connection conn, int parmIdCopia, int parmIdEquipa, String parmEstado, int parmIdFisico,
+			Set<Integer> parmExcluidos, int parmIdUtilizador) throws SQLException {
+		Treino copia = new Treino();
+		copia.d = new TreinoData();
+		copia.d.setId(parmIdCopia);
+		copia.d.setIdEquipa(parmIdEquipa);
+		copia.estadoBD = parmEstado; // RASCUNHO ou PENDENTE: nao fotografado
+		Set<Integer> convocados = nomes(convocatoriaEfetiva(conn, copia)).keySet();
+		try (PreparedStatement preparedStatement = conn.prepareStatement("insert into treino_fisico_excluido(id_treino, "
+				+ "id_jogador, data_alteracao, id_utilizador_alteracao) values (?, ?, now(), ?)")) {
+			for (Integer idJogador : parmExcluidos) {
+				if (convocados.contains(idJogador)) {
+					preparedStatement.setInt(1, parmIdFisico);
+					preparedStatement.setInt(2, idJogador);
+					preparedStatement.setInt(3, parmIdUtilizador);
+					preparedStatement.executeUpdate();
+				}
+			}
+		}
 	}
 
 	/**
@@ -2042,6 +3178,14 @@ public class MicroCicloHelper {
 			Set<Integer> equipas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
 			TreinoDetalheData detalhe = new TreinoDetalheData();
 			detalhe.setTreino(t.d);
+			if (t.ligado()) {
+				// v6 (X5): o detalhe e o do principal (treino.idTreinoPrincipal); sem convocatoria, ausencias nem acoes
+				detalhe.setPodeAprovar(false);
+				detalhe.setPodeAjustar(false);
+				detalhe.setPodeMarcarPresenca(false);
+				detalhe.setPodeEditar(false);
+				return detalhe;
+			}
 
 			PreparedStatement psAusencias = conn.prepareStatement("select ta.id_jogador, j.nome, ta.categoria, ta.motivo, "
 					+ "ta.data_indicacao, ta.estado, ta.pendente_confirmacao from treino_ausencia ta "
@@ -2060,8 +3204,47 @@ public class MicroCicloHelper {
 					+ "from escalao_epoca_jogador eej inner join escalao_epoca ee on ee.id = eej.id_escalao_epoca "
 					+ "inner join epoca e on e.id = ee.id_epoca left join escalao es on es.id = ee.id_escalao "
 					+ "where eej.id_jogador = ? and e.estado = '1' and e.tenant_id = ? and ee.id <> ? LIMIT 1");
-			for (TreinoConvocadoData c : convocatoriaEfetiva(conn, t)) {
+			List<TreinoConvocadoData> convocatoria = convocatoriaEfetiva(conn, t);
+			// v8 (R236, Y10): resposta de cada convocado, so nas sessoes Aprovadas; a data nao vai ao treinador de outra equipa
+			boolean comRespostas = !t.evento() && APROVADO.equals(t.estadoBD);
+			boolean comDatas = !(parmIdentidade.isTreinador() && !parmIdentidade.isAdmin()
+					&& !equipas.contains(t.d.getIdEquipa()));
+			Map<Integer, Confirmacao> confirmacoes = new HashMap<>();
+			Set<Integer> contas = new HashSet<>();
+			Map<Integer, Set<Integer>> excluidosSessao = new HashMap<>();
+			Map<Integer, Timestamp> datasAusencia = new HashMap<>();
+			if (comRespostas) {
+				List<Integer> idsConvocados = new ArrayList<>();
+				for (TreinoConvocadoData c : convocatoria) {
+					idsConvocados.add(c.getIdJogador());
+				}
+				confirmacoes = confirmacoesDe(conn, tenant, List.of(t.d.getId())).getOrDefault(t.d.getId(), new HashMap<>());
+				contas = comConta(conn, tenant, idsConvocados);
+				List<Integer> idsFisicos = new ArrayList<>();
+				if (t.d.getFisicos() != null) {
+					for (FisicoStaffData f : t.d.getFisicos()) {
+						idsFisicos.add(f.getId());
+					}
+				}
+				excluidosSessao = excluidosDe(conn, tenant, idsFisicos);
+				for (TreinoAusenciaData a : detalhe.getAusencias()) {
+					datasAusencia.put(a.getIdJogador(), a.getDataIndicacao());
+				}
+			}
+			for (TreinoConvocadoData c : convocatoria) {
 				c.setAvisou(avisaram.contains(c.getIdJogador()));
+				if (comRespostas) {
+					Confirmacao conf = confirmacoes.get(c.getIdJogador());
+					String estado = estadoResposta(avisaram.contains(c.getIdJogador()), contas.contains(c.getIdJogador()),
+							conf, sessaoDoJogador(t.d, t.d.getFisicos(), excluidosSessao, c.getIdJogador()));
+					c.setResposta(NAO_VOU.equals(estado) ? NAO_VOU : VOU.equals(estado) || CADUCADA.equals(estado) ? VOU : null);
+					c.setCaducada(CADUCADA.equals(estado));
+					c.setSemConta(SEM_CONTA.equals(estado));
+					if (comDatas) {
+						c.setDataResposta(NAO_VOU.equals(estado) ? datasAusencia.get(c.getIdJogador())
+								: conf != null && !SEM_CONTA.equals(estado) ? conf.data : null);
+					}
+				}
 				if ("ACRESCENTADO".equals(c.getOrigem())) {
 					psOrigem.setInt(1, c.getIdJogador());
 					psOrigem.setInt(2, tenant);
@@ -2116,7 +3299,7 @@ public class MicroCicloHelper {
 				}
 			}
 
-			boolean passou = inicioPassou(t.d.getData(), t.d.getHoraInicio());
+			boolean passou = inicioPassou(t.d.getData(), t.inicioSessao());
 			boolean fechado = CANCELADO.equals(t.estadoBD) || t.realizado();
 			boolean agir = podeAgirNaEquipa(parmIdentidade, t.d.getIdEquipa(), equipas);
 			detalhe.setPodeAprovar(t.d.isPodeAprovar());
@@ -2125,6 +3308,26 @@ public class MicroCicloHelper {
 					&& podeMarcarPresenca(parmIdentidade, t.d.getIdEquipa(), equipas));
 			detalhe.setPodeEditar(parmIdentidade.isAdmin() && !fechado && !passou && !CANCELADO.equals(t.mcEstado)
 					&& !semanaTerminou(t.dataInicio));
+			// v7 (R192): os excluidos de cada fisico (so convocados efetivos) e se ainda se podem mudar
+			if (t.d.getFisicos() != null && !t.d.getFisicos().isEmpty()) {
+				List<Integer> idsFisicos = new ArrayList<>();
+				for (FisicoStaffData f : t.d.getFisicos()) {
+					idsFisicos.add(f.getId());
+				}
+				Set<Integer> convocados = nomes(convocatoriaEfetiva(conn, t)).keySet();
+				Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, tenant, idsFisicos);
+				for (FisicoStaffData f : t.d.getFisicos()) {
+					List<Integer> lista = new ArrayList<>();
+					for (Integer idJogador : excluidos.getOrDefault(f.getId(), Set.of())) {
+						if (convocados.contains(idJogador)) {
+							lista.add(idJogador);
+						}
+					}
+					java.util.Collections.sort(lista);
+					f.setExcluidos(lista);
+					f.setPodeAjustar(agir && !fechado && !inicioPassou(t.d.getData(), f.getHoraInicio()));
+				}
+			}
 
 			// v3 (R66): ultima decisao (aprovacao ou rejeicao), para todo o staff, como o "Aprovado por"
 			if (APROVADO.equals(t.estadoBD) || REJEITADO.equals(t.estadoBD)) {
@@ -2314,6 +3517,7 @@ public class MicroCicloHelper {
 					+ "left join escalao_epoca ee on ee.id = t.id_equipa left join escalao es on es.id = ee.id_escalao "
 					+ "left join grupo_evento g on g.id = t.id_grupo and g.tenant_id = m.tenant_id "
 					+ "where m.tenant_id = ? and m.estado = 'PUBLICADO' and t.estado = 'APROVADO' "
+					+ "and t.id_treino_principal is null " // v6 (CA124): o fisico ligado so em fisicos do principal
 					+ "and t.`data` between ? and ? order by t.`data`, t.hora_inicio, t.id")) {
 				psItens.setInt(1, parmIdJogador);
 				psItens.setInt(2, tenant);
@@ -2345,6 +3549,23 @@ public class MicroCicloHelper {
 						}
 					}
 				}
+			}
+			List<Integer> idsItens = new ArrayList<>();
+			for (sm.core.data.SemanaClubeAtletaData.Item item : semana.getItens()) {
+				idsItens.add(item.getId());
+			}
+			Map<Integer, List<FisicoStaffData>> fisicosItens = fisicosDe(conn, tenant, idsItens);
+			List<Integer> idsFisicosItens = new ArrayList<>();
+			fisicosItens.values().forEach(lista -> lista.forEach(f -> idsFisicosItens.add(f.getId())));
+			Map<Integer, Set<Integer>> excluidosItens = excluidosDe(conn, tenant, idsFisicosItens);
+			for (sm.core.data.SemanaClubeAtletaData.Item item : semana.getItens()) {
+				// v7 (R195, CA137): todos os fisicos do item, com meu = participa; copia campo a campo
+				List<FisicoAtletaData> lista = new ArrayList<>();
+				for (FisicoStaffData f : fisicosItens.getOrDefault(item.getId(), new ArrayList<>())) {
+					lista.add(FisicoAtletaData.de(f, item.isMeu()
+							&& !excluidosItens.getOrDefault(f.getId(), Set.of()).contains(parmIdJogador)));
+				}
+				item.setFisicos(lista);
 			}
 
 			// equipas do jogador nesta epoca (ativo), para o "meu" dos jogos
@@ -2442,8 +3663,18 @@ public class MicroCicloHelper {
 		int utilizador = parmIdentidade.getIdUtilizador();
 		ResultadoCopiaTreinoData resultado = new ResultadoCopiaTreinoData();
 		Map<Integer, Integer> criados = new LinkedHashMap<>(); // id -> data
+		Map<Integer, List<String>> avisosCopia = new HashMap<>(); // v6: fisicos nao copiados, por copia
 		Treino origem = emTransacao("copiaTreino", conn -> {
 			Treino t = carregaTreino(conn, parmIdTreino, tenant);
+			if (t.ligado()) {
+				throw new PedidoInvalidoException("Copie o treino principal."); // v6 (X5)
+			}
+			List<FisicoStaffData> fisicosOrigem = fisicosDe(conn, tenant, t.d.getId());
+			List<Integer> idsFisicosOrigem = new ArrayList<>();
+			for (FisicoStaffData f : fisicosOrigem) {
+				idsFisicosOrigem.add(f.getId());
+			}
+			Map<Integer, Set<Integer>> excluidosOrigem = excluidosDe(conn, tenant, idsFisicosOrigem); // v7 (R202)
 			String descricao = (t.evento() ? t.d.getNomeGrupo() : t.d.getNomeEquipa()) + " " + dia(t.d.getData()) + " "
 					+ t.d.getHoraInicio();
 			List<Integer> pendentes = new ArrayList<>();
@@ -2494,7 +3725,33 @@ public class MicroCicloHelper {
 							psAjustes.executeUpdate();
 						}
 					}
-					historico(conn, mc.getId(), id, utilizador, "Treino criado (cópia de " + descricao + ")");
+					// v6 (R184): os fisicos da origem, ligados a copia; os que nao passam ficam em aviso
+					List<FisicoStaffData> copiados = new ArrayList<>();
+					for (FisicoStaffData f : fisicosOrigem) {
+						try {
+							TreinoData vf = new TreinoData();
+							vf.setIdEquipa(v.getIdEquipa());
+							vf.setTipo("FISICO");
+							vf.setSubGrupo(f.getSubGrupo());
+							vf.setData(data);
+							vf.setHoraInicio(f.getHoraInicio());
+							vf.setHoraFim(f.getHoraFim());
+							vf.setLocal(f.getLocal());
+							validaTreino(vf);
+							validaPlaneamento(conn, tenant, mc.getDataInicio(), mc.getEstado(), mc.getIdEpoca(), vf);
+							int idFisico = insereFisico(conn, mc.getId(), id, v.getIdEquipa(), data, f, estado, utilizador);
+							copiados.add(f);
+							if (parmPedido.isManterAjustes() && excluidosOrigem.containsKey(f.getId())) {
+								copiaExcluidos(conn, id, v.getIdEquipa(), estado, idFisico, excluidosOrigem.get(f.getId()),
+										utilizador);
+							}
+						} catch (PedidoInvalidoException | ConflitoException e) {
+							avisosCopia.computeIfAbsent(id, k -> new ArrayList<>())
+									.add("Físico " + intervalo(f) + " não copiado: " + e.getMessage());
+						}
+					}
+					historico(conn, mc.getId(), id, utilizador, "Treino criado (cópia de " + descricao + ")"
+							+ incluiFisicos(copiados));
 					criados.put(id, data);
 					if (PENDENTE.equals(estado)) {
 						pendentes.add(id);
@@ -2522,6 +3779,7 @@ public class MicroCicloHelper {
 			if (criado.getValue() == origem.d.getData()) {
 				d.getAvisos().add("Mesmo dia do treino original");
 			}
+			d.getAvisos().addAll(avisosCopia.getOrDefault(criado.getKey(), new ArrayList<>()));
 			resultado.getCriados().add(d);
 		}
 		return resultado;
@@ -2571,9 +3829,26 @@ public class MicroCicloHelper {
 		}
 		List<TreinoData> lista = new ArrayList<>();
 		Map<Integer, String> cores = coresEquipas(conn, parmIdentidade.getTenantId());
+		List<Integer> ids = new ArrayList<>();
 		for (Treino t : treinos) {
+			ids.add(t.d.getId());
+		}
+		Map<Integer, List<FisicoStaffData>> fisicos = fisicosDe(conn, parmIdentidade.getTenantId(), ids); // v6 (CA119)
+		List<Integer> idsFisicos = new ArrayList<>();
+		fisicos.values().forEach(l -> l.forEach(f -> idsFisicos.add(f.getId())));
+		Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, parmIdentidade.getTenantId(), idsFisicos);
+		for (Treino t : treinos) {
+			if (t.d.getFisicos() != null) {
+				t.d.setFisicos(fisicos.getOrDefault(t.d.getId(), new ArrayList<>()));
+			}
 			t.d.setCorEquipa(cores.get(t.d.getIdEquipa()));
-			t.d.setNumConvocados(convocatoriaEfetiva(conn, t).size());
+			List<TreinoConvocadoData> conv = convocatoriaEfetiva(conn, t);
+			t.d.setNumConvocados(conv.size());
+			if (t.d.getFisicos() != null) {
+				for (FisicoStaffData f : t.d.getFisicos()) {
+					f.setNumParticipantes(participantes(conv, excluidos.get(f.getId())).size()); // v7 (sem numAusencias)
+				}
+			}
 			t.d.setNumAusencias(ausenciasAtivas(conn, t.d.getId()));
 			preencheDerivados(t, parmIdentidade, parmEquipas);
 			lista.add(t.d);
@@ -2592,7 +3867,8 @@ public class MicroCicloHelper {
 			Set<Integer> equipas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
 			Map<String, List<TreinoData>> resultado = new LinkedHashMap<>();
 			PreparedStatement psDia = conn.prepareStatement(SQL_TREINO + "and t.id_equipa = ? and t.`data` = ? "
-					+ "and t.estado in ('APROVADO', 'PENDENTE') and m.estado = 'PUBLICADO' order by t.hora_inicio, t.id");
+					+ "and t.estado in ('APROVADO', 'PENDENTE') and m.estado = 'PUBLICADO' and t.id_treino_principal is null "
+					+ "order by t.hora_inicio, t.id");
 			psDia.setInt(1, tenant);
 			psDia.setInt(2, parmIdEquipa);
 			psDia.setInt(3, parmData);
@@ -2600,7 +3876,7 @@ public class MicroCicloHelper {
 			int hoje = hoje();
 			PreparedStatement psPorMarcar = conn.prepareStatement(SQL_TREINO + "and t.id_equipa = ? "
 					+ "and t.estado = 'APROVADO' and t.id_presenca is null and t.`data` between ? and ? "
-					+ "order by t.`data`, t.hora_inicio, t.id");
+					+ "and t.id_treino_principal is null order by t.`data`, t.hora_inicio, t.id");
 			psPorMarcar.setInt(1, tenant);
 			psPorMarcar.setInt(2, parmIdEquipa);
 			psPorMarcar.setInt(3, somaDias(segundaDe(hoje), -7));
@@ -2615,6 +3891,9 @@ public class MicroCicloHelper {
 		if (t.evento()) {
 			throw new ConflitoException("Um evento não tem presença."); // v5 (R128)
 		}
+		if (t.ligado()) {
+			throw new ConflitoException(MSG_PRESENCA_PRINCIPAL); // v6 (R179)
+		}
 		if (!podeMarcarPresenca(parmIdentidade, t.d.getIdEquipa(),
 				equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador()))) {
 			throw new AcessoNegadoException();
@@ -2625,9 +3904,9 @@ public class MicroCicloHelper {
 		if (t.realizado()) {
 			throw new ConflitoException("O treino já tem presença marcada.");
 		}
-		if (!inicioPassou(t.d.getData(), t.d.getHoraInicio())) {
-			throw new ConflitoException("A presença só pode ser marcada a partir da hora de início ("
-					+ t.d.getHoraInicio() + ").");
+		// v6 (X8): a partir do inicio da sessao (o fisico "antes", se houver)
+		if (!inicioPassou(t.d.getData(), t.inicioSessao())) {
+			throw new ConflitoException("A presença só pode ser marcada a partir das " + t.inicioSessao() + ".");
 		}
 	}
 
@@ -2697,6 +3976,29 @@ public class MicroCicloHelper {
 			Map<String, Object> resultado = new LinkedHashMap<>();
 			resultado.put("presenca", presenca);
 			resultado.put("idPresencaManual", rsManual.next() ? rsManual.getInt(1) : null);
+			// v7 (R199): participantes de cada fisico, so informativo (a presenca e uma por sessao)
+			List<FisicoStaffData> fisicos = fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId());
+			List<Integer> idsFisicos = new ArrayList<>();
+			for (FisicoStaffData f : fisicos) {
+				idsFisicos.add(f.getId());
+			}
+			Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, parmIdentidade.getTenantId(), idsFisicos);
+			List<Map<String, Object>> listaFisicos = new ArrayList<>();
+			for (FisicoStaffData f : fisicos) {
+				List<Integer> part = new ArrayList<>();
+				for (Integer idJogador : convocados) {
+					if (!excluidos.getOrDefault(f.getId(), Set.of()).contains(idJogador)) {
+						part.add(idJogador);
+					}
+				}
+				Map<String, Object> item = new LinkedHashMap<>();
+				item.put("idFisico", f.getId());
+				item.put("horas", intervalo(f));
+				item.put("posicao", f.getPosicao());
+				item.put("participantes", part);
+				listaFisicos.add(item);
+			}
+			resultado.put("fisicos", listaFisicos);
 			return resultado;
 		});
 	}
@@ -2828,6 +4130,9 @@ public class MicroCicloHelper {
 			if (t.evento()) {
 				throw new ConflitoException("Um evento não tem presença."); // v5 (R128)
 			}
+			if (t.ligado()) {
+				throw new ConflitoException(MSG_PRESENCA_PRINCIPAL); // v6 (R179)
+			}
 			if (!APROVADO.equals(t.estadoBD) || t.realizado()) {
 				throw new ConflitoException("O treino não está aprovado ou já tem presença.");
 			}
@@ -2885,7 +4190,7 @@ public class MicroCicloHelper {
 		// v5 (Q79): CONVOCATORIA_ENTROU por ler, desta conta, por treino
 		Set<Integer> convocatoriaAlterada = new HashSet<>();
 		try (PreparedStatement psAlterada = conn.prepareStatement("select distinct n.id_treino from notificacao n "
-				+ "where n.id_utilizador = ? and n.tipo = 'CONVOCATORIA_ENTROU' and n.data_leitura is null "
+				+ "where n.id_utilizador = ? and n.tipo in ('CONVOCATORIA_ENTROU', 'FISICO_ENTROU') and n.data_leitura is null "
 				+ "and n.id_treino is not null")) {
 			psAlterada.setInt(1, parmIdUtilizador);
 			try (ResultSet rsAlterada = psAlterada.executeQuery()) {
@@ -2894,8 +4199,16 @@ public class MicroCicloHelper {
 				}
 			}
 		}
+		// v6 (CA124): os fisicos ligados vem so no treino principal (sem convocatoria propria, nao entram na lista)
+		List<Integer> ids = new ArrayList<>();
+		for (Treino t : treinos) {
+			ids.add(t.d.getId());
+		}
+		Map<Integer, List<FisicoAtletaData>> fisicos = fisicosDoAtleta(conn, parmTenantId, parmIdJogador, ids);
+		Map<Integer, Map<Integer, Confirmacao>> confirmacoes = confirmacoesDe(conn, parmTenantId, ids); // v8
 		for (Treino t : treinos) {
 			TreinoAtletaData a = new TreinoAtletaData();
+			a.setFisicos(fisicos.getOrDefault(t.d.getId(), new ArrayList<>()));
 			a.setCorEquipa(cores.get(t.d.getIdEquipa()));
 			a.setConvocatoriaAlterada(convocatoriaAlterada.contains(t.d.getId()));
 			a.setId(t.d.getId());
@@ -2910,7 +4223,7 @@ public class MicroCicloHelper {
 			a.setObservacoes(t.d.getObservacoes());
 			a.setEstado(t.d.getEstado());
 			a.setVersao(t.d.getVersao());
-			a.setPrazoTerminado(inicioPassou(t.d.getData(), t.d.getHoraInicio()));
+			a.setPrazoTerminado(inicioPassou(t.d.getData(), inicioDoAtleta(t.d.getHoraInicio(), a.getFisicos())));
 			for (Treino outro : treinos) {
 				if (outro != t && !CANCELADO.equals(t.estadoBD) && !CANCELADO.equals(outro.estadoBD)
 						&& sobrepostos(t.d, outro.d)) {
@@ -2925,9 +4238,52 @@ public class MicroCicloHelper {
 				ausencia.setNome(null);
 				a.setAusencia(ausencia);
 			}
+			// v8 (R220-R223): so a resposta e a sessao do proprio atleta (calculadas na leitura, sem escrever)
+			a.setSessao(sessaoDoAtleta(t.d, a.getFisicos()));
+			Confirmacao conf = confirmacoes.getOrDefault(t.d.getId(), Map.of()).get(parmIdJogador);
+			if (a.getAusencia() != null) {
+				a.setResposta(NAO_VOU);
+			} else if (conf != null) {
+				a.setResposta(VOU);
+				a.setCaducada(caducou(conf.sessao, a.getSessao()));
+				a.setDataConfirmacao(conf.data);
+			}
+			a.setPodeResponder(APROVADO.equals(t.estadoBD) && !t.realizado() && PUBLICADO.equals(t.mcEstado)
+					&& !a.isPrazoTerminado());
 			lista.add(a);
 		}
 		return lista;
+	}
+
+	/** v7 (R195, X5): por principal, so os fisicos que o jogador faz, copiados para FisicoAtletaData (meu = true). */
+	private static Map<Integer, List<FisicoAtletaData>> fisicosDoAtleta(Connection conn, int parmTenantId,
+			int parmIdJogador, List<Integer> parmIdsPrincipais) throws SQLException {
+		Map<Integer, List<FisicoStaffData>> fisicos = fisicosDe(conn, parmTenantId, parmIdsPrincipais);
+		List<Integer> idsFisicos = new ArrayList<>();
+		fisicos.values().forEach(lista -> lista.forEach(f -> idsFisicos.add(f.getId())));
+		Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, parmTenantId, idsFisicos);
+		Map<Integer, List<FisicoAtletaData>> mapa = new HashMap<>();
+		fisicos.forEach((idPrincipal, lista) -> {
+			List<FisicoAtletaData> meus = new ArrayList<>();
+			for (FisicoStaffData f : lista) {
+				if (!excluidos.getOrDefault(f.getId(), Set.of()).contains(parmIdJogador)) {
+					meus.add(FisicoAtletaData.de(f, true));
+				}
+			}
+			mapa.put(idPrincipal, meus);
+		});
+		return mapa;
+	}
+
+	/** v7 (R196): o inicio da primeira parte que o atleta faz (o principal ou um fisico dele mais cedo). */
+	private static String inicioDoAtleta(String parmHoraPrincipal, List<? extends FisicoData> parmFisicos) {
+		String inicio = parmHoraPrincipal;
+		for (FisicoData f : parmFisicos) {
+			if (f.getHoraInicio().compareTo(inicio) < 0) {
+				inicio = f.getHoraInicio();
+			}
+		}
+		return inicio;
 	}
 
 	private static void exigeAtleta(Identidade parmIdentidade, Integer parmIdJogador) {
@@ -2982,7 +4338,10 @@ public class MicroCicloHelper {
 			if (!APROVADO.equals(t.estadoBD)) {
 				throw new ConflitoException("O treino não está aprovado.");
 			}
-			if (t.realizado() || inicioPassou(t.d.getData(), t.d.getHoraInicio())) {
+			// v7 (R196): o prazo e o inicio da primeira parte que o atleta faz
+			List<FisicoAtletaData> meusFisicos = fisicosDoAtleta(conn, tenant, jid, List.of(t.d.getId()))
+					.getOrDefault(t.d.getId(), new ArrayList<>());
+			if (t.realizado() || inicioPassou(t.d.getData(), inicioDoAtleta(t.d.getHoraInicio(), meusFisicos))) {
 				throw new ConflitoException(MSG_PRAZO);
 			}
 			if (parmPedido.getVersao() != t.d.getVersao()) {
@@ -3010,6 +4369,7 @@ public class MicroCicloHelper {
 				psIndica.setString(4, motivoFinal);
 				psIndica.setInt(5, parmIdentidade.getIdUtilizador());
 				psIndica.executeUpdate();
+				apagaConfirmacoes(conn, t.d.getId(), jid); // v8 (Y1): "Vou" e "Não vou" exclusivos
 				tipo = "AUSENCIA_INDICADA";
 				historicoTexto = "Ausência indicada | " + nome + " | " + categoriaTexto(categoria);
 				texto = nome + " avisou que não vai ao " + treino;
@@ -3025,6 +4385,10 @@ public class MicroCicloHelper {
 				if (psAltera.executeUpdate() == 0) {
 					throw new ConflitoException(anular ? "Não tens nenhum aviso de falta neste treino."
 							: "Não há nenhum aviso para confirmar neste treino.");
+				}
+				if (anular) {
+					// v8 (Y7, R222): "Afinal vou" passa a "Vou", com a sessao atual (o pedido antigo nao traz a sessao)
+					gravaConfirmacao(conn, t.d.getId(), jid, sessaoDoAtleta(t.d, meusFisicos), parmIdentidade.getIdUtilizador());
 				}
 				tipo = anular ? "AUSENCIA_ANULADA" : "AUSENCIA_CONFIRMADA";
 				historicoTexto = (anular ? "Ausência anulada | " : "Ausência confirmada depois da alteração | ") + nome;
@@ -3043,5 +4407,593 @@ public class MicroCicloHelper {
 			}
 		}
 		return null;
+	}
+
+	// ==================== v8: respostas do atleta (BK-v8-3, Y6-Y8) ====================
+
+	private static final int MAXIMO_CONFIRMAR = 30;
+	private static final String MSG_MUDOU = "O treino mudou entretanto.";
+
+	/** Q116: null = o atleta pode responder; senao o motivo curto (o do lote). */
+	private static String motivoSemResposta(Treino t, String parmInicioAtleta) {
+		if (t.ligado() || t.evento()) {
+			return "sem acesso";
+		}
+		if (!APROVADO.equals(t.estadoBD) || t.realizado() || !PUBLICADO.equals(t.mcEstado)) {
+			return "não aprovado";
+		}
+		if (inicioPassou(t.d.getData(), parmInicioAtleta)) {
+			return "prazo terminado";
+		}
+		return null;
+	}
+
+	private static boolean temAusenciaAtiva(Connection conn, int parmIdTreino, int parmIdJogador) throws SQLException {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select 1 from treino_ausencia "
+				+ "where id_treino = ? and id_jogador = ? and estado = 'ATIVA'")) {
+			preparedStatement.setInt(1, parmIdTreino);
+			preparedStatement.setInt(2, parmIdJogador);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				return rs.next();
+			}
+		}
+	}
+
+	/** O ANULAR de ausencia (historico e AUSENCIA_ANULADA aos treinadores), quando o "Vou" substitui um "Nao vou". */
+	private void anulaAusenciaAtiva(Connection conn, Identidade parmIdentidade, Treino t, int parmIdJogador)
+			throws SQLException {
+		try (PreparedStatement psAnula = conn.prepareStatement("update treino_ausencia set estado = 'ANULADA', "
+				+ "pendente_confirmacao = '0', data_alteracao = now() where id_treino = ? and id_jogador = ? and estado = 'ATIVA'")) {
+			psAnula.setInt(1, t.d.getId());
+			psAnula.setInt(2, parmIdJogador);
+			if (psAnula.executeUpdate() == 0) {
+				return;
+			}
+		}
+		String nome = "";
+		try (PreparedStatement psNome = conn.prepareStatement("select nome from jogador where id = ?")) {
+			psNome.setInt(1, parmIdJogador);
+			try (ResultSet rs = psNome.executeQuery()) {
+				nome = rs.next() ? rs.getString(1) : "";
+			}
+		}
+		historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), parmIdentidade.getIdUtilizador(), "Ausência anulada | " + nome);
+		notifica(conn, parmIdentidade, notificacaoHelper.destinatariosEquipa(conn, t.d.getIdEquipa(),
+				parmIdentidade.getTenantId()), "AUSENCIA_ANULADA", t.d.getId(), parmIdJogador, nome + " afinal vai ao treino "
+						+ t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " às " + t.d.getHoraInicio());
+	}
+
+	/**
+	 * R220-R224: "Vou" (com a sessao que o atleta viu) ou anular a confirmacao. So o ATLETA, numa sessao em que e
+	 * convocado (o fisico ligado nao e uma sessao: 403). Sem historico nem notificacao do "Vou" (R238, R242).
+	 */
+	public TreinoAtletaData responde(Identidade parmIdentidade, int parmIdTreino,
+			sm.core.data.PedidoRespostaData parmPedido) {
+		exigeAtleta(parmIdentidade, null);
+		if (parmPedido == null) {
+			throw new PedidoInvalidoException("Pedido sem dados.");
+		}
+		String acao = parmPedido.getAcao() == null ? "" : parmPedido.getAcao().trim().toUpperCase();
+		if (!Set.of(VOU, "ANULAR").contains(acao)) {
+			throw new PedidoInvalidoException("Ação inválida.");
+		}
+		String sessao = parmPedido.getSessao() == null ? null : parmPedido.getSessao().trim();
+		if (VOU.equals(acao) && (sessao == null || sessao.isEmpty())) {
+			throw new PedidoInvalidoException("Sessão em falta.");
+		}
+		int jid = parmIdentidade.getIdJogador();
+		int tenant = parmIdentidade.getTenantId();
+		if (!autorizacaoHelper.treinoDoAtleta(parmIdTreino, jid, tenant)) {
+			throw new AcessoNegadoException();
+		}
+		int segunda = emTransacao("responde", conn -> {
+			Treino t = carregaTreino(conn, parmIdTreino, tenant);
+			if (t.ligado() || t.evento()) {
+				throw new AcessoNegadoException();
+			}
+			List<FisicoAtletaData> meus = fisicosDoAtleta(conn, tenant, jid, List.of(t.d.getId()))
+					.getOrDefault(t.d.getId(), new ArrayList<>());
+			String motivo = motivoSemResposta(t, inicioDoAtleta(t.d.getHoraInicio(), meus));
+			if (motivo != null) {
+				throw new ConflitoException("prazo terminado".equals(motivo) ? MSG_PRAZO : "O treino não está aprovado.");
+			}
+			if (VOU.equals(acao)) {
+				if (!sessaoDoAtleta(t.d, meus).equals(sessao)) {
+					throw new ConflitoException(MSG_MUDOU); // Y6
+				}
+				anulaAusenciaAtiva(conn, parmIdentidade, t, jid); // Y1: exclusivos na mesma transacao
+				gravaConfirmacao(conn, t.d.getId(), jid, sessao, parmIdentidade.getIdUtilizador());
+			} else {
+				apagaConfirmacoes(conn, t.d.getId(), jid);
+			}
+			return segundaDe(t.d.getData());
+		});
+		log.info("MicroCicloHelper | responde | treino:{} jogador:{} acao:{}", parmIdTreino, jid, acao);
+		for (TreinoAtletaData a : leitura("responde",
+				conn -> treinosAtleta(conn, tenant, jid, segunda, parmIdentidade.getIdUtilizador()))) {
+			if (a.getId() == parmIdTreino) {
+				return a;
+			}
+		}
+		return null;
+	}
+
+	/** Y8: "Confirmar todos": cada item com as regras do "Vou", sem lancar; nao mexe nos "Nao vou" (R223). */
+	public sm.core.data.ResultadoConfirmarTodosData confirmaTodos(Identidade parmIdentidade, int parmIdJogador,
+			sm.core.data.PedidoConfirmarTodosData parmPedido) {
+		exigeAtleta(parmIdentidade, parmIdJogador);
+		if (parmPedido == null || parmPedido.getItens() == null || parmPedido.getItens().isEmpty()) {
+			throw new PedidoInvalidoException("Indique os treinos a confirmar.");
+		}
+		if (parmPedido.getItens().size() > MAXIMO_CONFIRMAR) {
+			throw new PedidoInvalidoException("No máximo " + MAXIMO_CONFIRMAR + " treinos.");
+		}
+		Set<Integer> ids = new HashSet<>();
+		for (sm.core.data.PedidoConfirmarTodosData.Item item : parmPedido.getItens()) {
+			if (item == null || item.getId() == null || item.getSessao() == null || item.getSessao().trim().isEmpty()
+					|| !ids.add(item.getId())) {
+				throw new PedidoInvalidoException("Itens inválidos (id e sessão obrigatórios, sem repetidos).");
+			}
+		}
+		int jid = parmIdentidade.getIdJogador();
+		int tenant = parmIdentidade.getTenantId();
+		sm.core.data.ResultadoConfirmarTodosData resultado = new sm.core.data.ResultadoConfirmarTodosData();
+		Set<Integer> semanas = new java.util.TreeSet<>();
+		Map<Integer, Boolean> acesso = new HashMap<>();
+		for (Integer id : ids) {
+			acesso.put(id, autorizacaoHelper.treinoDoAtleta(id, jid, tenant));
+		}
+		emTransacao("confirmaTodos", conn -> {
+			for (sm.core.data.PedidoConfirmarTodosData.Item item : parmPedido.getItens()) {
+				Treino t = null;
+				if (acesso.get(item.getId())) {
+					try {
+						t = carregaTreino(conn, item.getId(), tenant);
+					} catch (AcessoNegadoException e) {
+						t = null;
+					}
+				}
+				if (t == null) {
+					resultado.getFalhas().add(falhaLote(item.getId(), "sem acesso"));
+					continue;
+				}
+				semanas.add(segundaDe(t.d.getData()));
+				List<FisicoAtletaData> meus = fisicosDoAtleta(conn, tenant, jid, List.of(t.d.getId()))
+						.getOrDefault(t.d.getId(), new ArrayList<>());
+				String motivo = motivoSemResposta(t, inicioDoAtleta(t.d.getHoraInicio(), meus));
+				if (motivo == null && temAusenciaAtiva(conn, t.d.getId(), jid)) {
+					motivo = "já respondeste";
+				}
+				if (motivo == null && !sessaoDoAtleta(t.d, meus).equals(item.getSessao().trim())) {
+					motivo = "mudou entretanto";
+				}
+				if (motivo != null) {
+					resultado.getFalhas().add(falhaLote(item.getId(), motivo));
+					continue;
+				}
+				gravaConfirmacao(conn, t.d.getId(), jid, item.getSessao().trim(), parmIdentidade.getIdUtilizador());
+				resultado.getConfirmados().add(item.getId());
+			}
+			return true;
+		});
+		log.info("MicroCicloHelper | confirmaTodos | jogador:{} confirmados:{} falhas:{}", jid,
+				resultado.getConfirmados().size(), resultado.getFalhas().size());
+		for (Integer segunda : semanas) {
+			resultado.getTreinos().addAll(leitura("confirmaTodos",
+					conn -> treinosAtleta(conn, tenant, jid, segunda, parmIdentidade.getIdUtilizador())));
+		}
+		return resultado;
+	}
+
+	/** R225: sessoes por responder ou caducadas, por comecar, da semana atual e da seguinte (so leitura). */
+	public Map<String, Object> porConfirmarAtleta(Identidade parmIdentidade, int parmIdJogador) {
+		exigeAtleta(parmIdentidade, parmIdJogador);
+		int atual = segundaDe(hoje());
+		int tenant = parmIdentidade.getTenantId();
+		List<Map<String, Object>> itens = new ArrayList<>();
+		Integer semana = null;
+		for (int segunda : new int[] { atual, somaDias(atual, 7) }) {
+			for (TreinoAtletaData a : leitura("porConfirmarAtleta",
+					conn -> treinosAtleta(conn, tenant, parmIdJogador, segunda, parmIdentidade.getIdUtilizador()))) {
+				if (a.isPodeResponder() && (a.getResposta() == null || a.isCaducada())) {
+					Map<String, Object> item = new LinkedHashMap<>();
+					item.put("id", a.getId());
+					item.put("data", a.getData());
+					item.put("horaInicio", inicioDoAtleta(a.getHoraInicio(), a.getFisicos()));
+					item.put("nomeEquipa", a.getNomeEquipa());
+					item.put("sessao", a.getSessao());
+					itens.add(item);
+					semana = semana == null ? segunda : semana;
+				}
+			}
+		}
+		Map<String, Object> resultado = new LinkedHashMap<>();
+		resultado.put("total", itens.size());
+		resultado.put("semana", semana);
+		resultado.put("itens", itens);
+		return resultado;
+	}
+
+	// ==================== v7: "Os meus atletas" (BK-v7-6, X8, X9) ====================
+
+	private static final int MAXIMO_EQUIPAS_ATLETAS = 20;
+
+	private static String marcas(int parmN) {
+		return String.join(", ", java.util.Collections.nCopies(parmN, "?"));
+	}
+
+	/** Item com os dados internos para os conflitos (nao saem no JSON). */
+	private static final class ItemAtleta {
+		SemanaAtletasData.Item item;
+		int inicio;
+		int fim;
+		/** Sessao (principal) dos treinos; null nos jogos. */
+		Integer sessao;
+		String descricao;
+		boolean ausente;
+	}
+
+	/**
+	 * R205-R215: semana dos atletas das equipas (as pedidas ou as do utilizador). So ADMIN e TREINADOR; o TREINADOR so
+	 * as suas equipas; 1 a 20 equipas do tenant. So leitura, com consultas fixas por pedido (sem N+1).
+	 */
+	public SemanaAtletasData getMeusAtletas(Identidade parmIdentidade, int parmData, List<Integer> parmEquipas) {
+		if (!parmIdentidade.isAdmin() && !parmIdentidade.isTreinador()) {
+			throw new AcessoNegadoException();
+		}
+		int segunda = segundaDe(parmData);
+		int tenant = parmIdentidade.getTenantId();
+		boolean admin = parmIdentidade.isAdmin();
+		return leitura("getMeusAtletas", conn -> {
+			Set<Integer> minhas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
+			Set<Integer> equipas = new java.util.LinkedHashSet<>();
+			if (parmEquipas != null) {
+				for (Integer id : parmEquipas) {
+					if (id == null || id <= 0) {
+						throw new PedidoInvalidoException("Equipa inválida.");
+					}
+					equipas.add(id);
+				}
+			}
+			if (equipas.isEmpty()) {
+				if (minhas.isEmpty()) {
+					throw new PedidoInvalidoException("Escolha uma equipa."); // Q104
+				}
+				equipas.addAll(minhas);
+			}
+			if (equipas.size() > MAXIMO_EQUIPAS_ATLETAS) {
+				throw new PedidoInvalidoException("No máximo " + MAXIMO_EQUIPAS_ATLETAS + " equipas.");
+			}
+			if (!admin && !minhas.containsAll(equipas)) {
+				throw new AcessoNegadoException(); // CA150
+			}
+
+			SemanaAtletasData semana = new SemanaAtletasData();
+			semana.setDataInicio(segunda);
+			// equipas do tenant (nome e cor); uma que nao seja do tenant -> 403
+			Map<Integer, String> cores = coresEquipas(conn, tenant);
+			try (PreparedStatement psEquipas = conn.prepareStatement("select ee.id, coalesce(nullif(ee.nome, ''), es.nome) "
+					+ "as nome_equipa from escalao_epoca ee inner join epoca e on e.id = ee.id_epoca "
+					+ "left join escalao es on es.id = ee.id_escalao where e.tenant_id = ? and ee.id in ("
+					+ marcas(equipas.size()) + ") order by nome_equipa, ee.id")) {
+				int i = 1;
+				psEquipas.setInt(i++, tenant);
+				for (Integer id : equipas) {
+					psEquipas.setInt(i++, id);
+				}
+				try (ResultSet rs = psEquipas.executeQuery()) {
+					while (rs.next()) {
+						SemanaAtletasData.Equipa e = new SemanaAtletasData.Equipa();
+						e.setIdEquipa(rs.getInt(1));
+						e.setNome(rs.getString(2));
+						e.setCor(cores.get(e.getIdEquipa()));
+						e.setMinha(admin || minhas.contains(e.getIdEquipa()));
+						semana.getEquipas().add(e);
+					}
+				}
+			}
+			if (semana.getEquipas().size() != equipas.size()) {
+				throw new AcessoNegadoException();
+			}
+
+			// 1. plantel (R206: cada atleta uma vez)
+			Map<Integer, SemanaAtletasData.Atleta> atletas = new LinkedHashMap<>();
+			try (PreparedStatement psPlantel = conn.prepareStatement("select eej.id_escalao_epoca, j.id, j.nome "
+					+ "from escalao_epoca_jogador eej inner join jogador j on j.id = eej.id_jogador and j.estado = '1' "
+					+ "inner join escalao_epoca ee on ee.id = eej.id_escalao_epoca inner join epoca e on e.id = ee.id_epoca "
+					+ "where e.tenant_id = ? and eej.id_escalao_epoca in (" + marcas(equipas.size()) + ") order by j.nome, j.id")) {
+				int i = 1;
+				psPlantel.setInt(i++, tenant);
+				for (Integer id : equipas) {
+					psPlantel.setInt(i++, id);
+				}
+				try (ResultSet rs = psPlantel.executeQuery()) {
+					while (rs.next()) {
+						SemanaAtletasData.Atleta a = atletas.computeIfAbsent(rs.getInt(2), k -> new SemanaAtletasData.Atleta());
+						a.setIdJogador(rs.getInt(2));
+						a.setNome(rs.getString(3));
+						if (!a.getEquipas().contains(rs.getInt(1))) {
+							a.getEquipas().add(rs.getInt(1));
+						}
+					}
+				}
+			}
+
+			// 2. treinos da semana (R209): Aprovado/Realizado e Pendente; Rascunho so ao ADMIN; sem eventos
+			MicroCicloData mc = microCicloDaSemana(conn, tenant, segunda);
+			if (mc != null && (CANCELADO.equals(mc.getEstado()) || (RASCUNHO.equals(mc.getEstado()) && !admin))) {
+				mc = null;
+			}
+			semana.setSemPlano(mc == null);
+			List<Treino> treinos = new ArrayList<>();
+			if (mc != null && !atletas.isEmpty()) {
+				try (PreparedStatement psTreinos = conn.prepareStatement(SQL_TREINO + "and t.id_micro_ciclo = ? "
+						+ "and t.id_grupo is null and t.estado in ('APROVADO', 'PENDENTE'" + (admin ? ", 'RASCUNHO'" : "")
+						+ ") order by t.`data`, t.hora_inicio, t.id")) {
+					psTreinos.setInt(1, tenant);
+					psTreinos.setInt(2, mc.getId());
+					try (ResultSet rs = psTreinos.executeQuery()) {
+						while (rs.next()) {
+							treinos.add(lerTreino(rs));
+						}
+					}
+				}
+			}
+			Map<Integer, Treino> porId = new HashMap<>();
+			List<Integer> idsAutonomos = new ArrayList<>();
+			List<Integer> idsLigados = new ArrayList<>();
+			for (Treino t : treinos) {
+				porId.put(t.d.getId(), t);
+				(t.ligado() ? idsLigados : idsAutonomos).add(t.d.getId());
+			}
+			List<Integer> idsAtletas = new ArrayList<>(atletas.keySet());
+
+			// 3. convocatoria efetiva em lote: mesma regra que convocatoriaEfetiva (D4); mudar as duas
+			Map<Integer, Set<Integer>> convocados = new HashMap<>(); // treino -> jogadores
+			if (!idsAutonomos.isEmpty()) {
+				String inT = marcas(idsAutonomos.size());
+				String inP = marcas(idsAtletas.size());
+				try (PreparedStatement psConv = conn.prepareStatement("select tc.id_treino, tc.id_jogador "
+						+ "from treino_convocado tc inner join jogador j on j.id = tc.id_jogador and j.estado = '1' "
+						+ "inner join treino t on t.id = tc.id_treino where tc.id_treino in (" + inT + ") "
+						+ "and tc.id_jogador in (" + inP + ") and tc.estado = '1' and (tc.origem = 'ACRESCENTADO' "
+						+ "or exists (select 1 from escalao_epoca_jogador eej where eej.id_escalao_epoca = t.id_equipa "
+						+ "and eej.id_jogador = tc.id_jogador)) "
+						+ "union select t.id, eej.id_jogador from treino t "
+						+ "inner join escalao_epoca_jogador eej on eej.id_escalao_epoca = t.id_equipa "
+						+ "inner join jogador j on j.id = eej.id_jogador and j.estado = '1' where t.id in (" + inT + ") "
+						+ "and eej.id_jogador in (" + inP + ") and t.estado <> 'APROVADO' "
+						+ "and not exists (select 1 from treino_convocado tc where tc.id_treino = t.id "
+						+ "and tc.id_jogador = eej.id_jogador)")) {
+					int i = 1;
+					for (int volta = 0; volta < 2; volta++) {
+						for (Integer id : idsAutonomos) {
+							psConv.setInt(i++, id);
+						}
+						for (Integer id : idsAtletas) {
+							psConv.setInt(i++, id);
+						}
+					}
+					try (ResultSet rs = psConv.executeQuery()) {
+						while (rs.next()) {
+							convocados.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
+						}
+					}
+				}
+			}
+
+			// 4. exclusoes dos fisicos ligados
+			Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, tenant, idsLigados);
+
+			// 5. ausencias ativas (das sessoes) dos atletas
+			Map<String, String[]> ausencias = new HashMap<>(); // "treino:jogador" -> {categoria, motivo}
+			Map<String, Timestamp> datasAusencia = new HashMap<>(); // v8
+			if (!idsAutonomos.isEmpty()) {
+				try (PreparedStatement psAus = conn.prepareStatement("select ta.id_treino, ta.id_jogador, ta.categoria, "
+						+ "ta.motivo, ta.data_indicacao from treino_ausencia ta where ta.estado = 'ATIVA' and ta.id_treino in ("
+						+ marcas(idsAutonomos.size()) + ") and ta.id_jogador in (" + marcas(idsAtletas.size()) + ")")) {
+					int i = 1;
+					for (Integer id : idsAutonomos) {
+						psAus.setInt(i++, id);
+					}
+					for (Integer id : idsAtletas) {
+						psAus.setInt(i++, id);
+					}
+					try (ResultSet rs = psAus.executeQuery()) {
+						while (rs.next()) {
+							ausencias.put(rs.getInt(1) + ":" + rs.getInt(2),
+									new String[] { rs.getString(3), rs.getString(4) });
+							datasAusencia.put(rs.getInt(1) + ":" + rs.getInt(2), rs.getTimestamp(5));
+						}
+					}
+				}
+			}
+
+			// 6. jogos da semana e em que o atleta consta sem ser INDISPONIVEL (Q106)
+			Map<Integer, JogoSemanaData> jogos = new LinkedHashMap<>();
+			for (JogoSemanaData j : jogosSemana(conn, tenant, segunda, null)) {
+				jogos.put(j.getId(), j);
+			}
+			List<int[]> jogosAtletas = new ArrayList<>();
+			if (!jogos.isEmpty() && !idsAtletas.isEmpty()) {
+				try (PreparedStatement psJogos = conn.prepareStatement("select jj.id_jogo, jj.id_jogador from jogo_jogador jj "
+						+ "inner join jogo j on j.id = jj.id_jogo inner join escalao_epoca ee on ee.id = j.equipa_id "
+						+ "inner join epoca e on e.id = ee.id_epoca where e.tenant_id = ? and j.`data` between ? and ? "
+						+ "and jj.estado <> 'INDISPONÍVEL' and jj.id_jogador in (" + marcas(idsAtletas.size()) + ")")) {
+					int i = 1;
+					psJogos.setInt(i++, tenant);
+					psJogos.setDate(i++, java.sql.Date.valueOf(paraData(segunda)));
+					psJogos.setDate(i++, java.sql.Date.valueOf(paraData(somaDias(segunda, 6))));
+					for (Integer id : idsAtletas) {
+						psJogos.setInt(i++, id);
+					}
+					try (ResultSet rs = psJogos.executeQuery()) {
+						while (rs.next()) {
+							jogosAtletas.add(new int[] { rs.getInt(1), rs.getInt(2) });
+						}
+					}
+				}
+			}
+
+			// 7. v8: confirmacoes das sessoes e contas dos atletas (2 consultas fixas)
+			Map<Integer, Map<Integer, Confirmacao>> confirmacoes = confirmacoesDe(conn, tenant, idsAutonomos);
+			Set<Integer> contas = comConta(conn, tenant, idsAtletas);
+			Map<Integer, List<FisicoData>> fisicosPorPrincipal = new HashMap<>();
+			for (Treino t : treinos) {
+				if (t.ligado()) {
+					fisicosPorPrincipal.computeIfAbsent(t.idPrincipal, k -> new ArrayList<>()).add(comoFisico(t.d));
+				}
+			}
+			Set<Integer> porConfirmar = new HashSet<>();
+
+			// montagem em Java
+			Map<Integer, List<ItemAtleta>> itens = new HashMap<>();
+			for (Treino t : treinos) {
+				Treino principal = t.ligado() ? porId.get(t.idPrincipal) : t;
+				if (principal == null) {
+					continue;
+				}
+				for (Integer idJogador : convocados.getOrDefault(principal.d.getId(), Set.of())) {
+					if (t.ligado() && excluidos.getOrDefault(t.d.getId(), Set.of()).contains(idJogador)) {
+						continue; // nao faz este fisico
+					}
+					boolean minha = admin || minhas.contains(t.d.getIdEquipa());
+					String chave = principal.d.getId() + ":" + idJogador;
+					ItemAtleta x = itemTreino(t, principal, ausencias.get(chave), minha);
+					if (APROVADO.equals(principal.estadoBD)) {
+						// v8 (R233, R234): estado da sessao; o FISICO repete-o sem data; a data so nos itens minha
+						List<FisicoData> meus = new ArrayList<>();
+						for (FisicoData f : fisicosPorPrincipal.getOrDefault(principal.d.getId(), new ArrayList<>())) {
+							if (!excluidos.getOrDefault(f.getId(), Set.of()).contains(idJogador)) {
+								meus.add(f);
+							}
+						}
+						Confirmacao conf = confirmacoes.getOrDefault(principal.d.getId(), Map.of()).get(idJogador);
+						String estado = estadoResposta(ausencias.containsKey(chave), contas.contains(idJogador), conf,
+								sessaoDoAtleta(principal.d, meus));
+						sm.core.data.RespostaItemData resposta = new sm.core.data.RespostaItemData();
+						resposta.setEstado(estado);
+						if (minha && !t.ligado()) {
+							resposta.setData(NAO_VOU.equals(estado) ? datasAusencia.get(chave)
+									: conf != null && !SEM_CONTA.equals(estado) ? conf.data : null);
+						}
+						x.item.setResposta(resposta);
+						if (!t.ligado() && !principal.realizado() && (SEM_RESPOSTA.equals(estado) || CADUCADA.equals(estado))
+								&& !inicioPassou(principal.d.getData(), inicioDoAtleta(principal.d.getHoraInicio(), meus))) {
+							porConfirmar.add(idJogador);
+						}
+					}
+					itens.computeIfAbsent(idJogador, k -> new ArrayList<>()).add(x);
+				}
+			}
+			for (int[] par : jogosAtletas) {
+				JogoSemanaData j = jogos.get(par[0]);
+				if (j != null) {
+					itens.computeIfAbsent(par[1], k -> new ArrayList<>())
+							.add(itemJogo(j, admin || minhas.contains(j.getIdEquipa())));
+				}
+			}
+
+			int comConflitos = 0;
+			for (SemanaAtletasData.Atleta a : atletas.values()) {
+				List<ItemAtleta> lista = itens.getOrDefault(a.getIdJogador(), new ArrayList<>());
+				lista.sort(java.util.Comparator.comparingInt((ItemAtleta x) -> x.item.getData())
+						.thenComparingInt(x -> x.inicio));
+				conflitos(a, lista);
+				for (ItemAtleta x : lista) {
+					a.getItens().add(x.item);
+				}
+				if (a.isComConflitos()) {
+					comConflitos++;
+				}
+				a.setPorConfirmar(porConfirmar.contains(a.getIdJogador()));
+				semana.getAtletas().add(a);
+			}
+			semana.setNumAtletasComConflitos(comConflitos);
+			semana.setNumAtletasPorConfirmar(porConfirmar.size());
+			return semana;
+		});
+	}
+
+	/** X9: item de treino ou de fisico ligado; de outra equipa sem idTreino e com a ausencia so como "avisou". */
+	private static ItemAtleta itemTreino(Treino t, Treino parmPrincipal, String[] parmAusencia, boolean parmMinha) {
+		SemanaAtletasData.Item item = new SemanaAtletasData.Item();
+		item.setChave("t" + t.d.getId());
+		item.setTipo(t.ligado() ? "FISICO" : "TREINO");
+		item.setIdTreino(parmMinha ? t.d.getId() : null);
+		item.setIdPrincipal(t.ligado() ? t.idPrincipal : null);
+		item.setIdEquipa(t.d.getIdEquipa());
+		item.setNomeEquipa(t.d.getNomeEquipa());
+		item.setTipoTreino(t.d.getTipo());
+		item.setTipoDescricao(t.d.getTipoDescricao());
+		item.setSubGrupo(t.d.getSubGrupo());
+		item.setData(t.d.getData());
+		item.setHoraInicio(t.d.getHoraInicio());
+		item.setHoraFim(t.d.getHoraFim());
+		item.setLocal(t.d.getLocal());
+		item.setEstado(t.d.getEstado());
+		item.setMinha(parmMinha);
+		if (parmAusencia != null) {
+			Map<String, Object> ausencia = new LinkedHashMap<>();
+			if (parmMinha) {
+				ausencia.put("categoria", parmAusencia[0]);
+				ausencia.put("motivo", parmAusencia[1]);
+			} else {
+				ausencia.put("avisou", true); // Q108: sem categoria nem motivo de outras equipas
+			}
+			item.setAusencia(ausencia);
+		}
+		ItemAtleta x = new ItemAtleta();
+		x.item = item;
+		x.inicio = minutos(t.d.getHoraInicio());
+		x.fim = minutosFim(t.d);
+		x.sessao = parmPrincipal.d.getId();
+		x.descricao = (t.ligado() ? "Físico " : "") + t.d.getNomeEquipa() + " " + intervalo(t.d);
+		x.ausente = parmAusencia != null;
+		return x;
+	}
+
+	/** Item de jogo (sem concentracao, golos nem estado). */
+	private static ItemAtleta itemJogo(JogoSemanaData j, boolean parmMinha) {
+		SemanaAtletasData.Item item = new SemanaAtletasData.Item();
+		item.setChave("j" + j.getId());
+		item.setTipo("JOGO");
+		item.setIdJogo(j.getId());
+		item.setIdEquipa(j.getIdEquipa());
+		item.setNomeEquipa(j.getNomeEquipa());
+		item.setTipoEquipa(j.getTipoEquipa());
+		item.setData(j.getData());
+		item.setHoraInicio(j.getHora());
+		item.setCasaFora(j.getCasaFora());
+		item.setNomeAdversario(j.getNomeAdversario());
+		item.setMinha(parmMinha);
+		ItemAtleta x = new ItemAtleta();
+		x.item = item;
+		boolean comHora = j.getHora() != null && HORA.matcher(j.getHora()).matches();
+		int[] intervalo = comHora ? intervaloJogo(j) : new int[] { 24 * 60, 24 * 60 }; // sem hora: sem conflito
+		x.inicio = intervalo[0];
+		x.fim = intervalo[1];
+		x.descricao = "Jogo " + j.getNomeEquipa() + (comHora ? " " + j.getHora() : "");
+		x.ausente = !comHora;
+		return x;
+	}
+
+	/** R212, Q109: sobreposicoes por dia, sem os itens com ausencia ativa nem os pares da mesma sessao. */
+	private static void conflitos(SemanaAtletasData.Atleta parmAtleta, List<ItemAtleta> parmItens) {
+		for (int i = 0; i < parmItens.size(); i++) {
+			ItemAtleta a = parmItens.get(i);
+			for (int k = i + 1; k < parmItens.size(); k++) {
+				ItemAtleta b = parmItens.get(k);
+				if (a.ausente || b.ausente || a.item.getData() != b.item.getData()
+						|| (a.sessao != null && a.sessao.equals(b.sessao)) || !(a.inicio < b.fim && b.inicio < a.fim)) {
+					continue;
+				}
+				a.item.setConflito(true);
+				b.item.setConflito(true);
+				parmAtleta.setComConflitos(true);
+				parmAtleta.getConflitos().add(new SemanaAtletasData.Conflito(a.item.getData(),
+						"Sobreposição: " + a.descricao + " e " + b.descricao));
+			}
+		}
 	}
 }

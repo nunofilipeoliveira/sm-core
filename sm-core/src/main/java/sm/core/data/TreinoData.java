@@ -65,8 +65,59 @@ public class TreinoData {
 	/** v3: TREINADOR, ADMINISTRADOR ou null (so com podeAprovar). */
 	private String qualidadeSeAprovar;
 	private List<String> avisos = new ArrayList<>();
+	/** v6: resposta: o principal de um fisico ligado; pedido (FISICO): > 0 cria ou liga a esse principal. */
+	private Integer idTreinoPrincipal;
+	/** v6: so resposta; o inicio mais cedo da sessao (principal e fisicos). */
+	private String inicioSessao;
+	/** v6: sem inicializador de proposito: null (ou sem o campo) no pedido = nao mexer nos fisicos; lista = sincronizar. */
+	private List<FisicoStaffData> fisicos;
+	/** v6: so pedido, ao ligar um fisico avulso com ausencias ativas. */
+	private Boolean descartarAusencias;
+
+	/** v8 (Y9): respostas da sessao (APROVADO/REALIZADO); null nos outros estados, nos ligados e nos eventos. */
+	private ContagemRespostasData respostas;
 
 	public TreinoData() {
+	}
+
+	public ContagemRespostasData getRespostas() {
+		return respostas;
+	}
+
+	public void setRespostas(ContagemRespostasData respostas) {
+		this.respostas = respostas;
+	}
+
+	public Integer getIdTreinoPrincipal() {
+		return idTreinoPrincipal;
+	}
+
+	public void setIdTreinoPrincipal(Integer idTreinoPrincipal) {
+		this.idTreinoPrincipal = idTreinoPrincipal;
+	}
+
+	public String getInicioSessao() {
+		return inicioSessao;
+	}
+
+	public void setInicioSessao(String inicioSessao) {
+		this.inicioSessao = inicioSessao;
+	}
+
+	public List<FisicoStaffData> getFisicos() {
+		return fisicos;
+	}
+
+	public void setFisicos(List<FisicoStaffData> fisicos) {
+		this.fisicos = fisicos;
+	}
+
+	public Boolean getDescartarAusencias() {
+		return descartarAusencias;
+	}
+
+	public void setDescartarAusencias(Boolean descartarAusencias) {
+		this.descartarAusencias = descartarAusencias;
 	}
 
 	public int getId() {

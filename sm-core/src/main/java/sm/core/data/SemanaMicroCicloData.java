@@ -25,8 +25,18 @@ public class SemanaMicroCicloData {
 	private Map<String, Integer> reativacao;
 	/** v5 (W2): todos os grupos de eventos do tenant. */
 	private List<GrupoEventoData> grupos = new ArrayList<>();
+	/** v6 (X12): [{idFisico, idPrincipal}]; sempre presente, vazia para quem nao e ADMIN ou fora da semana atual e seguinte. */
+	private List<Map<String, Integer>> fisicosLigaveis = new ArrayList<>();
 
 	public SemanaMicroCicloData() {
+	}
+
+	public List<Map<String, Integer>> getFisicosLigaveis() {
+		return fisicosLigaveis;
+	}
+
+	public void setFisicosLigaveis(List<Map<String, Integer>> fisicosLigaveis) {
+		this.fisicosLigaveis = fisicosLigaveis;
 	}
 
 	public List<GrupoEventoData> getGrupos() {
