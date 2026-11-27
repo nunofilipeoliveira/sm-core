@@ -410,11 +410,19 @@ public class PresencaHelper {
 			conn = dbUtils.getConnection();
 			inserePresenca(conn, parmPresencaData);
 
+			// Indisponibilidades (Z15, R21): o email omite o motivo dos jogadores indisponiveis nessa data
+			java.util.List<Integer> idsJogadores = new java.util.ArrayList<>();
+			for (PresencaJogadorData jogador : parmPresencaData.getJogadoresPresenca()) {
+				idsJogadores.add(jogador.getId_jogador());
+			}
+			java.util.Set<Integer> semMotivo = IndisponibilidadeHelper.comIndisponibilidade(conn, idsJogadores,
+					parmPresencaData.getData());
+
 			dbUtils.closeConnection(conn);
 			conn = null; // to avoid closing again in catch
 
 			// enviar email de registo presenca
-			sendEmailPresencaRegisto(parmPresencaData, parmTenantId);
+			sendEmailPresencaRegisto(parmPresencaData, parmTenantId, false, semMotivo);
 
 			return true;
 
@@ -866,6 +874,12 @@ public class PresencaHelper {
 	 *                       o email nao leva os motivos (nem categoria nem texto)
 	 */
 	public void sendEmailPresencaRegisto(PresencaData parmPresencaData, String parmTenantId, boolean parmSemMotivos) {
+		sendEmailPresencaRegisto(parmPresencaData, parmTenantId, parmSemMotivos, java.util.Set.of());
+	}
+
+	/** @param parmSemMotivoJogadores indisponibilidades (Z15): jogadores cujo motivo nao vai no email */
+	public void sendEmailPresencaRegisto(PresencaData parmPresencaData, String parmTenantId, boolean parmSemMotivos,
+			java.util.Set<Integer> parmSemMotivoJogadores) {
 
 		String destinatario = "nunooliveira8@gmail.com"; // substituir pelo email real
 		String assunto = "Sports Manager - Registo de Presença";
@@ -909,7 +923,8 @@ public class PresencaHelper {
 			htmlCorpo += "<div class='player-card'>"
 					+ "<strong>" + jogador.getNome_jogador() + "</strong><br/>"
 					+ "Estado: " + jogador.getEstado()
-					+ (!parmSemMotivos && jogador.getMotivo() != null && !jogador.getMotivo().isEmpty()
+					+ (!parmSemMotivos && !parmSemMotivoJogadores.contains(jogador.getId_jogador())
+							&& jogador.getMotivo() != null && !jogador.getMotivo().isEmpty()
 							? " | Motivo: " + jogador.getMotivo()
 							: "")
 					+ "</div>";

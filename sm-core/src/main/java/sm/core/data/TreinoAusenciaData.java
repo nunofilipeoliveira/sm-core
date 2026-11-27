@@ -14,6 +14,10 @@ public class TreinoAusenciaData {
 	private Timestamp dataIndicacao;
 	private String estado;
 	private boolean pendenteConfirmacao;
+	// null = ausencia indicada a mao; senao, a indisponibilidade de onde vem e o seu intervalo (yyyymmdd)
+	private Integer idIndisponibilidade;
+	private Integer indisponivelDe;
+	private Integer indisponivelAte;
 
 	public TreinoAusenciaData() {
 	}
@@ -72,5 +76,29 @@ public class TreinoAusenciaData {
 
 	public void setPendenteConfirmacao(boolean pendenteConfirmacao) {
 		this.pendenteConfirmacao = pendenteConfirmacao;
+	}
+
+	public Integer getIdIndisponibilidade() {
+		return idIndisponibilidade;
+	}
+
+	public void setIdIndisponibilidade(Integer idIndisponibilidade) {
+		this.idIndisponibilidade = idIndisponibilidade;
+	}
+
+	public Integer getIndisponivelDe() {
+		return indisponivelDe;
+	}
+
+	public void setIndisponivelDe(Integer indisponivelDe) {
+		this.indisponivelDe = indisponivelDe;
+	}
+
+	public Integer getIndisponivelAte() {
+		return indisponivelAte;
+	}
+
+	public void setIndisponivelAte(Integer indisponivelAte) {
+		this.indisponivelAte = indisponivelAte;
 	}
 }

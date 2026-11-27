@@ -28,7 +28,18 @@ public class SemanaMicroCicloData {
 	/** v6 (X12): [{idFisico, idPrincipal}]; sempre presente, vazia para quem nao e ADMIN ou fora da semana atual e seguinte. */
 	private List<Map<String, Integer>> fisicosLigaveis = new ArrayList<>();
 
+	/** v9 (Z11): {total, aprovados, pendentes, rejeitados, naoAprovadosATempo, pronto}, so em EM_APROVACAO; senao null. */
+	private Map<String, Object> progresso;
+
 	public SemanaMicroCicloData() {
+	}
+
+	public Map<String, Object> getProgresso() {
+		return progresso;
+	}
+
+	public void setProgresso(Map<String, Object> progresso) {
+		this.progresso = progresso;
 	}
 
 	public List<Map<String, Integer>> getFisicosLigaveis() {
@@ -133,5 +144,16 @@ public class SemanaMicroCicloData {
 
 	public void setCoresEquipas(List<Map<String, Object>> coresEquipas) {
 		this.coresEquipas = coresEquipas;
+	}
+
+	/** Balnearios (V17): o catalogo do clube (ativos e inativos), so ao ADMIN com micro ciclo; null aos outros. */
+	private List<BalnearioData> balnearios;
+
+	public List<BalnearioData> getBalnearios() {
+		return balnearios;
+	}
+
+	public void setBalnearios(List<BalnearioData> balnearios) {
+		this.balnearios = balnearios;
 	}
 }

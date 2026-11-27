@@ -7,6 +7,10 @@ public class JogadorConvocado {
     private String estado;
     private String obs;
     private String licenca;
+    // Anotacoes das indisponibilidades (null por omissao): intervalo yyyymmdd e se a linha foi posta automaticamente
+    private Integer indisponivelDe;
+    private Integer indisponivelAte;
+    private Boolean automatica;
 
     public JogadorConvocado(int id_jogador, String nome, String estado, String obs, String licenca) {
         this.id_jogador = id_jogador;
@@ -54,6 +58,30 @@ public class JogadorConvocado {
 
     public void setLicenca(String licenca) {
         this.licenca = licenca;
+    }
+
+    public Integer getIndisponivelDe() {
+        return indisponivelDe;
+    }
+
+    public void setIndisponivelDe(Integer indisponivelDe) {
+        this.indisponivelDe = indisponivelDe;
+    }
+
+    public Integer getIndisponivelAte() {
+        return indisponivelAte;
+    }
+
+    public void setIndisponivelAte(Integer indisponivelAte) {
+        this.indisponivelAte = indisponivelAte;
+    }
+
+    public Boolean getAutomatica() {
+        return automatica;
+    }
+
+    public void setAutomatica(Boolean automatica) {
+        this.automatica = automatica;
     }
 
     

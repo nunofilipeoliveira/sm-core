@@ -67,6 +67,7 @@ public class MicroCicloHelper {
 	private static final Logger log = LoggerFactory.getLogger(MicroCicloHelper.class);
 
 	public static final String RASCUNHO = "RASCUNHO";
+	public static final String EM_APROVACAO = "EM_APROVACAO";
 	public static final String PUBLICADO = "PUBLICADO";
 	public static final String PENDENTE = "PENDENTE";
 	public static final String APROVADO = "APROVADO";
@@ -79,12 +80,12 @@ public class MicroCicloHelper {
 	static final ZoneId LISBOA = ZoneId.of("Europe/Lisbon");
 	private static final DateTimeFormatter YMD = DateTimeFormatter.BASIC_ISO_DATE;
 	private static final DateTimeFormatter DDMM = DateTimeFormatter.ofPattern("dd/MM");
-	private static final Pattern HORA = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
+	static final Pattern HORA = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
 	private static final String[] DIAS = { "seg", "ter", "qua", "qui", "sex", "sáb", "dom" };
 
 	static final String MSG_VERSAO = "O treino foi alterado entretanto. Recarregue.";
 	private static final String MSG_TRANSICAO = "Transição não permitida.";
-	private static final String MSG_JA_COMECOU = "O treino já começou.";
+	static final String MSG_JA_COMECOU = "O treino já começou.";
 	private static final String MSG_PRESENCA_PRINCIPAL = "A presença marca-se no treino principal.";
 
 	private static final String SQL_TREINO = "select t.id, t.id_micro_ciclo, t.id_equipa, t.tipo, t.tipo_descricao, "
@@ -110,6 +111,12 @@ public class MicroCicloHelper {
 			+ "where j.estado = '1' and j.id in (select eej.id_jogador from escalao_epoca_jogador eej "
 			+ "where eej.id_escalao_epoca = ?) "
 			+ "and not exists (select 1 from treino_convocado tc where tc.id_treino = ? and tc.id_jogador = j.id)";
+
+	/** Indisponibilidades (V16): ausencias ativas de um treino, com a origem; lida por lerAusencia (colunas por nome). */
+	private static final String SQL_AUSENCIA = "select ta.id_jogador, j.nome, ta.categoria, ta.motivo, ta.data_indicacao, "
+			+ "ta.estado, ta.pendente_confirmacao, ta.id_indisponibilidade, i.data_inicio as indisp_inicio, "
+			+ "i.data_fim as indisp_fim from treino_ausencia ta inner join jogador j on j.id = ta.id_jogador "
+			+ "left join indisponibilidade i on i.id = ta.id_indisponibilidade where ta.estado = 'ATIVA' and ta.id_treino = ?";
 
 	private final DBUtils dbUtils;
 
@@ -194,6 +201,29 @@ public class MicroCicloHelper {
 			throw e;
 		} finally {
 			if (conn != null) {
+				try {
+					conn.setAutoCommit(true);
+				} catch (SQLException e) {
+					// ignore
+				}
+				dbUtils.closeConnection(conn);
+			}
+		}
+	}
+
+	/** Indisponibilidades (Z11): o mesmo que emTransacao, mas acaba sempre em rollback (pre-visualizacao exata). */
+	<T> T emSimulacao(String parmMetodo, Trabalho<T> parmTrabalho) {
+		Connection conn = null;
+		try {
+			conn = dbUtils.getConnection();
+			conn.setAutoCommit(false);
+			return parmTrabalho.executa(conn);
+		} catch (SQLException e) {
+			log.error("MicroCicloHelper | " + parmMetodo + " | Erro: " + e.getMessage(), e);
+			throw new IllegalStateException("Erro de base de dados.", e);
+		} finally {
+			if (conn != null) {
+				rollback(conn);
 				try {
 					conn.setAutoCommit(true);
 				} catch (SQLException e) {
@@ -302,7 +332,7 @@ public class MicroCicloHelper {
 		return rs.wasNull() ? null : valor;
 	}
 
-	private static void historico(Connection conn, int parmIdMicroCiclo, Integer parmIdTreino, int parmIdUtilizador,
+	static void historico(Connection conn, int parmIdMicroCiclo, Integer parmIdTreino, int parmIdUtilizador,
 			String parmTexto) throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement("insert into micro_ciclo_historico(id_micro_ciclo, "
 				+ "id_treino, `data`, id_utilizador, alteracao) values (?, ?, now(), ?, ?)");
@@ -317,7 +347,7 @@ public class MicroCicloHelper {
 		preparedStatement.executeUpdate();
 	}
 
-	private static Integer epocaAtiva(Connection conn, int parmTenantId) throws SQLException {
+	static Integer epocaAtiva(Connection conn, int parmTenantId) throws SQLException {
 		PreparedStatement preparedStatement = conn
 				.prepareStatement("select id from epoca where estado = '1' and tenant_id = ? LIMIT 1");
 		preparedStatement.setInt(1, parmTenantId);
@@ -332,13 +362,14 @@ public class MicroCicloHelper {
 		mc.setEstado(rs.getString("estado"));
 		mc.setMotivoCancelamento(rs.getString("motivo_cancelamento"));
 		mc.setIdEpoca(rs.getInt("id_epoca"));
+		mc.setEstadoAntesCancelamento(rs.getString("estado_antes_cancelamento")); // v9 (V15)
 		return mc;
 	}
 
 	/** @throws AcessoNegadoException micro ciclo inexistente ou de outro tenant */
-	private static MicroCicloData carregaMicroCiclo(Connection conn, int parmId, int parmTenantId) throws SQLException {
+	static MicroCicloData carregaMicroCiclo(Connection conn, int parmId, int parmTenantId) throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement("select id, data_inicio, estado, "
-				+ "motivo_cancelamento, id_epoca from micro_ciclo where id = ? and tenant_id = ?");
+				+ "motivo_cancelamento, id_epoca, estado_antes_cancelamento from micro_ciclo where id = ? and tenant_id = ?");
 		preparedStatement.setInt(1, parmId);
 		preparedStatement.setInt(2, parmTenantId);
 		ResultSet rs = preparedStatement.executeQuery();
@@ -348,10 +379,10 @@ public class MicroCicloHelper {
 		return lerMicroCiclo(rs);
 	}
 
-	private static MicroCicloData microCicloDaSemana(Connection conn, int parmTenantId, int parmSegunda)
+	static MicroCicloData microCicloDaSemana(Connection conn, int parmTenantId, int parmSegunda)
 			throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement("select id, data_inicio, estado, "
-				+ "motivo_cancelamento, id_epoca from micro_ciclo where tenant_id = ? and data_inicio = ?");
+				+ "motivo_cancelamento, id_epoca, estado_antes_cancelamento from micro_ciclo where tenant_id = ? and data_inicio = ?");
 		preparedStatement.setInt(1, parmTenantId);
 		preparedStatement.setInt(2, parmSegunda);
 		ResultSet rs = preparedStatement.executeQuery();
@@ -541,7 +572,7 @@ public class MicroCicloHelper {
 	}
 
 	/** Equipas da conta na epoca ativa (utilizadores_escalao), para as listas. */
-	private static Set<Integer> equipasDoUtilizador(Connection conn, int parmIdUtilizador) throws SQLException {
+	static Set<Integer> equipasDoUtilizador(Connection conn, int parmIdUtilizador) throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement("select ue.id_escalao_epoca "
 				+ "from utilizadores_escalao ue inner join escalao_epoca ee on ee.id = ue.id_escalao_epoca "
 				+ "inner join epoca e on e.id = ee.id_epoca where e.estado = '1' and ue.id_utilizador = ?");
@@ -550,6 +581,23 @@ public class MicroCicloHelper {
 		Set<Integer> equipas = new HashSet<>();
 		while (rs.next()) {
 			equipas.add(rs.getInt(1));
+		}
+		return equipas;
+	}
+
+	/** Indisponibilidades (Q13): equipas do atleta na epoca ativa do tenant (escalao_epoca_jogador). */
+	static Set<Integer> equipasDoAtleta(Connection conn, int parmTenantId, int parmIdJogador) throws SQLException {
+		Set<Integer> equipas = new HashSet<>();
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select eej.id_escalao_epoca "
+				+ "from escalao_epoca_jogador eej inner join escalao_epoca ee on ee.id = eej.id_escalao_epoca "
+				+ "inner join epoca e on e.id = ee.id_epoca where e.estado = '1' and e.tenant_id = ? and eej.id_jogador = ?")) {
+			preparedStatement.setInt(1, parmTenantId);
+			preparedStatement.setInt(2, parmIdJogador);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					equipas.add(rs.getInt(1));
+				}
+			}
 		}
 		return equipas;
 	}
@@ -640,21 +688,42 @@ public class MicroCicloHelper {
 		preparedStatement.executeUpdate();
 	}
 
-	/** v7: jogadores com ausencia ativa, por treino do micro ciclo (a contagem e o tamanho do conjunto). */
-	private static Map<Integer, Set<Integer>> ausenciasAtivasPorTreino(Connection conn, int parmIdMicroCiclo)
-			throws SQLException {
+	/**
+	 * v7: jogadores com ausencia ativa, por treino do micro ciclo (a contagem e o tamanho do conjunto).
+	 * Indisponibilidades: os que vem de uma indisponibilidade (id_indisponibilidade) vao tambem para parmIndisponiveis.
+	 */
+	private static Map<Integer, Set<Integer>> ausenciasAtivasPorTreino(Connection conn, int parmIdMicroCiclo,
+			Map<Integer, Set<Integer>> parmIndisponiveis) throws SQLException {
 		Map<Integer, Set<Integer>> ausencias = new HashMap<>();
-		try (PreparedStatement preparedStatement = conn.prepareStatement("select ta.id_treino, ta.id_jogador "
-				+ "from treino_ausencia ta inner join treino t on t.id = ta.id_treino where t.id_micro_ciclo = ? "
-				+ "and ta.estado = 'ATIVA'")) {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select ta.id_treino, ta.id_jogador, "
+				+ "ta.id_indisponibilidade from treino_ausencia ta inner join treino t on t.id = ta.id_treino "
+				+ "where t.id_micro_ciclo = ? and ta.estado = 'ATIVA'")) {
 			preparedStatement.setInt(1, parmIdMicroCiclo);
 			try (ResultSet rs = preparedStatement.executeQuery()) {
 				while (rs.next()) {
 					ausencias.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
+					if (getInteger(rs, "id_indisponibilidade") != null) {
+						parmIndisponiveis.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
+					}
 				}
 			}
 		}
 		return ausencias;
+	}
+
+	/** Indisponibilidades: jogadores com ausencia ativa vinda de uma indisponibilidade, num treino. */
+	private static Set<Integer> indisponiveisNoTreino(Connection conn, int parmIdTreino) throws SQLException {
+		Set<Integer> ids = new HashSet<>();
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select id_jogador from treino_ausencia "
+				+ "where id_treino = ? and estado = 'ATIVA' and id_indisponibilidade is not null")) {
+			preparedStatement.setInt(1, parmIdTreino);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					ids.add(rs.getInt(1));
+				}
+			}
+		}
+		return ids;
 	}
 
 	/** v7 (X1): quem nao faz cada fisico (treino_fisico_excluido), dos fisicos pedidos do tenant. */
@@ -770,12 +839,18 @@ public class MicroCicloHelper {
 	/** §1.1: jogadores com conta ATLETA ativa no tenant (a regra de notificaAtleta). */
 	static Set<Integer> comConta(Connection conn, int parmTenantId, java.util.Collection<Integer> parmIdsJogadores)
 			throws SQLException {
-		Set<Integer> contas = new HashSet<>();
+		return new HashSet<>(contasAtleta(conn, parmTenantId, parmIdsJogadores).keySet());
+	}
+
+	/** v9: as contas ATLETA ativas de cada jogador (a mesma regra), numa consulta: jogador -> ids de utilizador. */
+	static Map<Integer, List<Integer>> contasAtleta(Connection conn, int parmTenantId,
+			java.util.Collection<Integer> parmIdsJogadores) throws SQLException {
+		Map<Integer, List<Integer>> contas = new HashMap<>();
 		if (parmIdsJogadores == null || parmIdsJogadores.isEmpty()) {
 			return contas;
 		}
 		String marcas = String.join(", ", java.util.Collections.nCopies(parmIdsJogadores.size(), "?"));
-		try (PreparedStatement preparedStatement = conn.prepareStatement("select distinct u.id_jogador from utilizadores u "
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select u.id_jogador, u.id from utilizadores u "
 				+ "where u.tenant_id = ? and u.estado = '1' and upper(u.perfil) = 'ATLETA' and u.id_jogador in (" + marcas
 				+ ")")) {
 			int i = 1;
@@ -785,7 +860,7 @@ public class MicroCicloHelper {
 			}
 			try (ResultSet rs = preparedStatement.executeQuery()) {
 				while (rs.next()) {
-					contas.add(rs.getInt(1));
+					contas.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>()).add(rs.getInt(2));
 				}
 			}
 		}
@@ -808,7 +883,7 @@ public class MicroCicloHelper {
 	}
 
 	/** v8 (Y5): apaga as confirmacoes de uma sessao (todas, ou so a do jogador). */
-	private static void apagaConfirmacoes(Connection conn, int parmIdTreino, Integer parmIdJogador) throws SQLException {
+	static void apagaConfirmacoes(Connection conn, int parmIdTreino, Integer parmIdJogador) throws SQLException {
 		try (PreparedStatement preparedStatement = conn.prepareStatement("delete from treino_confirmacao where id_treino = ?"
 				+ (parmIdJogador != null ? " and id_jogador = ?" : ""))) {
 			preparedStatement.setInt(1, parmIdTreino);
@@ -872,6 +947,12 @@ public class MicroCicloHelper {
 
 	/** Treinos do micro ciclo, com contagens, derivados e avisos (R12, R17). */
 	List<Treino> listaTreinos(Connection conn, Identidade parmIdentidade, int parmIdMicroCiclo) throws SQLException {
+		return listaTreinos(conn, parmIdentidade, parmIdMicroCiclo, null);
+	}
+
+	/** Balnearios (B11): com parmJogos (os da resposta), os seus balnearios e avisos ficam tambem preenchidos. */
+	List<Treino> listaTreinos(Connection conn, Identidade parmIdentidade, int parmIdMicroCiclo,
+			List<JogoSemanaData> parmJogos) throws SQLException {
 		PreparedStatement preparedStatement = conn
 				.prepareStatement(SQL_TREINO + "and t.id_micro_ciclo = ? order by t.`data`, t.hora_inicio, t.id");
 		preparedStatement.setInt(1, parmIdentidade.getTenantId());
@@ -882,8 +963,10 @@ public class MicroCicloHelper {
 			treinos.add(lerTreino(rs));
 		}
 		Set<Integer> equipas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
-		Map<Integer, Set<Integer>> ausencias = ausenciasAtivasPorTreino(conn, parmIdMicroCiclo);
+		Map<Integer, Set<Integer>> indisponiveis = new HashMap<>();
+		Map<Integer, Set<Integer>> ausencias = ausenciasAtivasPorTreino(conn, parmIdMicroCiclo, indisponiveis);
 		Map<Integer, List<TreinoConvocadoData>> convocatorias = new HashMap<>();
+		Map<Integer, List<TreinoConvocadoData>> convocatoriasTodas = new HashMap<>(); // com os indisponiveis
 		Map<Integer, String> cores = coresEquipas(conn, parmIdentidade.getTenantId());
 		Map<Integer, Treino> porId = new HashMap<>();
 		List<Integer> idsLigados = new ArrayList<>();
@@ -912,7 +995,10 @@ public class MicroCicloHelper {
 				}
 				resumos.put(t.d.getId(), f);
 			} else {
-				List<TreinoConvocadoData> conv = convocatoriaEfetiva(conn, t);
+				List<TreinoConvocadoData> todos = convocatoriaEfetiva(conn, t);
+				convocatoriasTodas.put(t.d.getId(), todos);
+				// Indisponibilidades (D-1): o indisponivel sai da convocatoria mostrada e contada; a ausencia fica
+				List<TreinoConvocadoData> conv = participantes(todos, indisponiveis.get(t.d.getId()));
 				convocatorias.put(t.d.getId(), conv);
 				t.d.setNumConvocados(conv.size());
 				t.d.setNumAusencias(ausencias.getOrDefault(t.d.getId(), Set.of()).size());
@@ -930,7 +1016,9 @@ public class MicroCicloHelper {
 				t.d.setNumAusencias(principal.d.getNumAusencias());
 				Set<Integer> ausentes = ausencias.getOrDefault(principal.d.getId(), Set.of());
 				int numAusencias = 0;
-				for (TreinoConvocadoData c : part) {
+				// numAusencias mantem-se: conta tambem os participantes indisponiveis
+				for (TreinoConvocadoData c : participantes(
+						convocatoriasTodas.getOrDefault(principal.d.getId(), new ArrayList<>()), excluidos.get(t.d.getId()))) {
 					if (ausentes.contains(c.getIdJogador())) {
 						numAusencias++;
 					}
@@ -944,7 +1032,7 @@ public class MicroCicloHelper {
 		List<Integer> idsSessoes = new ArrayList<>();
 		Set<Integer> idsConvocados = new HashSet<>();
 		for (Treino t : treinos) {
-			if (!t.ligado() && !t.evento() && APROVADO.equals(t.estadoBD)) {
+			if (!t.ligado() && !t.evento() && APROVADO.equals(t.estadoBD) && PUBLICADO.equals(t.mcEstado)) { // v9 (R246)
 				idsSessoes.add(t.d.getId());
 				for (TreinoConvocadoData c : convocatorias.getOrDefault(t.d.getId(), new ArrayList<>())) {
 					idsConvocados.add(c.getIdJogador());
@@ -974,9 +1062,10 @@ public class MicroCicloHelper {
 			}
 			t.d.setRespostas(r);
 		}
-		List<JogoSemanaData> jogos = treinos.isEmpty() ? new ArrayList<>()
+		List<JogoSemanaData> jogos = parmJogos != null ? parmJogos : treinos.isEmpty() ? new ArrayList<>()
 				: jogosSemana(conn, parmIdentidade.getTenantId(), treinos.get(0).dataInicio, null);
 		avisos(treinos, convocatorias, jogos);
+		BalnearioHelper.preenche(conn, parmIdentidade.getTenantId(), parmIdentidade.isAdmin(), treinos, jogos);
 		return treinos;
 	}
 
@@ -1119,8 +1208,12 @@ public class MicroCicloHelper {
 			}
 			if (mc != null) {
 				semana.setMicroCiclo(mc);
+				if (EM_APROVACAO.equals(mc.getEstado())) {
+					semana.setProgresso(progresso(conn, tenant, mc.getId())); // v9 (Z11)
+				}
 				Set<Integer> equipasComTreino = new HashSet<>();
-				for (Treino t : listaTreinos(conn, parmIdentidade, mc.getId())) {
+				// balnearios (B11, B15): os jogos da resposta ficam preenchidos so com micro ciclo visivel
+				for (Treino t : listaTreinos(conn, parmIdentidade, mc.getId(), semana.getJogos())) {
 					semana.getTreinos().add(t.d);
 					if (!t.evento()) {
 						equipasComTreino.add(t.d.getIdEquipa());
@@ -1130,6 +1223,9 @@ public class MicroCicloHelper {
 					if (notificacaoHelper.destinatariosEquipa(conn, idEquipa, tenant).isEmpty()) {
 						semana.getEquipasSemTreinador().add(idEquipa);
 					}
+				}
+				if (parmIdentidade.isAdmin()) {
+					semana.setBalnearios(BalnearioHelper.lista(conn, tenant));
 				}
 				int atual = segundaDe(hoje());
 				if (parmIdentidade.isAdmin() && (segunda == atual || segunda == somaDias(atual, 7))) {
@@ -1322,6 +1418,9 @@ public class MicroCicloHelper {
 					f.setSubGrupo(t.d.getSubGrupo());
 					insereFisico(conn, idMicroCiclo, idPrincipalNovo, t.d.getIdEquipa(), novaData, f, RASCUNHO, utilizador);
 				}
+				for (Integer idCopia : copiados.values()) {
+					sincronizaTreino(conn, tenant, idCopia, null); // Indisponibilidades (Z3)
+				}
 			}
 			historico(conn, idMicroCiclo, null, utilizador,
 					copiarDe != null ? "Micro ciclo criado (cópia de " + ddmm(copiarDe) + ")" : "Micro ciclo criado");
@@ -1368,16 +1467,112 @@ public class MicroCicloHelper {
 
 	// ==================== 3-5. publicar, cancelar, eliminar ====================
 
-	public SemanaMicroCicloData publica(Identidade parmIdentidade, int parmIdMicroCiclo) {
+	/** v9 (§1.3, Z3): o atleta so ve micro ciclos publicados, ou cancelados depois de publicados. Alias m = micro_ciclo. */
+	static final String MC_VISIVEL_ATLETA = "(m.estado = 'PUBLICADO' or (m.estado = 'CANCELADO' "
+			+ "and coalesce(m.estado_antes_cancelamento, 'PUBLICADO') = 'PUBLICADO'))";
+
+	private static final String MSG_SUBMETA = "Submeta primeiro o micro ciclo para aprovação.";
+
+	/** v9: as sessoes do micro ciclo (sem os fisicos ligados), por data e hora. */
+	private List<Treino> sessoesDe(Connection conn, int parmTenantId, int parmIdMicroCiclo) throws SQLException {
+		List<Treino> sessoes = new ArrayList<>();
+		try (PreparedStatement preparedStatement = conn.prepareStatement(SQL_TREINO + "and t.id_micro_ciclo = ? "
+				+ "and t.id_treino_principal is null order by t.`data`, t.hora_inicio, t.id")) {
+			preparedStatement.setInt(1, parmTenantId);
+			preparedStatement.setInt(2, parmIdMicroCiclo);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				while (rs.next()) {
+					sessoes.add(lerTreino(rs));
+				}
+			}
+		}
+		return sessoes;
+	}
+
+	/** v9 (Q131): ha sessoes nao canceladas e estao todas APROVADO. */
+	private static boolean pronto(Connection conn, int parmIdMicroCiclo) throws SQLException {
+		try (PreparedStatement preparedStatement = conn.prepareStatement("select count(*), "
+				+ "coalesce(sum(case when estado <> 'APROVADO' then 1 else 0 end), 0) from treino "
+				+ "where id_micro_ciclo = ? and id_treino_principal is null and estado <> 'CANCELADO'")) {
+			preparedStatement.setInt(1, parmIdMicroCiclo);
+			try (ResultSet rs = preparedStatement.executeQuery()) {
+				return rs.next() && rs.getInt(1) > 0 && rs.getInt(2) == 0;
+			}
+		}
+	}
+
+	/** v9 (Z11): contagens por sessao (os eventos contam; os cancelados nao). */
+	private Map<String, Object> progresso(Connection conn, int parmTenantId, int parmIdMicroCiclo) throws SQLException {
+		int total = 0;
+		int aprovados = 0;
+		int pendentes = 0;
+		int rejeitados = 0;
+		int naoATempo = 0;
+		for (Treino t : sessoesDe(conn, parmTenantId, parmIdMicroCiclo)) {
+			if (CANCELADO.equals(t.estadoBD)) {
+				continue;
+			}
+			total++;
+			if (APROVADO.equals(t.estadoBD)) {
+				aprovados++;
+			} else if (PENDENTE.equals(t.estadoBD)) {
+				pendentes++;
+				if (inicioPassou(t.d.getData(), t.inicioSessao())) {
+					naoATempo++;
+				}
+			} else if (REJEITADO.equals(t.estadoBD)) {
+				rejeitados++;
+			}
+		}
+		Map<String, Object> progresso = new LinkedHashMap<>();
+		progresso.put("total", total);
+		progresso.put("aprovados", aprovados);
+		progresso.put("pendentes", pendentes);
+		progresso.put("rejeitados", rejeitados);
+		progresso.put("naoAprovadosATempo", naoATempo);
+		progresso.put("pronto", total > 0 && aprovados == total);
+		return progresso;
+	}
+
+	/**
+	 * v9 (R248, Q141): PRONTO_A_PUBLICAR aos ADMIN (sem o autor) quando a transacao deixa pronto um micro ciclo
+	 * EM_APROVACAO que nao estava pronto no inicio dela.
+	 */
+	private void talvezPronto(Connection conn, Identidade parmIdentidade, int parmIdMicroCiclo, boolean parmProntoAntes)
+			throws SQLException {
+		if (parmProntoAntes) {
+			return;
+		}
+		MicroCicloData mc = carregaMicroCiclo(conn, parmIdMicroCiclo, parmIdentidade.getTenantId());
+		if (!EM_APROVACAO.equals(mc.getEstado()) || !pronto(conn, parmIdMicroCiclo)) {
+			return;
+		}
+		Integer primeiro = null;
+		for (Treino t : sessoesDe(conn, parmIdentidade.getTenantId(), parmIdMicroCiclo)) {
+			if (!CANCELADO.equals(t.estadoBD)) {
+				primeiro = t.d.getId();
+				break;
+			}
+		}
+		notifica(conn, parmIdentidade, notificacaoHelper.destinatariosAdmin(conn, parmIdentidade.getTenantId()),
+				"PRONTO_A_PUBLICAR", primeiro, null,
+				"Micro ciclo de " + ddmm(mc.getDataInicio()) + " pronto a publicar: todos os treinos estão aprovados");
+	}
+
+	/** v9 (Z1): Rascunho -> Em aprovacao (o publica da v8): treinos Pendentes, eventos "Ja aprovado", TREINOS_PENDENTES. */
+	public SemanaMicroCicloData submete(Identidade parmIdentidade, int parmIdMicroCiclo) {
 		int tenant = parmIdentidade.getTenantId();
-		int segunda = emTransacao("publica", conn -> {
+		int segunda = emTransacao("submete", conn -> {
 			MicroCicloData mc = carregaMicroCiclo(conn, parmIdMicroCiclo, tenant);
-			PreparedStatement psMc = conn.prepareStatement("update micro_ciclo set estado = 'PUBLICADO' "
+			PreparedStatement psMc = conn.prepareStatement("update micro_ciclo set estado = 'EM_APROVACAO' "
 					+ "where id = ? and tenant_id = ? and estado = 'RASCUNHO'");
 			psMc.setInt(1, parmIdMicroCiclo);
 			psMc.setInt(2, tenant);
 			if (psMc.executeUpdate() == 0) {
 				throw new ConflitoException("O micro ciclo não está em rascunho.");
+			}
+			if (sessoesDe(conn, tenant, parmIdMicroCiclo).isEmpty()) {
+				throw new ConflitoException("Acrescente treinos antes de submeter.");
 			}
 			// v5 (W15): os eventos "Ja aprovado" passam logo a Aprovado
 			List<Integer> eventosAprovados = new ArrayList<>();
@@ -1404,7 +1599,7 @@ public class MicroCicloHelper {
 			int n = psTreinos.executeUpdate() + eventosAprovados.size(); // v6 (R175): conta sessoes
 			propagaSessao(conn, tenant, null, parmIdMicroCiclo);
 			historico(conn, parmIdMicroCiclo, null, parmIdentidade.getIdUtilizador(),
-					"Micro ciclo publicado (" + n + " treinos)");
+					"Micro ciclo submetido para aprovação (" + n + " treinos)");
 
 			// Q31 (BK-12): uma notificacao por destinatario, com o numero de treinos das suas equipas
 			PreparedStatement psPendentes = conn.prepareStatement(
@@ -1416,16 +1611,195 @@ public class MicroCicloHelper {
 			while (rsPendentes.next()) {
 				treinosPorEquipa.computeIfAbsent(rsPendentes.getInt(2), k -> new ArrayList<>()).add(rsPendentes.getInt(1));
 			}
-			notificaPendentes(conn, parmIdentidade, treinosPorEquipa,
-					"Micro ciclo de " + ddmm(mc.getDataInicio()) + " publicado: ");
+			notificaAgregada(conn, parmIdentidade, treinosPorEquipa, "TREINOS_PENDENTES",
+					k -> "Micro ciclo de " + ddmm(mc.getDataInicio()) + ": " + k + " treinos à espera da tua aprovação");
+			talvezPronto(conn, parmIdentidade, parmIdMicroCiclo, false); // so com eventos "Ja aprovado"
 			return mc.getDataInicio();
 		});
+		log.info("MicroCicloHelper | submete | tenant:{} microCiclo:{}", tenant, parmIdMicroCiclo);
 		return getSemana(parmIdentidade, segunda);
 	}
 
-	/** TREINOS_PENDENTES agregada: uma por destinatario, com o numero de treinos das suas equipas (sem o autor). */
-	private void notificaPendentes(Connection conn, Identidade parmIdentidade,
-			Map<Integer, List<Integer>> parmTreinosPorEquipa, String parmPrefixo) throws SQLException {
+	/**
+	 * v9 (Z1, Z2): Em aprovacao -> Publicado, numa so transacao (tudo ou nada). Cancela os Pendentes cuja sessao ja
+	 * comecou; com aprovarPendentes aprova os itens pedidos (iguais aos Pendentes restantes); publica e notifica os
+	 * atletas (R251). Num Rascunho: 409 "Submeta primeiro..." (R278).
+	 */
+	public SemanaMicroCicloData publica(Identidade parmIdentidade, int parmIdMicroCiclo,
+			sm.core.data.PedidoPublicarData parmPedido) {
+		int tenant = parmIdentidade.getTenantId();
+		int utilizador = parmIdentidade.getIdUtilizador();
+		int segunda = emTransacao("publica", conn -> {
+			MicroCicloData mc = carregaMicroCiclo(conn, parmIdMicroCiclo, tenant);
+			if (RASCUNHO.equals(mc.getEstado())) {
+				throw new ConflitoException(MSG_SUBMETA);
+			}
+			if (!EM_APROVACAO.equals(mc.getEstado())) {
+				throw new ConflitoException("O micro ciclo não está em aprovação.");
+			}
+			List<Treino> sessoes = sessoesDe(conn, tenant, parmIdMicroCiclo);
+			int rejeitados = 0;
+			for (Treino t : sessoes) {
+				if (REJEITADO.equals(t.estadoBD)) {
+					rejeitados++;
+				}
+			}
+			if (rejeitados > 0) {
+				throw new ConflitoException("Há " + rejeitados + " treinos rejeitados: corrija-os ou cancele-os.");
+			}
+			Map<Integer, Treino> porAprovar = new LinkedHashMap<>();
+			for (Treino t : sessoes) {
+				if (!PENDENTE.equals(t.estadoBD)) {
+					continue;
+				}
+				if (!inicioPassou(t.d.getData(), t.inicioSessao())) {
+					porAprovar.put(t.d.getId(), t);
+					continue;
+				}
+				// nao aprovado a tempo: cancelado na publicacao
+				try (PreparedStatement psCancela = conn.prepareStatement("update treino set estado = 'CANCELADO', "
+						+ "motivo_estado = 'não aprovado a tempo', origem_cancelamento = 'TREINO', versao = versao + 1 "
+						+ "where id = ? and estado = 'PENDENTE'")) {
+					psCancela.setInt(1, t.d.getId());
+					psCancela.executeUpdate();
+				}
+				historico(conn, parmIdMicroCiclo, t.d.getId(), utilizador, "Cancelado | não aprovado a tempo");
+				apagaConfirmacoes(conn, t.d.getId(), null);
+				propagaSessao(conn, tenant, t.d.getId(), null);
+			}
+			if (!porAprovar.isEmpty()) {
+				if (parmPedido == null || !parmPedido.isAprovarPendentes()) {
+					throw new ConflitoException("Há " + porAprovar.size() + " treinos por aprovar.");
+				}
+				Map<Integer, Integer> versoes = new LinkedHashMap<>();
+				if (parmPedido.getItens() != null) {
+					for (sm.core.data.PedidoAprovacaoLoteData.Item item : parmPedido.getItens()) {
+						if (item == null || item.getId() == null || item.getVersao() == null
+								|| versoes.put(item.getId(), item.getVersao()) != null) {
+							throw new PedidoInvalidoException("Itens inválidos (id e versão obrigatórios, sem repetidos).");
+						}
+					}
+				}
+				if (!versoes.keySet().equals(porAprovar.keySet())) {
+					throw new ConflitoException("A lista de treinos por aprovar mudou. Recarregue.");
+				}
+				for (Treino t : porAprovar.values()) {
+					try {
+						aprovaUm(conn, parmIdentidade, parmIdMicroCiclo, t.d.getId(), versoes.get(t.d.getId()));
+					} catch (ConflitoException e) {
+						throw new ConflitoException("Não publicado: " + (t.evento() ? t.d.getNomeGrupo() : t.d.getNomeEquipa())
+								+ " " + dia(t.d.getData()) + " " + t.d.getHoraInicio() + " " + e.getMessage() + ".");
+					}
+				}
+			}
+			try (PreparedStatement psMc = conn.prepareStatement("update micro_ciclo set estado = 'PUBLICADO' "
+					+ "where id = ? and tenant_id = ? and estado = 'EM_APROVACAO'")) {
+				psMc.setInt(1, parmIdMicroCiclo);
+				psMc.setInt(2, tenant);
+				if (psMc.executeUpdate() == 0) {
+					throw new ConflitoException("O micro ciclo foi alterado entretanto. Recarregue.");
+				}
+			}
+			propagaSessao(conn, tenant, null, parmIdMicroCiclo);
+			List<Treino> aprovadas = new ArrayList<>();
+			int n = 0;
+			for (Treino t : sessoesDe(conn, tenant, parmIdMicroCiclo)) {
+				if (APROVADO.equals(t.estadoBD)) {
+					n++;
+					if (!t.evento()) {
+						aprovadas.add(t);
+					}
+				}
+			}
+			historico(conn, parmIdMicroCiclo, null, utilizador, "Micro ciclo publicado (" + n + " treinos)");
+			// R251, Q136: uma por atleta com conta e com sessoes; os treinadores nao recebem nada
+			notificaAtletasDaSemana(conn, parmIdentidade, aprovadas, "MICRO_CICLO_PUBLICADO",
+					k -> "Micro ciclo da semana de " + ddmm(mc.getDataInicio()) + " publicado: tens " + k + " treinos");
+			return mc.getDataInicio();
+		});
+		log.info("MicroCicloHelper | publica | tenant:{} microCiclo:{}", tenant, parmIdMicroCiclo);
+		return getSemana(parmIdentidade, segunda);
+	}
+
+	/**
+	 * v9 (R251, R257): uma notificacao por conta ATLETA ativa dos convocados efetivos das sessoes, com o numero de
+	 * sessoes do jogador; id_treino = a primeira sessao dele (link e visibilidade). Consultas em lote (sem N+1).
+	 */
+	private void notificaAtletasDaSemana(Connection conn, Identidade parmIdentidade, List<Treino> parmSessoes,
+			String parmTipo, java.util.function.IntFunction<String> parmTexto) throws SQLException {
+		Map<Integer, Set<Integer>> convocados = convocadosEmLote(conn, parmSessoes, null);
+		Map<Integer, List<Integer>> sessoesPorJogador = new LinkedHashMap<>();
+		for (Treino t : parmSessoes) { // ja por data e hora
+			for (Integer idJogador : convocados.getOrDefault(t.d.getId(), Set.of())) {
+				sessoesPorJogador.computeIfAbsent(idJogador, k -> new ArrayList<>()).add(t.d.getId());
+			}
+		}
+		Map<Integer, List<Integer>> contas = contasAtleta(conn, parmIdentidade.getTenantId(), sessoesPorJogador.keySet());
+		for (Map.Entry<Integer, List<Integer>> j : sessoesPorJogador.entrySet()) {
+			List<Integer> contasJogador = contas.get(j.getKey());
+			if (contasJogador != null) {
+				notifica(conn, parmIdentidade, contasJogador, parmTipo, j.getValue().get(0), null,
+						parmTexto.apply(j.getValue().size()));
+			}
+		}
+	}
+
+	/**
+	 * v7/v9: convocatoria efetiva em lote das sessoes (nao ligadas), opcionalmente so dos jogadores pedidos. Mesma regra
+	 * que convocatoriaEfetiva (D4); mudar as duas.
+	 */
+	static Map<Integer, Set<Integer>> convocadosEmLote(Connection conn, List<Treino> parmSessoes,
+			java.util.Collection<Integer> parmSoJogadores) throws SQLException {
+		Map<Integer, Set<Integer>> convocados = new HashMap<>(); // treino -> jogadores
+		List<Integer> ids = new ArrayList<>();
+		for (Treino t : parmSessoes) {
+			if (!t.ligado()) {
+				ids.add(t.d.getId());
+			}
+		}
+		if (ids.isEmpty() || (parmSoJogadores != null && parmSoJogadores.isEmpty())) {
+			return convocados;
+		}
+		String inT = String.join(", ", java.util.Collections.nCopies(ids.size(), "?"));
+		String inP = parmSoJogadores == null ? null
+				: String.join(", ", java.util.Collections.nCopies(parmSoJogadores.size(), "?"));
+		try (PreparedStatement psConv = conn.prepareStatement("select tc.id_treino, tc.id_jogador "
+				+ "from treino_convocado tc inner join jogador j on j.id = tc.id_jogador and j.estado = '1' "
+				+ "inner join treino t on t.id = tc.id_treino where tc.id_treino in (" + inT + ") "
+				+ (inP != null ? "and tc.id_jogador in (" + inP + ") " : "") + "and tc.estado = '1' and (tc.origem = 'ACRESCENTADO' "
+				+ "or exists (select 1 from escalao_epoca_jogador eej where eej.id_escalao_epoca = t.id_equipa "
+				+ "and eej.id_jogador = tc.id_jogador)) "
+				+ "union select t.id, eej.id_jogador from treino t "
+				+ "inner join escalao_epoca_jogador eej on eej.id_escalao_epoca = t.id_equipa "
+				+ "inner join jogador j on j.id = eej.id_jogador and j.estado = '1' where t.id in (" + inT + ") "
+				+ (inP != null ? "and eej.id_jogador in (" + inP + ") " : "")
+				+ "and not (t.estado = 'APROVADO' or (t.estado = 'CANCELADO' and t.data_aprovacao is not null)) "
+				+ "and not exists (select 1 from treino_convocado tc where tc.id_treino = t.id "
+				+ "and tc.id_jogador = eej.id_jogador)")) {
+			int i = 1;
+			for (int volta = 0; volta < 2; volta++) {
+				for (Integer id : ids) {
+					psConv.setInt(i++, id);
+				}
+				if (parmSoJogadores != null) {
+					for (Integer id : parmSoJogadores) {
+						psConv.setInt(i++, id);
+					}
+				}
+			}
+			try (ResultSet rs = psConv.executeQuery()) {
+				while (rs.next()) {
+					convocados.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
+				}
+			}
+		}
+		return convocados;
+	}
+
+	/** v9: TREINOS_PENDENTES (ou outra agregada aos treinadores): uma por destinatario, com o numero de treinos. */
+	private void notificaAgregada(Connection conn, Identidade parmIdentidade,
+			Map<Integer, List<Integer>> parmTreinosPorEquipa, String parmTipo, java.util.function.IntFunction<String> parmTexto)
+			throws SQLException {
 		Map<Integer, List<Integer>> treinosPorDestinatario = new LinkedHashMap<>();
 		for (Map.Entry<Integer, List<Integer>> equipa : parmTreinosPorEquipa.entrySet()) {
 			for (Integer destinatario : notificacaoHelper.destinatariosEquipa(conn, equipa.getKey(),
@@ -1435,16 +1809,24 @@ public class MicroCicloHelper {
 		}
 		for (Map.Entry<Integer, List<Integer>> destinatario : treinosPorDestinatario.entrySet()) {
 			// o primeiro treino da o link para a semana e o filtro de visibilidade
-			notifica(conn, parmIdentidade, List.of(destinatario.getKey()), "TREINOS_PENDENTES",
-					destinatario.getValue().get(0), null, parmPrefixo + destinatario.getValue().size()
-							+ " treinos das suas equipas aguardam aprovação");
+			notifica(conn, parmIdentidade, List.of(destinatario.getKey()), parmTipo, destinatario.getValue().get(0), null,
+					parmTexto.apply(destinatario.getValue().size()));
 		}
+	}
+
+	/** TREINOS_PENDENTES agregada: uma por destinatario, com o numero de treinos das suas equipas (sem o autor). */
+	private void notificaPendentes(Connection conn, Identidade parmIdentidade,
+			Map<Integer, List<Integer>> parmTreinosPorEquipa, String parmPrefixo) throws SQLException {
+		notificaAgregada(conn, parmIdentidade, parmTreinosPorEquipa, "TREINOS_PENDENTES",
+				k -> parmPrefixo + k + " treinos das suas equipas aguardam aprovação");
 	}
 
 	private static String estadoTexto(String parmEstado) {
 		switch (parmEstado) {
 		case RASCUNHO:
 			return "em rascunho";
+		case EM_APROVACAO:
+			return "em aprovação";
 		case PUBLICADO:
 			return "publicado";
 		default:
@@ -1515,8 +1897,9 @@ public class MicroCicloHelper {
 			}
 			List<Treino> voltam = treinosAReativar(conn, tenant, mc, epoca);
 			int ficam = contaCancelados(conn, parmIdMicroCiclo) - voltam.size();
-			try (PreparedStatement psMc = conn.prepareStatement("update micro_ciclo set estado = 'PUBLICADO', "
-					+ "motivo_cancelamento = null where id = ? and tenant_id = ? and estado = 'CANCELADO'")) {
+			// v9 (Q140, R258): reativar leva a Em aprovacao; o atleta so volta a ver depois de publicar de novo
+			try (PreparedStatement psMc = conn.prepareStatement("update micro_ciclo set estado = 'EM_APROVACAO', "
+					+ "motivo_cancelamento = null, estado_antes_cancelamento = null where id = ? and tenant_id = ? and estado = 'CANCELADO'")) {
 				psMc.setInt(1, parmIdMicroCiclo);
 				psMc.setInt(2, tenant);
 				if (psMc.executeUpdate() == 0) {
@@ -1528,6 +1911,7 @@ public class MicroCicloHelper {
 			for (Treino t : voltam) {
 				if (reativaTreino(conn, t, utilizador, "Estado | CANCELADO => PENDENTE (reativação)")) {
 					n++;
+					sincronizaTreino(conn, tenant, t.d.getId(), null); // Indisponibilidades (Z3)
 					if (!t.evento()) { // v5 (R128): eventos sem notificacoes
 						treinosPorEquipa.computeIfAbsent(t.d.getIdEquipa(), k -> new ArrayList<>()).add(t.d.getId());
 					}
@@ -1561,7 +1945,7 @@ public class MicroCicloHelper {
 			}
 		}
 		try (PreparedStatement psAusencias = conn.prepareStatement("update treino_ausencia set pendente_confirmacao = '1', "
-				+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'")) {
+				+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA' and id_indisponibilidade is null")) {
 			psAusencias.setInt(1, t.d.getId());
 			psAusencias.executeUpdate();
 		}
@@ -1577,19 +1961,25 @@ public class MicroCicloHelper {
 		int tenant = parmIdentidade.getTenantId();
 		int segunda = emTransacao("cancelaMicroCiclo", conn -> {
 			MicroCicloData mc = carregaMicroCiclo(conn, parmIdMicroCiclo, tenant);
-			if (!PUBLICADO.equals(mc.getEstado())) {
-				throw new ConflitoException("Só se pode cancelar um micro ciclo publicado.");
+			// v9 (R257): tambem em aprovacao; o estado anterior fica guardado (o atleta so ve os cancelados de um publicado)
+			String estadoAntes = mc.getEstado();
+			if (!PUBLICADO.equals(estadoAntes) && !EM_APROVACAO.equals(estadoAntes)) {
+				throw new ConflitoException("Só se pode cancelar um micro ciclo em aprovação ou publicado.");
 			}
 			if (semanaTerminou(mc.getDataInicio())) {
 				throw new ConflitoException("Esta semana já terminou.");
 			}
+			// as sessoes antes do cancelamento: as visiveis ao atleta (publicado) ou as dos treinadores (em aprovacao)
+			List<Treino> sessoesAntes = sessoesDe(conn, tenant, parmIdMicroCiclo);
 			PreparedStatement psMc = conn.prepareStatement("update micro_ciclo set estado = 'CANCELADO', "
-					+ "motivo_cancelamento = ? where id = ? and tenant_id = ? and estado = 'PUBLICADO'");
+					+ "motivo_cancelamento = ?, estado_antes_cancelamento = ? where id = ? and tenant_id = ? and estado = ?");
 			psMc.setString(1, motivo);
-			psMc.setInt(2, parmIdMicroCiclo);
-			psMc.setInt(3, tenant);
+			psMc.setString(2, estadoAntes);
+			psMc.setInt(3, parmIdMicroCiclo);
+			psMc.setInt(4, tenant);
+			psMc.setString(5, estadoAntes);
 			if (psMc.executeUpdate() == 0) {
-				throw new ConflitoException("Só se pode cancelar um micro ciclo publicado.");
+				throw new ConflitoException("Só se pode cancelar um micro ciclo em aprovação ou publicado.");
 			}
 			// v4 (W1): origem MICRO_CICLO, para a reativacao saber quais voltam
 			PreparedStatement psTreinos = conn.prepareStatement("update treino set estado = 'CANCELADO', motivo_estado = ?, "
@@ -1609,6 +1999,27 @@ public class MicroCicloHelper {
 				psConfirmacoes.executeUpdate();
 			}
 			historico(conn, parmIdMicroCiclo, null, parmIdentidade.getIdUtilizador(), "Micro ciclo cancelado | " + motivo);
+			if (PUBLICADO.equals(estadoAntes)) {
+				// R257, Q139: uma por atleta com sessoes visiveis (as aprovadas antes do cancelamento)
+				List<Treino> visiveis = new ArrayList<>();
+				for (Treino t : sessoesAntes) {
+					if (APROVADO.equals(t.estadoBD) && !t.evento()) {
+						visiveis.add(t);
+					}
+				}
+				notificaAtletasDaSemana(conn, parmIdentidade, visiveis, "MICRO_CICLO_CANCELADO",
+						k -> "O micro ciclo da semana de " + ddmm(mc.getDataInicio()) + " foi cancelado");
+			} else {
+				// R257: em aprovacao, so os treinadores (agregada por destinatario)
+				Map<Integer, List<Integer>> treinosPorEquipa = new LinkedHashMap<>();
+				for (Treino t : sessoesAntes) {
+					if (!t.evento() && !CANCELADO.equals(t.estadoBD)) {
+						treinosPorEquipa.computeIfAbsent(t.d.getIdEquipa(), k -> new ArrayList<>()).add(t.d.getId());
+					}
+				}
+				notificaAgregada(conn, parmIdentidade, treinosPorEquipa, "MICRO_CICLO_CANCELADO",
+						k -> "Micro ciclo de " + ddmm(mc.getDataInicio()) + " cancelado");
+			}
 			return mc.getDataInicio();
 		});
 		return getSemana(parmIdentidade, segunda);
@@ -1829,7 +2240,13 @@ public class MicroCicloHelper {
 		// v8 (Y3): na mesma transacao, avisa as confirmacoes caducadas da sessao gravada (principal ou avulso)
 		int idTreino = emTransacao("gravaTreino", conn -> {
 			int id = grava.executa(conn);
-			avisaCaducadas(conn, parmIdentidade, id, Set.of());
+			// Balnearios (B3, R15): so quando o pedido traz idsBalnearios; nao mexe em versao, estado nem notificacoes
+			if (v.getIdsBalnearios() != null && !temPrincipal(v)) {
+				BalnearioHelper.gravaTreino(conn, parmIdentidade, carregaTreino(conn, id, tenant), v.getIdsBalnearios(),
+						v.getIdsBalneariosAntes());
+			}
+			sincronizaTreino(conn, tenant, id, null); // Indisponibilidades (Z3)
+			avisaAtletas(conn, parmIdentidade, id, MotivoAviso.LOCAL, Set.of());
 			return id;
 		});
 		return getTreinoData(parmIdentidade, idTreino);
@@ -2029,7 +2446,7 @@ public class MicroCicloHelper {
 		} else if (voltaPendente || (corrigido && essencial)) {
 			// R40: a ausencia mantem-se, assinalada, ate o atleta confirmar
 			PreparedStatement psPendente = conn.prepareStatement("update treino_ausencia set pendente_confirmacao = '1', "
-					+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA'");
+					+ "data_alteracao = now() where id_treino = ? and estado = 'ATIVA' and id_indisponibilidade is null");
 			psPendente.setInt(1, t.d.getId());
 			psPendente.executeUpdate();
 		}
@@ -2185,6 +2602,7 @@ public class MicroCicloHelper {
 				throw new ConflitoException(MSG_VERSAO);
 			}
 		}
+		BalnearioHelper.apagaDoTreino(conn, avulso, parmIdentidade.getIdUtilizador()); // Balnearios (B14)
 		List<String> diferencas = new ArrayList<>();
 		diferencas.add("Físico | + " + intervalo(f) + " (era avulso)");
 		aposAlteracaoPrincipal(conn, parmIdentidade, p, vp, diferencas, true);
@@ -2350,11 +2768,14 @@ public class MicroCicloHelper {
 		int tenant = parmIdentidade.getTenantId();
 		MicroCicloData mc = leitura("aprovaLote", conn -> carregaMicroCiclo(conn, parmIdMicroCiclo, tenant));
 		if (RASCUNHO.equals(mc.getEstado())) {
-			throw new ConflitoException("Num rascunho, publique primeiro.");
+			throw new ConflitoException(MSG_SUBMETA);
 		}
-		if (!PUBLICADO.equals(mc.getEstado())) {
-			throw new ConflitoException("O micro ciclo não está publicado.");
+		// v9: aprova-se em aprovacao e depois de publicado
+		if (!PUBLICADO.equals(mc.getEstado()) && !EM_APROVACAO.equals(mc.getEstado())) {
+			throw new ConflitoException("O micro ciclo não está em aprovação nem publicado.");
 		}
+		boolean prontoAntes = leitura("aprovaLote",
+				conn -> EM_APROVACAO.equals(mc.getEstado()) && pronto(conn, parmIdMicroCiclo)); // v9 (R248)
 
 		sm.core.data.ResultadoAprovacaoLoteData resultado = new sm.core.data.ResultadoAprovacaoLoteData();
 		for (sm.core.data.PedidoAprovacaoLoteData.Item item : parmPedido.getItens()) {
@@ -2373,6 +2794,7 @@ public class MicroCicloHelper {
 			emTransacao("aprovaLote", conn -> {
 				historico(conn, parmIdMicroCiclo, null, parmIdentidade.getIdUtilizador(),
 						"Aprovação em lote: " + n + " treinos (" + ambito + ")");
+				talvezPronto(conn, parmIdentidade, parmIdMicroCiclo, prontoAntes); // v9 (R248): uma vez no fim
 				return true;
 			});
 		}
@@ -2433,11 +2855,15 @@ public class MicroCicloHelper {
 				throw new ConflitoException("alterado entretanto");
 			}
 		}
+		sincronizaTreino(conn, parmIdentidade.getTenantId(), t.d.getId(), null); // Indisponibilidades (Z3)
 		historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), parmIdentidade.getIdUtilizador(),
 				"Aprovado (" + textoQualidade(qualidade(parmIdentidade, t.d.getIdEquipa(), equipas)) + ")"
 						+ incluiFisicos(fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId())));
 		propagaSessao(conn, parmIdentidade.getTenantId(), t.d.getId(), null);
-		avisaCaducadas(conn, parmIdentidade, t.d.getId(), Set.of()); // v8 (Y3): tambem no aprovaLote
+		// v9 (Z5): "era visivel" = publicado e ja aprovado antes; so atua num micro ciclo publicado (tambem no aprovaLote)
+		boolean eraVisivel = PUBLICADO.equals(t.mcEstado) && t.d.getDataAprovacao() != null;
+		avisaAtletas(conn, parmIdentidade, t.d.getId(),
+				eraVisivel ? MotivoAviso.APROVADO_DE_NOVO : MotivoAviso.APROVADO_NOVO, Set.of());
 		return Boolean.TRUE;
 	}
 
@@ -2460,7 +2886,7 @@ public class MicroCicloHelper {
 						+ "least(t.hora_inicio, coalesce((select min(f.hora_inicio) from treino f "
 						+ "where f.id_treino_principal = t.id), t.hora_inicio)) as hora_inicio, "
 						+ "m.data_inicio from treino t inner join micro_ciclo m on m.id = t.id_micro_ciclo "
-						+ "where m.tenant_id = ? and m.estado = 'PUBLICADO' and t.estado = 'PENDENTE' "
+						+ "where m.tenant_id = ? and m.estado in ('EM_APROVACAO', 'PUBLICADO') and t.estado = 'PENDENTE' "
 						+ "and t.id_treino_principal is null "
 						+ "and m.data_inicio in (?, ?) and exists (select 1 from utilizadores_escalao ue "
 						+ "inner join escalao_epoca ee on ee.id = ue.id_escalao_epoca inner join epoca e on e.id = ee.id_epoca "
@@ -2488,6 +2914,30 @@ public class MicroCicloHelper {
 		resultado.put("total", ids.size());
 		resultado.put("ids", ids);
 		resultado.put("semana", semanaMin);
+		// v9 (Z10, R259): so ao ADMIN, os micro ciclos em aprovacao prontos a publicar, da semana atual em diante
+		List<Integer> prontos = new ArrayList<>();
+		if (parmIdentidade.isAdmin()) {
+			int atual = segundaDe(hoje());
+			prontos = leitura("pendentesMeus", conn -> {
+				List<Integer> lista = new ArrayList<>();
+				try (PreparedStatement preparedStatement = conn.prepareStatement("select m.data_inicio from micro_ciclo m "
+						+ "where m.tenant_id = ? and m.estado = 'EM_APROVACAO' and m.data_inicio >= ? "
+						+ "and exists (select 1 from treino t where t.id_micro_ciclo = m.id and t.id_treino_principal is null "
+						+ "and t.estado <> 'CANCELADO') and not exists (select 1 from treino t where t.id_micro_ciclo = m.id "
+						+ "and t.id_treino_principal is null and t.estado not in ('CANCELADO', 'APROVADO')) "
+						+ "order by m.data_inicio")) {
+					preparedStatement.setInt(1, parmIdentidade.getTenantId());
+					preparedStatement.setInt(2, atual);
+					try (ResultSet rs = preparedStatement.executeQuery()) {
+						while (rs.next()) {
+							lista.add(rs.getInt(1));
+						}
+					}
+				}
+				return lista;
+			});
+		}
+		resultado.put("prontos", prontos);
 		return resultado;
 	}
 
@@ -2637,6 +3087,7 @@ public class MicroCicloHelper {
 			}
 			Set<Integer> equipas = equipasDoUtilizador(conn, utilizador);
 			boolean passou = inicioPassou(t.d.getData(), t.inicioSessao());
+			boolean prontoAntes = EM_APROVACAO.equals(t.mcEstado) && pronto(conn, t.d.getIdMicroCiclo()); // v9 (R248)
 			if (t.evento() && !parmIdentidade.isAdmin()) {
 				throw new AcessoNegadoException(); // v5: so o ADMIN decide sobre eventos
 			}
@@ -2690,7 +3141,7 @@ public class MicroCicloHelper {
 				if (!parmIdentidade.isAdmin()) {
 					throw new AcessoNegadoException();
 				}
-				if (!CANCELADO.equals(t.estadoBD) || !PUBLICADO.equals(t.mcEstado)) {
+				if (!CANCELADO.equals(t.estadoBD) || !(PUBLICADO.equals(t.mcEstado) || EM_APROVACAO.equals(t.mcEstado))) {
 					throw new ConflitoException(MSG_TRANSICAO);
 				}
 				if (passou || semanaTerminou(t.dataInicio)) {
@@ -2738,19 +3189,32 @@ public class MicroCicloHelper {
 			// v6 (CA122): uma so linha por acao, com os fisicos; os fisicos seguem o estado do principal
 			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), utilizador,
 					texto + incluiFisicos(fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId())));
+			if ("APROVAR".equals(acao) || "REATIVAR".equals(acao)) {
+				sincronizaTreino(conn, parmIdentidade.getTenantId(), t.d.getId(), null); // Indisponibilidades (Z3)
+			}
 			propagaSessao(conn, parmIdentidade.getTenantId(), t.d.getId(), null);
+			// v9 (Z5): "era visivel" = publicado e ja aprovado antes desta acao
+			boolean eraVisivel = PUBLICADO.equals(t.mcEstado) && t.d.getDataAprovacao() != null;
 			if ("APROVAR".equals(acao)) {
-				avisaCaducadas(conn, parmIdentidade, t.d.getId(), Set.of()); // v8 (Y3, CA161)
+				avisaAtletas(conn, parmIdentidade, t.d.getId(),
+						eraVisivel ? MotivoAviso.APROVADO_DE_NOVO : MotivoAviso.APROVADO_NOVO, Set.of());
 			}
 			if ("CANCELAR".equals(acao)) {
+				if (eraVisivel) {
+					avisaAtletas(conn, parmIdentidade, t.d.getId(), MotivoAviso.CANCELADO, Set.of()); // R256, Q139
+				}
 				apagaConfirmacoes(conn, t.d.getId(), null); // v8 (Y5, Q129): ao reativar, todos sem resposta
+			}
+			if ("APROVAR".equals(acao) || "CANCELAR".equals(acao)) {
+				talvezPronto(conn, parmIdentidade, t.d.getIdMicroCiclo(), prontoAntes); // v9 (R248)
 			}
 			if ("REJEITAR".equals(acao) && !t.evento()) { // v5 (R128): eventos sem notificacoes
 				aposTreinoRejeitado(conn, parmIdentidade, t);
 			}
 			if ("REATIVAR".equals(acao) && !t.evento()) {
 				try (PreparedStatement psAusencias = conn.prepareStatement("update treino_ausencia set "
-						+ "pendente_confirmacao = '1', data_alteracao = now() where id_treino = ? and estado = 'ATIVA'")) {
+						+ "pendente_confirmacao = '1', data_alteracao = now() where id_treino = ? and estado = 'ATIVA' "
+						+ "and id_indisponibilidade is null")) {
 					psAusencias.setInt(1, t.d.getId());
 					psAusencias.executeUpdate();
 				}
@@ -2982,7 +3446,8 @@ public class MicroCicloHelper {
 						+ String.join(", ", entrou) + " | saiu: " + String.join(", ", saiu));
 			}
 			// v5 (W8, R149-R153): so num Aprovado; diferenca entre antes e depois (entrar e sair anulam-se)
-			if (APROVADO.equals(t.estadoBD) && !t.realizado()) {
+			// v9 (R252): so com o micro ciclo publicado (em aprovacao o atleta ainda nao ve o treino)
+			if (APROVADO.equals(t.estadoBD) && !t.realizado() && PUBLICADO.equals(t.mcEstado)) {
 				String treino = "treino " + t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " às " + t.d.getHoraInicio();
 				for (Integer idJogador : depois.keySet()) {
 					if (!antes.containsKey(idJogador)) {
@@ -3021,13 +3486,14 @@ public class MicroCicloHelper {
 						juntar.add(idJogador);
 					}
 				});
-				Set<Integer> caducadas = avisaCaducadas(conn, parmIdentidade, t.d.getId(), juntar);
+				Set<Integer> caducadas = avisaAtletas(conn, parmIdentidade, t.d.getId(), MotivoAviso.LOCAL, juntar);
 				for (Map.Entry<Integer, String[]> n : notificacoesFisico.entrySet()) {
 					boolean confirmaDeNovo = juntar.contains(n.getKey()) && caducadas.contains(n.getKey());
 					notificaAtleta(conn, parmIdentidade, n.getKey(), t.d.getId(), n.getValue()[0],
 							n.getValue()[1] + (confirmaDeNovo ? ". Confirma de novo." : ""));
 				}
 			}
+			sincronizaTreino(conn, tenant, t.d.getId(), null); // Indisponibilidades (Z3)
 			return true;
 		});
 		return getDetalhe(parmIdentidade, parmIdTreino);
@@ -3050,24 +3516,48 @@ public class MicroCicloHelper {
 		}
 	}
 
+	/** v9 (Z5): motivos de avisaAtletas. */
+	enum MotivoAviso {
+		/** alteracao sem nova aprovacao (local) ou ajuste da convocatoria: so os confirmados caducados */
+		LOCAL,
+		/** aprovado de novo um treino ja visivel: caducados -> CONFIRMACAO_CADUCOU; os outros -> TREINO_MUDOU */
+		APROVADO_DE_NOVO,
+		/** aprovado um treino que o atleta ainda nao via: TREINO_NOVO_ATLETA */
+		APROVADO_NOVO,
+		/** cancelado um treino visivel: TREINO_CANCELADO (chamar antes de apagar as confirmacoes) */
+		CANCELADO
+	}
+
 	/**
-	 * v8 (Y3, Y4, R228): idempotente. Numa sessao que termina APROVADA (nao realizada), avisa cada convocado cuja
-	 * confirmacao caducou e cuja sessao atual ainda nao foi avisada (sessao_avisada). Os de parmJuntarEm nao recebem
+	 * v9 (Z5; substitui a avisaCaducadas da v8, Y3/Y4): uma notificacao por atleta e por acao, so num micro ciclo
+	 * PUBLICADO (R252). Idempotente para os confirmados (sessao_avisada). Os de parmJuntarEm nao recebem
 	 * CONFIRMACAO_CADUCOU (vao receber outra notificacao com "Confirma de novo."), mas a sessao_avisada grava-se.
 	 *
 	 * @return os jogadores com a confirmacao caducada nesta chamada
 	 */
-	private Set<Integer> avisaCaducadas(Connection conn, Identidade parmIdentidade, int parmIdSessao,
+	private Set<Integer> avisaAtletas(Connection conn, Identidade parmIdentidade, int parmIdSessao, MotivoAviso parmMotivo,
 			Set<Integer> parmJuntarEm) throws SQLException {
 		Set<Integer> avisados = new HashSet<>();
 		int tenant = parmIdentidade.getTenantId();
 		Treino t = carregaTreino(conn, parmIdSessao, tenant);
-		if (t.ligado() || t.evento() || !APROVADO.equals(t.estadoBD) || t.realizado()) {
+		if (t.ligado() || t.evento() || !PUBLICADO.equals(t.mcEstado)) {
+			return avisados;
+		}
+		Set<Integer> convocados = nomes(convocatoriaEfetiva(conn, t)).keySet();
+		String treinoTexto = "treino " + t.d.getNomeEquipa() + " de " + dia(t.d.getData());
+		if (parmMotivo == MotivoAviso.CANCELADO) {
+			for (Integer idJogador : convocados) {
+				notificaAtleta(conn, parmIdentidade, idJogador, t.d.getId(), "TREINO_CANCELADO",
+						"O " + treinoTexto + " às " + t.d.getHoraInicio() + " foi cancelado");
+			}
+			return avisados;
+		}
+		if (!APROVADO.equals(t.estadoBD) || t.realizado()) {
 			return avisados;
 		}
 		Map<Integer, Confirmacao> confirmacoes = confirmacoesDe(conn, tenant, List.of(t.d.getId()))
 				.getOrDefault(t.d.getId(), Map.of());
-		if (confirmacoes.isEmpty()) {
+		if (parmMotivo == MotivoAviso.LOCAL && confirmacoes.isEmpty()) {
 			return avisados;
 		}
 		List<FisicoStaffData> fisicos = fisicosDe(conn, tenant, t.d.getId());
@@ -3076,36 +3566,42 @@ public class MicroCicloHelper {
 			idsFisicos.add(f.getId());
 		}
 		Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, tenant, idsFisicos);
-		Set<Integer> convocados = nomes(convocatoriaEfetiva(conn, t)).keySet();
 		try (PreparedStatement psAvisada = conn.prepareStatement(
 				"update treino_confirmacao set sessao_avisada = ? where id_treino = ? and id_jogador = ?")) {
-			for (Map.Entry<Integer, Confirmacao> c : confirmacoes.entrySet()) {
-				int idJogador = c.getKey();
-				if (!convocados.contains(idJogador)) {
-					continue; // orfa (saiu sem gravacao): nao se avisa
+			for (Integer idJogador : convocados) { // as confirmacoes orfas (saiu sem gravacao) nao se avisam
+				List<FisicoData> meus = new ArrayList<>();
+				for (FisicoStaffData f : fisicos) {
+					if (!excluidos.getOrDefault(f.getId(), Set.of()).contains(idJogador)) {
+						meus.add(f);
+					}
 				}
-				String atual = sessaoDoJogador(t.d, fisicos, excluidos, idJogador);
-				if (!caducou(c.getValue().sessao, atual) || atual.equals(c.getValue().avisada)) {
+				String inicio = inicioDoAtleta(t.d.getHoraInicio(), meus);
+				String horas = (t.d.getHoraFim() != null ? inicio + "–" + t.d.getHoraFim() : "a partir das " + inicio)
+						+ (t.d.getLocal() != null ? " · " + t.d.getLocal() : "");
+				if (parmMotivo == MotivoAviso.APROVADO_NOVO) {
+					notificaAtleta(conn, parmIdentidade, idJogador, t.d.getId(), "TREINO_NOVO_ATLETA",
+							"Novo " + treinoTexto + " (" + horas + ")");
 					continue;
 				}
-				if (!parmJuntarEm.contains(idJogador)) {
-					List<FisicoData> meus = new ArrayList<>();
-					for (FisicoStaffData f : fisicos) {
-						if (!excluidos.getOrDefault(f.getId(), Set.of()).contains(idJogador)) {
-							meus.add(f);
-						}
+				Confirmacao c = confirmacoes.get(idJogador);
+				String atual = sessaoDoAtleta(t.d, meus);
+				if (c != null && caducou(c.sessao, atual)) {
+					if (atual.equals(c.avisada)) {
+						continue; // ja avisado desta mudanca
 					}
-					String inicio = inicioDoAtleta(t.d.getHoraInicio(), meus);
-					String horas = t.d.getHoraFim() != null ? inicio + "–" + t.d.getHoraFim() : "a partir das " + inicio;
-					notificaAtleta(conn, parmIdentidade, idJogador, t.d.getId(), "CONFIRMACAO_CADUCOU", "O treino "
-							+ t.d.getNomeEquipa() + " de " + dia(t.d.getData()) + " mudou (" + horas
-							+ (t.d.getLocal() != null ? " · " + t.d.getLocal() : "") + "). Confirma de novo.");
+					if (!parmJuntarEm.contains(idJogador)) {
+						notificaAtleta(conn, parmIdentidade, idJogador, t.d.getId(), "CONFIRMACAO_CADUCOU",
+								"O " + treinoTexto + " mudou (" + horas + "). Confirma de novo.");
+					}
+					psAvisada.setString(1, atual);
+					psAvisada.setInt(2, t.d.getId());
+					psAvisada.setInt(3, idJogador);
+					psAvisada.executeUpdate();
+					avisados.add(idJogador);
+				} else if (parmMotivo == MotivoAviso.APROVADO_DE_NOVO) {
+					notificaAtleta(conn, parmIdentidade, idJogador, t.d.getId(), "TREINO_MUDOU",
+							"O " + treinoTexto + " foi alterado (" + horas + ")");
 				}
-				psAvisada.setString(1, atual);
-				psAvisada.setInt(2, t.d.getId());
-				psAvisada.setInt(3, idJogador);
-				psAvisada.executeUpdate();
-				avisados.add(idJogador);
 			}
 		}
 		return avisados;
@@ -3187,26 +3683,35 @@ public class MicroCicloHelper {
 				return detalhe;
 			}
 
-			PreparedStatement psAusencias = conn.prepareStatement("select ta.id_jogador, j.nome, ta.categoria, ta.motivo, "
-					+ "ta.data_indicacao, ta.estado, ta.pendente_confirmacao from treino_ausencia ta "
-					+ "inner join jogador j on j.id = ta.id_jogador where ta.id_treino = ? and ta.estado = 'ATIVA' "
-					+ "order by j.nome");
+			PreparedStatement psAusencias = conn.prepareStatement(SQL_AUSENCIA + " order by j.nome");
 			psAusencias.setInt(1, t.d.getId());
 			ResultSet rsAusencias = psAusencias.executeQuery();
 			Set<Integer> avisaram = new HashSet<>();
+			Set<Integer> indisponiveis = new HashSet<>();
 			while (rsAusencias.next()) {
 				TreinoAusenciaData a = lerAusencia(rsAusencias);
 				detalhe.getAusencias().add(a);
 				avisaram.add(a.getIdJogador());
+				if (a.getIdIndisponibilidade() != null) {
+					indisponiveis.add(a.getIdJogador());
+				}
+			}
+			// Indisponibilidades (Q13): categoria e motivo so para quem pode ver
+			for (TreinoAusenciaData a : detalhe.getAusencias()) {
+				if (a.getIdIndisponibilidade() != null) {
+					IndisponibilidadeHelper.mascara(a, IndisponibilidadeHelper.podeVerMotivo(parmIdentidade, equipas,
+							t.d.getIdEquipa(), equipasDoAtleta(conn, tenant, a.getIdJogador())));
+				}
 			}
 
 			PreparedStatement psOrigem = conn.prepareStatement("select coalesce(nullif(ee.nome, ''), es.nome) "
 					+ "from escalao_epoca_jogador eej inner join escalao_epoca ee on ee.id = eej.id_escalao_epoca "
 					+ "inner join epoca e on e.id = ee.id_epoca left join escalao es on es.id = ee.id_escalao "
 					+ "where eej.id_jogador = ? and e.estado = '1' and e.tenant_id = ? and ee.id <> ? LIMIT 1");
-			List<TreinoConvocadoData> convocatoria = convocatoriaEfetiva(conn, t);
+			// Indisponibilidades (D-1): como em listaTreinos, o indisponivel so fica em ausencias
+			List<TreinoConvocadoData> convocatoria = participantes(convocatoriaEfetiva(conn, t), indisponiveis);
 			// v8 (R236, Y10): resposta de cada convocado, so nas sessoes Aprovadas; a data nao vai ao treinador de outra equipa
-			boolean comRespostas = !t.evento() && APROVADO.equals(t.estadoBD);
+			boolean comRespostas = !t.evento() && APROVADO.equals(t.estadoBD) && PUBLICADO.equals(t.mcEstado); // v9 (R246)
 			boolean comDatas = !(parmIdentidade.isTreinador() && !parmIdentidade.isAdmin()
 					&& !equipas.contains(t.d.getIdEquipa()));
 			Map<Integer, Confirmacao> confirmacoes = new HashMap<>();
@@ -3361,6 +3866,9 @@ public class MicroCicloHelper {
 		a.setDataIndicacao(indicacao);
 		a.setEstado(rs.getString("estado"));
 		a.setPendenteConfirmacao("1".equals(rs.getString("pendente_confirmacao")));
+		a.setIdIndisponibilidade(getInteger(rs, "id_indisponibilidade"));
+		a.setIndisponivelDe(getInteger(rs, "indisp_inicio"));
+		a.setIndisponivelAte(getInteger(rs, "indisp_fim"));
 		return a;
 	}
 
@@ -3502,6 +4010,9 @@ public class MicroCicloHelper {
 		return leitura("getSemanaClubeAtleta", conn -> {
 			sm.core.data.SemanaClubeAtletaData semana = new sm.core.data.SemanaClubeAtletaData();
 			semana.setDataInicio(segunda);
+			// v9 (R250): sem micro ciclo publicado, sem itens (a consulta dos itens ja exige PUBLICADO); os jogos como antes
+			MicroCicloData mcSemana = microCicloDaSemana(conn, tenant, segunda);
+			semana.setPublicado(mcSemana != null && PUBLICADO.equals(mcSemana.getEstado()));
 			Map<Integer, String> nomesEquipas = new LinkedHashMap<>();
 			Map<Integer, String> nomesGrupos = new LinkedHashMap<>();
 
@@ -3635,8 +4146,25 @@ public class MicroCicloHelper {
 		if (segunda != atual && segunda != somaDias(atual, 7)) {
 			throw new PedidoInvalidoException("Só se podem ver os jogos desta semana e da seguinte.");
 		}
-		return leitura("getJogosAtleta",
-				conn -> jogosSemana(conn, parmIdentidade.getTenantId(), segunda, parmIdJogador));
+		return leitura("getJogosAtleta", conn -> {
+			List<JogoSemanaData> jogos = jogosSemana(conn, parmIdentidade.getTenantId(), segunda, parmIdJogador);
+			// Balnearios (P15, B15): so o lado da equipa, em casa, com o micro ciclo da semana PUBLICADO
+			MicroCicloData mc = microCicloDaSemana(conn, parmIdentidade.getTenantId(), segunda);
+			if (mc != null && PUBLICADO.equals(mc.getEstado())) {
+				List<Integer> ids = new ArrayList<>();
+				for (JogoSemanaData j : jogos) {
+					if ("CASA".equals(j.getCasaFora())) {
+						ids.add(j.getId());
+					}
+				}
+				Map<Integer, List<sm.core.data.BalnearioAtribuidoData>> balnearios = BalnearioHelper
+						.nomesJogosEquipa(conn, parmIdentidade.getTenantId(), ids);
+				for (JogoSemanaData j : jogos) {
+					j.setBalnearios(balnearios.get(j.getId()));
+				}
+			}
+			return jogos;
+		});
 	}
 
 	// ==================== v4: copiar treino (BK-v4-6) ====================
@@ -3752,6 +4280,7 @@ public class MicroCicloHelper {
 					}
 					historico(conn, mc.getId(), id, utilizador, "Treino criado (cópia de " + descricao + ")"
 							+ incluiFisicos(copiados));
+					sincronizaTreino(conn, tenant, id, null); // Indisponibilidades (Z3)
 					criados.put(id, data);
 					if (PENDENTE.equals(estado)) {
 						pendentes.add(id);
@@ -3842,7 +4371,9 @@ public class MicroCicloHelper {
 				t.d.setFisicos(fisicos.getOrDefault(t.d.getId(), new ArrayList<>()));
 			}
 			t.d.setCorEquipa(cores.get(t.d.getIdEquipa()));
-			List<TreinoConvocadoData> conv = convocatoriaEfetiva(conn, t);
+			// Indisponibilidades (D-1): o indisponivel nao conta nos convocados nem nos participantes dos fisicos
+			List<TreinoConvocadoData> conv = participantes(convocatoriaEfetiva(conn, t),
+					indisponiveisNoTreino(conn, t.d.getId()));
 			t.d.setNumConvocados(conv.size());
 			if (t.d.getFisicos() != null) {
 				for (FisicoStaffData f : t.d.getFisicos()) {
@@ -3857,7 +4388,7 @@ public class MicroCicloHelper {
 	}
 
 	/** R51, R52: treinos do dia (aprovados e pendentes) e aprovados por marcar (Q38). */
-	public Map<String, List<TreinoData>> getTreinosEquipaDia(Identidade parmIdentidade, int parmIdEquipa, int parmData) {
+	public Map<String, Object> getTreinosEquipaDia(Identidade parmIdentidade, int parmIdEquipa, int parmData) {
 		paraData(parmData);
 		int tenant = parmIdentidade.getTenantId();
 		if (!autorizacaoHelper.pertenceAoTenant(sm.core.security.TipoRecurso.EQUIPA, parmIdEquipa, tenant)) {
@@ -3865,7 +4396,7 @@ public class MicroCicloHelper {
 		}
 		return leitura("getTreinosEquipaDia", conn -> {
 			Set<Integer> equipas = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
-			Map<String, List<TreinoData>> resultado = new LinkedHashMap<>();
+			Map<String, Object> resultado = new LinkedHashMap<>();
 			PreparedStatement psDia = conn.prepareStatement(SQL_TREINO + "and t.id_equipa = ? and t.`data` = ? "
 					+ "and t.estado in ('APROVADO', 'PENDENTE') and m.estado = 'PUBLICADO' and t.id_treino_principal is null "
 					+ "order by t.hora_inicio, t.id");
@@ -3882,6 +4413,33 @@ public class MicroCicloHelper {
 			psPorMarcar.setInt(3, somaDias(segundaDe(hoje), -7));
 			psPorMarcar.setInt(4, somaDias(hoje, -1));
 			resultado.put("porMarcar", treinosComContagens(conn, parmIdentidade, psPorMarcar, equipas));
+			// Indisponibilidades (Z15, Q13): jogadores da equipa indisponiveis nesse dia, para a presenca manual
+			List<Map<String, Object>> indisponiveis = new ArrayList<>();
+			try (PreparedStatement psIndisp = conn.prepareStatement("select i.id_jogador, i.categoria, i.motivo "
+					+ "from indisponibilidade i inner join jogador j on j.id = i.id_jogador where j.estado = '1' "
+					+ "and j.tenant_id = ? and i.estado = 'ATIVA' and i.data_inicio <= ? and i.data_fim >= ? "
+					+ "and i.id_jogador in (select eej.id_jogador from escalao_epoca_jogador eej where eej.id_escalao_epoca = ?) "
+					+ "order by i.id_jogador")) {
+				psIndisp.setInt(1, tenant);
+				psIndisp.setInt(2, parmData);
+				psIndisp.setInt(3, parmData);
+				psIndisp.setInt(4, parmIdEquipa);
+				try (ResultSet rs = psIndisp.executeQuery()) {
+					while (rs.next()) {
+						int idJogador = rs.getInt(1);
+						String categoria = categoriaTexto(rs.getString(2));
+						String motivo = rs.getString(3);
+						boolean pode = IndisponibilidadeHelper.podeVerMotivo(parmIdentidade, equipas, parmIdEquipa,
+								equipasDoAtleta(conn, tenant, idJogador));
+						Map<String, Object> item = new LinkedHashMap<>();
+						item.put("idJogador", idJogador);
+						item.put("motivo", !pode ? IndisponibilidadeHelper.TEXTO_MASCARA
+								: motivo == null ? categoria : categoria + ": " + motivo);
+						indisponiveis.add(item);
+					}
+				}
+			}
+			resultado.put("indisponiveis", indisponiveis);
 			return resultado;
 		});
 	}
@@ -3918,9 +4476,7 @@ public class MicroCicloHelper {
 			PresencaData presenca = new PresencaData(0, t.d.getData(), t.d.getHoraInicio(), t.d.getIdEquipa(),
 					t.d.getNomeEquipa(), null, parmIdentidade.getIdUtilizador(), parmIdentidade.getUser());
 
-			PreparedStatement psAusencias = conn.prepareStatement("select ta.id_jogador, j.nome, ta.categoria, ta.motivo, "
-					+ "ta.data_indicacao, ta.estado, ta.pendente_confirmacao from treino_ausencia ta "
-					+ "inner join jogador j on j.id = ta.id_jogador where ta.id_treino = ? and ta.estado = 'ATIVA'");
+			PreparedStatement psAusencias = conn.prepareStatement(SQL_AUSENCIA);
 			psAusencias.setInt(1, t.d.getId());
 			ResultSet rsAusencias = psAusencias.executeQuery();
 			Map<Integer, TreinoAusenciaData> ausencias = new HashMap<>();
@@ -3929,12 +4485,23 @@ public class MicroCicloHelper {
 				ausencias.put(a.getIdJogador(), a);
 			}
 
+			Set<Integer> equipasConta = equipasDoUtilizador(conn, parmIdentidade.getIdUtilizador());
 			Set<Integer> convocados = new HashSet<>();
+			List<Integer> indisponiveis = new ArrayList<>();
 			for (TreinoConvocadoData c : convocatoriaEfetiva(conn, t)) {
 				convocados.add(c.getIdJogador());
 				TreinoAusenciaData a = ausencias.get(c.getIdJogador());
 				if (a == null) {
 					presenca.getJogadoresPresenca().add(new PresencaJogadorData(c.getIdJogador(), c.getNome(), "", ""));
+				} else if (a.getIdIndisponibilidade() != null) {
+					// Indisponibilidades (Z16, Q3, Q13): estado da indisponibilidade; motivo so para quem pode ver
+					indisponiveis.add(c.getIdJogador());
+					boolean pode = IndisponibilidadeHelper.podeVerMotivo(parmIdentidade, equipasConta, t.d.getIdEquipa(),
+							equipasDoAtleta(conn, parmIdentidade.getTenantId(), c.getIdJogador()));
+					String categoria = categoriaTexto(a.getCategoria());
+					presenca.getJogadoresPresenca().add(new PresencaJogadorData(c.getIdJogador(), c.getNome(),
+							IndisponibilidadeHelper.estadoPresenca(a.getCategoria()), !pode ? IndisponibilidadeHelper.TEXTO_MASCARA
+									: a.getMotivo() == null ? categoria : categoria + ": " + a.getMotivo()));
 				} else {
 					String categoria = categoriaTexto(a.getCategoria());
 					presenca.getJogadoresPresenca().add(new PresencaJogadorData(c.getIdJogador(), c.getNome(),
@@ -3976,6 +4543,7 @@ public class MicroCicloHelper {
 			Map<String, Object> resultado = new LinkedHashMap<>();
 			resultado.put("presenca", presenca);
 			resultado.put("idPresencaManual", rsManual.next() ? rsManual.getInt(1) : null);
+			resultado.put("indisponiveis", indisponiveis);
 			// v7 (R199): participantes de cada fisico, so informativo (a presenca e uma por sessao)
 			List<FisicoStaffData> fisicos = fisicosDe(conn, parmIdentidade.getTenantId(), t.d.getId());
 			List<Integer> idsFisicos = new ArrayList<>();
@@ -4156,9 +4724,166 @@ public class MicroCicloHelper {
 		return resultado;
 	}
 
+	// ==================== indisponibilidades (V16, desenho Z2/Z4) ====================
+
+	/**
+	 * Z2: aplica e retira, num treino, as ausencias vindas de indisponibilidades (idempotente). Nao faz nada em eventos,
+	 * fisicos ligados, cancelados, com presenca ou ja comecados (R16, R18). Nao mexe na versao do treino.
+	 *
+	 * @param parmSoJogador so este jogador (null = todos os convocados efetivos)
+	 * @return {aplicadas, retiradas}
+	 */
+	int[] sincronizaTreino(Connection conn, int parmTenantId, int parmIdTreino, Integer parmSoJogador)
+			throws SQLException {
+		int[] contagem = { 0, 0 };
+		Treino t = carregaTreino(conn, parmIdTreino, parmTenantId);
+		if (t.evento() || t.ligado() || CANCELADO.equals(t.estadoBD) || t.d.getIdPresenca() != null
+				|| t.presencaPrincipal || inicioPassou(t.d.getData(), t.inicioSessao())) {
+			return contagem;
+		}
+		Map<Integer, String> convocados = nomes(convocatoriaEfetiva(conn, t));
+		if (parmSoJogador != null) {
+			convocados.keySet().retainAll(Set.of(parmSoJogador));
+		}
+		int data = t.d.getData();
+
+		// (a) retira: ja nao convocado, ou a indisponibilidade ja nao cobre a data ou ja nao esta ATIVA
+		List<Object[]> retirar = new ArrayList<>(); // {idJogador, nome, inicio, fim, idUtilizador}
+		try (PreparedStatement ps = conn.prepareStatement("select ta.id_jogador, j.nome, i.estado, i.data_inicio, "
+				+ "i.data_fim, i.id_utilizador from treino_ausencia ta inner join indisponibilidade i on i.id = ta.id_indisponibilidade "
+				+ "inner join jogador j on j.id = ta.id_jogador where ta.id_treino = ? and ta.estado = 'ATIVA'"
+				+ (parmSoJogador != null ? " and ta.id_jogador = ?" : ""))) {
+			ps.setInt(1, t.d.getId());
+			if (parmSoJogador != null) {
+				ps.setInt(2, parmSoJogador);
+			}
+			try (ResultSet rs = ps.executeQuery()) {
+				while (rs.next()) {
+					int inicio = rs.getInt("data_inicio");
+					int fim = rs.getInt("data_fim");
+					if (!convocados.containsKey(rs.getInt("id_jogador")) || !"ATIVA".equals(rs.getString("estado"))
+							|| data < inicio || data > fim) {
+						retirar.add(new Object[] { rs.getInt("id_jogador"), rs.getString("nome"), inicio, fim,
+								rs.getInt("id_utilizador") });
+					}
+				}
+			}
+		}
+		if (!retirar.isEmpty()) {
+			try (PreparedStatement psDescarta = conn.prepareStatement("update treino_ausencia set estado = 'DESCARTADA', "
+					+ "data_alteracao = now() where id_treino = ? and id_jogador = ? and estado = 'ATIVA' "
+					+ "and id_indisponibilidade is not null")) {
+				for (Object[] r : retirar) {
+					psDescarta.setInt(1, t.d.getId());
+					psDescarta.setInt(2, (Integer) r[0]);
+					if (psDescarta.executeUpdate() > 0) {
+						contagem[1]++;
+						historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), (Integer) r[4], String.format(
+								IndisponibilidadeHelper.TEXTO_HISTORICO_RETIRADA, ddmm((Integer) r[2]), ddmm((Integer) r[3]), r[1]));
+					}
+				}
+			}
+		}
+		if (convocados.isEmpty()) {
+			return contagem;
+		}
+
+		// (b) aplica: a cada convocado efetivo com uma indisponibilidade ATIVA que cubra a data
+		List<Object[]> aplicar = new ArrayList<>(); // {id, idJogador, inicio, fim, categoria, motivo, idUtilizador}
+		String marcas = String.join(", ", java.util.Collections.nCopies(convocados.size(), "?"));
+		try (PreparedStatement ps = conn.prepareStatement("select id, id_jogador, data_inicio, data_fim, categoria, motivo, "
+				+ "id_utilizador from indisponibilidade where estado = 'ATIVA' and data_inicio <= ? and data_fim >= ? "
+				+ "and id_jogador in (" + marcas + ")")) {
+			int i = 1;
+			ps.setInt(i++, data);
+			ps.setInt(i++, data);
+			for (Integer idJogador : convocados.keySet()) {
+				ps.setInt(i++, idJogador);
+			}
+			try (ResultSet rs = ps.executeQuery()) {
+				while (rs.next()) {
+					aplicar.add(new Object[] { rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getString(5),
+							rs.getString(6), rs.getInt(7) });
+				}
+			}
+		}
+		for (Object[] ind : aplicar) {
+			int idIndisp = (Integer) ind[0];
+			int idJogador = (Integer) ind[1];
+			String categoria = (String) ind[4];
+			String motivo = (String) ind[5];
+			try (PreparedStatement psAtual = conn.prepareStatement("select id_indisponibilidade, categoria, motivo "
+					+ "from treino_ausencia where id_treino = ? and id_jogador = ? and estado = 'ATIVA'")) {
+				psAtual.setInt(1, t.d.getId());
+				psAtual.setInt(2, idJogador);
+				try (ResultSet rs = psAtual.executeQuery()) {
+					if (rs.next()) {
+						Integer atual = getInteger(rs, "id_indisponibilidade");
+						if (atual == null) {
+							continue; // R11: a ausencia manual fica
+						}
+						if (atual == idIndisp) {
+							if (!Objects.equals(categoria, rs.getString("categoria"))
+									|| !Objects.equals(motivo, rs.getString("motivo"))) {
+								// R6: editar a indisponibilidade atualiza a categoria e o motivo
+								try (PreparedStatement psAtualiza = conn.prepareStatement("update treino_ausencia set "
+										+ "categoria = ?, motivo = ?, data_alteracao = now() where id_treino = ? "
+										+ "and id_jogador = ? and estado = 'ATIVA' and id_indisponibilidade = ?")) {
+									psAtualiza.setString(1, categoria);
+									psAtualiza.setString(2, motivo);
+									psAtualiza.setInt(3, t.d.getId());
+									psAtualiza.setInt(4, idJogador);
+									psAtualiza.setInt(5, idIndisp);
+									psAtualiza.executeUpdate();
+								}
+							}
+							continue;
+						}
+					}
+				}
+			}
+			try (PreparedStatement psIndica = conn.prepareStatement("insert into treino_ausencia(id_treino, id_jogador, "
+					+ "categoria, motivo, estado, pendente_confirmacao, data_indicacao, data_alteracao, id_utilizador, "
+					+ "id_indisponibilidade) values (?, ?, ?, ?, 'ATIVA', '0', now(), now(), ?, ?) on duplicate key update "
+					+ "categoria = values(categoria), motivo = values(motivo), estado = 'ATIVA', pendente_confirmacao = '0', "
+					+ "data_indicacao = now(), data_alteracao = now(), id_utilizador = values(id_utilizador), "
+					+ "id_indisponibilidade = values(id_indisponibilidade)")) {
+				psIndica.setInt(1, t.d.getId());
+				psIndica.setInt(2, idJogador);
+				psIndica.setString(3, categoria);
+				psIndica.setString(4, motivo);
+				psIndica.setInt(5, (Integer) ind[6]);
+				psIndica.setInt(6, idIndisp);
+				psIndica.executeUpdate();
+			}
+			apagaConfirmacoes(conn, t.d.getId(), idJogador); // R12: "Vou" e "Nao vou" exclusivos
+			historico(conn, t.d.getIdMicroCiclo(), t.d.getId(), (Integer) ind[6], String.format(
+					IndisponibilidadeHelper.TEXTO_HISTORICO, ddmm((Integer) ind[2]), ddmm((Integer) ind[3]),
+					convocados.get(idJogador)));
+			contagem[0]++;
+		}
+		return contagem;
+	}
+
+	/** Z4 (R17): o atleta nao muda a resposta de um treino coberto por uma indisponibilidade (409). */
+	static void exigeSemIndisponibilidade(Connection conn, int parmIdTreino, int parmIdJogador) throws SQLException {
+		try (PreparedStatement ps = conn.prepareStatement("select i.data_inicio, i.data_fim from treino_ausencia ta "
+				+ "inner join indisponibilidade i on i.id = ta.id_indisponibilidade where ta.id_treino = ? "
+				+ "and ta.id_jogador = ? and ta.estado = 'ATIVA'")) {
+			ps.setInt(1, parmIdTreino);
+			ps.setInt(2, parmIdJogador);
+			try (ResultSet rs = ps.executeQuery()) {
+				if (rs.next()) {
+					throw new ConflitoException("Este treino está coberto pela tua indisponibilidade de " + ddmm(rs.getInt(1))
+							+ " a " + ddmm(rs.getInt(2)) + ". Para mudar, edita ou cancela a indisponibilidade.");
+				}
+			}
+		}
+	}
+
 	// ==================== 16-17. atleta (Entrega D) ====================
 
-	private static final Set<String> CATEGORIAS = Set.of("DOENCA", "LESAO", "ESCOLA", "FAMILIA", "OUTRO");
+	static final Set<String> CATEGORIAS = Set.of("DOENCA", "LESAO", "ESCOLA", "FAMILIA", "OUTRO");
 	private static final String MSG_PRAZO = "O prazo para avisar terminou. Fala com o teu treinador.";
 
 	/** D24: treinos da semana em que o jogador e convocado efetivo, ja aprovados alguma vez. */
@@ -4166,7 +4891,10 @@ public class MicroCicloHelper {
 			int parmIdUtilizador)
 			throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement(SQL_TREINO + "and t.`data` between ? and ? "
-				+ "and t.estado in ('APROVADO', 'CANCELADO') and t.data_aprovacao is not null and exists (select 1 "
+				// v9 (Z3, Z4): so micro ciclos visiveis ao atleta; Pendente/Rejeitado ja aprovado antes = "em revisao"
+				+ "and " + MC_VISIVEL_ATLETA + " and t.data_aprovacao is not null "
+				+ "and (t.estado in ('APROVADO', 'CANCELADO') or (t.estado in ('PENDENTE', 'REJEITADO') "
+				+ "and m.estado = 'PUBLICADO')) and exists (select 1 "
 				+ "from treino_convocado tc inner join jogador j on j.id = tc.id_jogador where tc.id_treino = t.id "
 				+ "and tc.id_jogador = ? and tc.estado = '1' and j.estado = '1' and (tc.origem = 'ACRESCENTADO' "
 				+ "or exists (select 1 from escalao_epoca_jogador eej where eej.id_escalao_epoca = t.id_equipa "
@@ -4181,10 +4909,7 @@ public class MicroCicloHelper {
 			treinos.add(lerTreino(rs));
 		}
 
-		PreparedStatement psAusencia = conn.prepareStatement("select ta.id_jogador, j.nome, ta.categoria, ta.motivo, "
-				+ "ta.data_indicacao, ta.estado, ta.pendente_confirmacao from treino_ausencia ta "
-				+ "inner join jogador j on j.id = ta.id_jogador where ta.id_treino = ? and ta.id_jogador = ? "
-				+ "and ta.estado = 'ATIVA'");
+		PreparedStatement psAusencia = conn.prepareStatement(SQL_AUSENCIA + " and ta.id_jogador = ?");
 		List<TreinoAtletaData> lista = new ArrayList<>();
 		Map<Integer, String> cores = coresEquipas(conn, parmTenantId);
 		// v5 (Q79): CONVOCATORIA_ENTROU por ler, desta conta, por treino
@@ -4206,8 +4931,12 @@ public class MicroCicloHelper {
 		}
 		Map<Integer, List<FisicoAtletaData>> fisicos = fisicosDoAtleta(conn, parmTenantId, parmIdJogador, ids);
 		Map<Integer, Map<Integer, Confirmacao>> confirmacoes = confirmacoesDe(conn, parmTenantId, ids); // v8
+		Map<Integer, List<String>> balnearios = BalnearioHelper.nomesTreinos(conn, parmTenantId, ids); // P15
 		for (Treino t : treinos) {
 			TreinoAtletaData a = new TreinoAtletaData();
+			if (!emRevisao(t) && !CANCELADO.equals(t.estadoBD)) {
+				a.setBalnearios(balnearios.get(t.d.getId()));
+			}
 			a.setFisicos(fisicos.getOrDefault(t.d.getId(), new ArrayList<>()));
 			a.setCorEquipa(cores.get(t.d.getIdEquipa()));
 			a.setConvocatoriaAlterada(convocatoriaAlterada.contains(t.d.getId()));
@@ -4226,7 +4955,7 @@ public class MicroCicloHelper {
 			a.setPrazoTerminado(inicioPassou(t.d.getData(), inicioDoAtleta(t.d.getHoraInicio(), a.getFisicos())));
 			for (Treino outro : treinos) {
 				if (outro != t && !CANCELADO.equals(t.estadoBD) && !CANCELADO.equals(outro.estadoBD)
-						&& sobrepostos(t.d, outro.d)) {
+						&& !emRevisao(t) && !emRevisao(outro) && sobrepostos(t.d, outro.d)) {
 					a.setSobreposto(true);
 				}
 			}
@@ -4250,9 +4979,28 @@ public class MicroCicloHelper {
 			}
 			a.setPodeResponder(APROVADO.equals(t.estadoBD) && !t.realizado() && PUBLICADO.equals(t.mcEstado)
 					&& !a.isPrazoTerminado());
+			if (emRevisao(t)) {
+				// v9 (Z4, R254): nunca saem horas, local, observacoes nem fisicos nao aprovados; "--:--" para os builds antigos
+				a.setEmRevisao(true);
+				a.setHoraInicio("--:--");
+				a.setHoraFim(null);
+				a.setLocal(null);
+				a.setObservacoes(null);
+				a.setFisicos(new ArrayList<>());
+				a.setSessao(null);
+				a.setCaducada(false);
+				a.setPodeResponder(false);
+				a.setPrazoTerminado(true);
+				a.setSobreposto(false);
+			}
 			lista.add(a);
 		}
 		return lista;
+	}
+
+	/** v9 (Z4): Pendente ou Rejeitado ja aprovado antes, num micro ciclo publicado (o filtro de treinosAtleta). */
+	private static boolean emRevisao(Treino t) {
+		return PENDENTE.equals(t.estadoBD) || REJEITADO.equals(t.estadoBD);
 	}
 
 	/** v7 (R195, X5): por principal, so os fisicos que o jogador faz, copiados para FisicoAtletaData (meu = true). */
@@ -4286,7 +5034,7 @@ public class MicroCicloHelper {
 		return inicio;
 	}
 
-	private static void exigeAtleta(Identidade parmIdentidade, Integer parmIdJogador) {
+	static void exigeAtleta(Identidade parmIdentidade, Integer parmIdJogador) {
 		if (!parmIdentidade.isAtleta() || parmIdentidade.getIdJogador() == null
 				|| (parmIdJogador != null && !parmIdJogador.equals(parmIdentidade.getIdJogador()))) {
 			throw new AcessoNegadoException();
@@ -4335,6 +5083,10 @@ public class MicroCicloHelper {
 		String motivoFinal = motivo;
 		int segunda = emTransacao("ausencia", conn -> {
 			Treino t = carregaTreino(conn, parmIdTreino, tenant);
+			exigeSemIndisponibilidade(conn, t.d.getId(), jid); // Indisponibilidades (Z4)
+			if (!PUBLICADO.equals(t.mcEstado)) {
+				throw new ConflitoException("O micro ciclo ainda não foi publicado."); // v9: defesa extra (treinoDoAtleta da 403)
+			}
 			if (!APROVADO.equals(t.estadoBD)) {
 				throw new ConflitoException("O treino não está aprovado.");
 			}
@@ -4362,7 +5114,7 @@ public class MicroCicloHelper {
 						+ "values (?, ?, ?, ?, 'ATIVA', '0', now(), now(), ?) on duplicate key update "
 						+ "categoria = values(categoria), motivo = values(motivo), estado = 'ATIVA', "
 						+ "pendente_confirmacao = '0', data_indicacao = now(), data_alteracao = now(), "
-						+ "id_utilizador = values(id_utilizador)");
+						+ "id_utilizador = values(id_utilizador), id_indisponibilidade = null"); // o "Nao vou" manual deixa de vir da indisponibilidade
 				psIndica.setInt(1, t.d.getId());
 				psIndica.setInt(2, jid);
 				psIndica.setString(3, categoria);
@@ -4501,6 +5253,7 @@ public class MicroCicloHelper {
 				if (!sessaoDoAtleta(t.d, meus).equals(sessao)) {
 					throw new ConflitoException(MSG_MUDOU); // Y6
 				}
+				exigeSemIndisponibilidade(conn, t.d.getId(), jid); // Indisponibilidades (Z4)
 				anulaAusenciaAtiva(conn, parmIdentidade, t, jid); // Y1: exclusivos na mesma transacao
 				gravaConfirmacao(conn, t.d.getId(), jid, sessao, parmIdentidade.getIdUtilizador());
 			} else {
@@ -4748,39 +5501,8 @@ public class MicroCicloHelper {
 			}
 			List<Integer> idsAtletas = new ArrayList<>(atletas.keySet());
 
-			// 3. convocatoria efetiva em lote: mesma regra que convocatoriaEfetiva (D4); mudar as duas
-			Map<Integer, Set<Integer>> convocados = new HashMap<>(); // treino -> jogadores
-			if (!idsAutonomos.isEmpty()) {
-				String inT = marcas(idsAutonomos.size());
-				String inP = marcas(idsAtletas.size());
-				try (PreparedStatement psConv = conn.prepareStatement("select tc.id_treino, tc.id_jogador "
-						+ "from treino_convocado tc inner join jogador j on j.id = tc.id_jogador and j.estado = '1' "
-						+ "inner join treino t on t.id = tc.id_treino where tc.id_treino in (" + inT + ") "
-						+ "and tc.id_jogador in (" + inP + ") and tc.estado = '1' and (tc.origem = 'ACRESCENTADO' "
-						+ "or exists (select 1 from escalao_epoca_jogador eej where eej.id_escalao_epoca = t.id_equipa "
-						+ "and eej.id_jogador = tc.id_jogador)) "
-						+ "union select t.id, eej.id_jogador from treino t "
-						+ "inner join escalao_epoca_jogador eej on eej.id_escalao_epoca = t.id_equipa "
-						+ "inner join jogador j on j.id = eej.id_jogador and j.estado = '1' where t.id in (" + inT + ") "
-						+ "and eej.id_jogador in (" + inP + ") and t.estado <> 'APROVADO' "
-						+ "and not exists (select 1 from treino_convocado tc where tc.id_treino = t.id "
-						+ "and tc.id_jogador = eej.id_jogador)")) {
-					int i = 1;
-					for (int volta = 0; volta < 2; volta++) {
-						for (Integer id : idsAutonomos) {
-							psConv.setInt(i++, id);
-						}
-						for (Integer id : idsAtletas) {
-							psConv.setInt(i++, id);
-						}
-					}
-					try (ResultSet rs = psConv.executeQuery()) {
-						while (rs.next()) {
-							convocados.computeIfAbsent(rs.getInt(1), k -> new HashSet<>()).add(rs.getInt(2));
-						}
-					}
-				}
-			}
+			// 3. convocatoria efetiva em lote (v9: extraida para convocadosEmLote, tambem usada na publicacao)
+			Map<Integer, Set<Integer>> convocados = convocadosEmLote(conn, treinos, idsAtletas);
 
 			// 4. exclusoes dos fisicos ligados
 			Map<Integer, Set<Integer>> excluidos = excluidosDe(conn, tenant, idsLigados);
@@ -4860,7 +5582,7 @@ public class MicroCicloHelper {
 					boolean minha = admin || minhas.contains(t.d.getIdEquipa());
 					String chave = principal.d.getId() + ":" + idJogador;
 					ItemAtleta x = itemTreino(t, principal, ausencias.get(chave), minha);
-					if (APROVADO.equals(principal.estadoBD)) {
+					if (APROVADO.equals(principal.estadoBD) && PUBLICADO.equals(principal.mcEstado)) { // v9 (R246)
 						// v8 (R233, R234): estado da sessao; o FISICO repete-o sem data; a data so nos itens minha
 						List<FisicoData> meus = new ArrayList<>();
 						for (FisicoData f : fisicosPorPrincipal.getOrDefault(principal.d.getId(), new ArrayList<>())) {

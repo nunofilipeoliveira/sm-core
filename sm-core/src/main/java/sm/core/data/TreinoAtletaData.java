@@ -43,7 +43,18 @@ public class TreinoAtletaData {
 	private String sessao;
 	private boolean podeResponder;
 
+	/** v9 (Z4): Pendente/Rejeitado ja visto (micro ciclo publicado): sem horas, local, fisicos nem Vou. */
+	private boolean emRevisao;
+
 	public TreinoAtletaData() {
+	}
+
+	public boolean isEmRevisao() {
+		return emRevisao;
+	}
+
+	public void setEmRevisao(boolean emRevisao) {
+		this.emRevisao = emRevisao;
 	}
 
 	public String getResposta() {
@@ -220,5 +231,16 @@ public class TreinoAtletaData {
 
 	public void setCorEquipa(String corEquipa) {
 		this.corEquipa = corEquipa;
+	}
+
+	/** Balnearios (V17): nomes; null em "em revisao", CANCELADO ou sem nenhum. */
+	private java.util.List<String> balnearios;
+
+	public java.util.List<String> getBalnearios() {
+		return balnearios;
+	}
+
+	public void setBalnearios(java.util.List<String> balnearios) {
+		this.balnearios = balnearios;
 	}
 }

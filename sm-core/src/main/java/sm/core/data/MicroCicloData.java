@@ -11,7 +11,18 @@ public class MicroCicloData {
 	private String motivoCancelamento;
 	private int idEpoca;
 
+	/** v9 (V15): PUBLICADO ou EM_APROVACAO num cancelado; null = cancelado antes da v9 (a partir de PUBLICADO). So staff. */
+	private String estadoAntesCancelamento;
+
 	public MicroCicloData() {
+	}
+
+	public String getEstadoAntesCancelamento() {
+		return estadoAntesCancelamento;
+	}
+
+	public void setEstadoAntesCancelamento(String estadoAntesCancelamento) {
+		this.estadoAntesCancelamento = estadoAntesCancelamento;
 	}
 
 	public int getId() {

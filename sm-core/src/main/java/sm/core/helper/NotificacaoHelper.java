@@ -43,7 +43,7 @@ public class NotificacaoHelper {
 			+ "left join treino_ausencia ta on ta.id_treino = n.id_treino and ta.id_jogador = n.id_jogador "
 			+ "and ta.estado = 'ATIVA' "
 			+ "where n.id_utilizador = ? and coalesce(ft.estado, f.estado_omissao) = '1' "
-			+ "and (? = 0 or n.tipo in ('CONVOCATORIA_ENTROU', 'CONVOCATORIA_SAIU', 'FISICO_ENTROU', 'FISICO_SAIU', 'CONFIRMACAO_CADUCOU')) "
+			+ "and (? = 0 or n.tipo in ('CONVOCATORIA_ENTROU', 'CONVOCATORIA_SAIU', 'FISICO_ENTROU', 'FISICO_SAIU', 'CONFIRMACAO_CADUCOU', 'MICRO_CICLO_PUBLICADO', 'MICRO_CICLO_CANCELADO', 'TREINO_MUDOU', 'TREINO_NOVO_ATLETA', 'TREINO_CANCELADO')) "
 			+ "and (n.id_treino is null or (m.tenant_id = ? and t.`data` >= ? and (? = 1 or ? = 1 or exists (select 1 "
 			+ "from utilizadores_escalao ue inner join escalao_epoca ee on ee.id = ue.id_escalao_epoca "
 			+ "inner join epoca e on e.id = ee.id_epoca where e.estado = '1' and ue.id_utilizador = n.id_utilizador "

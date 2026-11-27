@@ -20,11 +20,13 @@ import sm.core.data.PedidoAusenciaData;
 import sm.core.data.PedidoConvocatoriaData;
 import sm.core.data.PedidoCopiaTreinoData;
 import sm.core.data.PedidoEstadoTreinoData;
+import sm.core.data.PedidoIndisponibilidadeData;
 import sm.core.data.PedidoMicroCicloData;
 import sm.core.data.PresencaData;
 import sm.core.data.TreinoData;
 import sm.core.helper.AutorizacaoHelper;
 import sm.core.helper.FuncionalidadeHelper;
+import sm.core.helper.IndisponibilidadeHelper;
 import sm.core.helper.MicroCicloHelper;
 import sm.core.security.AcessoNegadoException;
 import sm.core.security.Identidade;
@@ -46,6 +48,9 @@ public class MicroCicloWS {
 
 	@Autowired
 	private AutorizacaoHelper autorizacaoHelper;
+
+	@Autowired
+	private IndisponibilidadeHelper indisponibilidadeHelper;
 
 	static int numero(String parmValor, String parmCampo) {
 		try {
@@ -103,13 +108,25 @@ public class MicroCicloWS {
 		return json(microCicloHelper.criaMicroCiclo(identidade, parmPedido), "createMicroCiclo");
 	}
 
+	/** v9 (Z1): Rascunho -> Em aprovacao. */
+	@PutMapping("/submeterMicroCiclo/{tenantId}/{idMicroCiclo}")
+	@ResponseBody
+	public String submeterMicroCiclo(@PathVariable String tenantId, @PathVariable String idMicroCiclo,
+			HttpServletRequest request) {
+		Identidade identidade = exigeAdmin(request, tenantId);
+		log.info("MicroCicloWS | submeterMicroCiclo | idMicroCiclo:{}", idMicroCiclo);
+		return json(microCicloHelper.submete(identidade, numero(idMicroCiclo, "Micro ciclo")), "submeterMicroCiclo");
+	}
+
+	/** v9 (Z1, Z2): Em aprovacao -> Publicado; corpo opcional {aprovarPendentes, itens}; num Rascunho, 409. */
 	@PutMapping("/publicarMicroCiclo/{tenantId}/{idMicroCiclo}")
 	@ResponseBody
 	public String publicarMicroCiclo(@PathVariable String tenantId, @PathVariable String idMicroCiclo,
-			HttpServletRequest request) {
+			@RequestBody(required = false) sm.core.data.PedidoPublicarData parmPedido, HttpServletRequest request) {
 		Identidade identidade = exigeAdmin(request, tenantId);
 		log.info("MicroCicloWS | publicarMicroCiclo | idMicroCiclo:{}", idMicroCiclo);
-		return json(microCicloHelper.publica(identidade, numero(idMicroCiclo, "Micro ciclo")), "publicarMicroCiclo");
+		return json(microCicloHelper.publica(identidade, numero(idMicroCiclo, "Micro ciclo"), parmPedido),
+				"publicarMicroCiclo");
 	}
 
 	@PutMapping("/cancelarMicroCiclo/{tenantId}/{idMicroCiclo}")
@@ -370,5 +387,38 @@ public class MicroCicloWS {
 		Identidade identidade = exige(request, tenantId);
 		return json(microCicloHelper.porConfirmarAtleta(identidade, numero(idJogador, "Jogador")),
 				"getPorConfirmarAtleta");
+	}
+
+	// ==================== indisponibilidades (so ATLETA, o proprio jogador; o log nao leva o motivo) ====================
+
+	@PutMapping("/getIndisponibilidades/{tenantId}/{idJogador}")
+	@ResponseBody
+	public String getIndisponibilidades(@PathVariable String tenantId, @PathVariable String idJogador,
+			HttpServletRequest request) {
+		Identidade identidade = exige(request, tenantId);
+		return json(indisponibilidadeHelper.lista(identidade, numero(idJogador, "Jogador")), "getIndisponibilidades");
+	}
+
+	@PutMapping("/gravarIndisponibilidade/{tenantId}/{idJogador}")
+	@ResponseBody
+	public String gravarIndisponibilidade(@PathVariable String tenantId, @PathVariable String idJogador,
+			@RequestBody(required = false) PedidoIndisponibilidadeData parmPedido, HttpServletRequest request) {
+		Identidade identidade = exige(request, tenantId);
+		log.info("MicroCicloWS | gravarIndisponibilidade | idJogador:{} id:{}", idJogador,
+				parmPedido == null ? null : parmPedido.getId());
+		return json(indisponibilidadeHelper.grava(identidade, numero(idJogador, "Jogador"), parmPedido),
+				"gravarIndisponibilidade");
+	}
+
+	@PutMapping("/cancelarIndisponibilidade/{tenantId}/{idJogador}/{idIndisponibilidade}")
+	@ResponseBody
+	public String cancelarIndisponibilidade(@PathVariable String tenantId, @PathVariable String idJogador,
+			@PathVariable String idIndisponibilidade, @RequestBody(required = false) PedidoIndisponibilidadeData parmPedido,
+			HttpServletRequest request) {
+		Identidade identidade = exige(request, tenantId);
+		log.info("MicroCicloWS | cancelarIndisponibilidade | idJogador:{} id:{}", idJogador, idIndisponibilidade);
+		return json(indisponibilidadeHelper.cancela(identidade, numero(idJogador, "Jogador"),
+				numero(idIndisponibilidade, "Indisponibilidade"),
+				parmPedido != null && Boolean.TRUE.equals(parmPedido.getSimular())), "cancelarIndisponibilidade");
 	}
 }

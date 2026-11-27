@@ -168,12 +168,39 @@ public class StaffHelper {
 	public boolean addStaff(StaffData parmStaff, int parmTenantID, int parmIdUtilizador) {
 
 		
-		StaffData staffData = new StaffData();
-
 		try (Connection conn = dbUtils.getConnection()) {
 			// insert do staff e historico na mesma transacao: se o historico falhar, o staff nao fica gravado
 			conn.setAutoCommit(false);
 			try {
+			insereStaff(conn, parmStaff, parmTenantID, parmIdUtilizador);
+
+			conn.commit();
+			return true;
+
+			} catch (SQLException | RuntimeException e) {
+				conn.rollback();
+				throw e;
+			} finally {
+				conn.setAutoCommit(true);
+			}
+
+		} catch (SQLException e) {
+			log.error("addStaff | Erro SQL ao criar staff (rollback feito)", e);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Insert do staff e historico de criacao na ligacao recebida (sem commit nem rollback).
+	 * Devolve o id gerado (0 se nenhuma linha foi inserida).
+	 */
+	int insereStaff(Connection conn, StaffData parmStaff, int parmTenantID, int parmIdUtilizador)
+			throws SQLException {
+
+		StaffData staffData = new StaffData();
+		int generatedId = 0;
+
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO staff(nome,nome_completo,telemovel,email,morada,codigo_postal,data_nascimento,id_jogador, estado,tenant_id, licença) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,0,1,?,?)",
@@ -196,7 +223,7 @@ public class StaffHelper {
 				// Obtém as chaves geradas
 				try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
 					if (generatedKeys.next()) {
-						int generatedId = generatedKeys.getInt(1); // Obtém o ID gerado
+						generatedId = generatedKeys.getInt(1); // Obtém o ID gerado
 						System.out.println("ID gerado: " + generatedId);
 
 						parmStaff.setId(generatedId);
@@ -231,24 +258,10 @@ public class StaffHelper {
 				}
 			}
 
-			conn.commit();
-			return true;
-
-			} catch (SQLException | RuntimeException e) {
-				conn.rollback();
-				throw e;
-			} finally {
-				conn.setAutoCommit(true);
-			}
-
-		} catch (SQLException e) {
-			log.error("addStaff | Erro SQL ao criar staff (rollback feito)", e);
-		}
-
-		return false;
+		return generatedId;
 	}
 
-	private void registaHistoricoStaff(int parmIdUtilizador, int id_Staff, Connection conn, String campo,
+	void registaHistoricoStaff(int parmIdUtilizador, int id_Staff, Connection conn, String campo,
 			String valorAntigo, String valorNovo) throws SQLException {
 		PreparedStatement preparedStatement;
 		preparedStatement = conn.prepareStatement("insert into staff_historico VALUES (?, ?, ?, ?, ?, ?)");

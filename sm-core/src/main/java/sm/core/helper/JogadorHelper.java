@@ -456,13 +456,39 @@ public class JogadorHelper {
 	public int addJogador(JogadorData parmJogador, int parmTenantID, int parmIdUtilizador) {
 
 
-		JogadorData jogadorData = new JogadorData();
-		int generatedId = 0;
-
 		try (Connection conn = dbUtils.getConnection()) {
 			// insert do jogador e historico na mesma transacao: se o historico falhar, o jogador nao fica gravado
 			conn.setAutoCommit(false);
 			try {
+			int generatedId = insereJogador(conn, parmJogador, parmTenantID, parmIdUtilizador);
+
+			conn.commit();
+			return generatedId;
+
+			} catch (SQLException | RuntimeException e) {
+				conn.rollback();
+				throw e;
+			} finally {
+				conn.setAutoCommit(true);
+			}
+
+		} catch (SQLException e) {
+			log.error("addJogador | Erro SQL ao criar jogador (rollback feito)", e);
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Insert do jogador e historico de criacao na ligacao recebida (sem commit nem rollback).
+	 * Devolve o id gerado (0 se nenhuma linha foi inserida).
+	 */
+	int insereJogador(Connection conn, JogadorData parmJogador, int parmTenantID, int parmIdUtilizador)
+			throws SQLException {
+
+		JogadorData jogadorData = new JogadorData();
+		int generatedId = 0;
+
 			PreparedStatement preparedStatement = conn.prepareStatement(
 					"INSERT INTO jogador(nome, data_nascimento, email, telemovel, pai_nome, pai_email, pai_telemovel, mae_nome, mae_email, mae_telemovel, morada, cidade, codigo_postal, observacoes, numero, nome_completo, nif, cc, licença, tenant_id, estado) VALUES\r\n"
 							+ "	 (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
@@ -569,24 +595,10 @@ public class JogadorHelper {
 				}
 			}
 
-			conn.commit();
-			return generatedId;
-
-			} catch (SQLException | RuntimeException e) {
-				conn.rollback();
-				throw e;
-			} finally {
-				conn.setAutoCommit(true);
-			}
-
-		} catch (SQLException e) {
-			log.error("addJogador | Erro SQL ao criar jogador (rollback feito)", e);
-		}
-
-		return 0;
+		return generatedId;
 	}
 
-	private void registaHistorico(int parmIdUtilizador, int id_Jogador, Connection conn, String campo,
+	void registaHistorico(int parmIdUtilizador, int id_Jogador, Connection conn, String campo,
 			String valorAntigo, String valorNovo) throws SQLException {
 		PreparedStatement preparedStatement;
 		preparedStatement = conn.prepareStatement("insert into jogador_historico VALUES (?, ?, ?, ?, ?, ?)");

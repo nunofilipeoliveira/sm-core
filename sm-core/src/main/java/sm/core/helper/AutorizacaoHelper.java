@@ -110,6 +110,8 @@ public class AutorizacaoHelper {
 					+ "inner join treino_convocado tc on tc.id_treino=t.id and tc.id_jogador=? and tc.estado='1' "
 					+ "inner join jogador j on j.id=tc.id_jogador and j.estado='1' "
 					+ "where t.id=? and m.tenant_id=? and t.estado in ('APROVADO','CANCELADO') "
+					// v9 (Z3): o mesmo filtro de treinosAtleta (publicado, ou cancelado depois de publicado)
+					+ "and " + MicroCicloHelper.MC_VISIVEL_ATLETA + " "
 					+ "and t.data_aprovacao is not null and (tc.origem='ACRESCENTADO' or exists (select 1 "
 					+ "from escalao_epoca_jogador eej where eej.id_escalao_epoca=t.id_equipa and eej.id_jogador=tc.id_jogador)) "
 					+ "LIMIT 1");

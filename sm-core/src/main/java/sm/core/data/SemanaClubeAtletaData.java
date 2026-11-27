@@ -372,7 +372,18 @@ public class SemanaClubeAtletaData {
 	private List<Cor> cores = new ArrayList<>();
 	private List<Grupo> grupos = new ArrayList<>();
 
+	/** v9 (R250): ha micro ciclo PUBLICADO nesta semana; com false, itens vazio (os jogos como antes). */
+	private boolean publicado;
+
 	public SemanaClubeAtletaData() {
+	}
+
+	public boolean isPublicado() {
+		return publicado;
+	}
+
+	public void setPublicado(boolean publicado) {
+		this.publicado = publicado;
 	}
 
 	public int getDataInicio() {

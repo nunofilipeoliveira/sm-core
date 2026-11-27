@@ -145,4 +145,54 @@ public class JogoSemanaData {
 	public void setGolosAdversario(Integer golosAdversario) {
 		this.golosAdversario = golosAdversario;
 	}
+
+	// ==================== balnearios (V17): so jogos em casa; null = sem dados ====================
+
+	private java.util.List<BalnearioAtribuidoData> balnearios;
+	private java.util.List<BalnearioAtribuidoData> balneariosAdversario;
+	private java.util.List<String> avisosBalnearios;
+
+	public java.util.List<BalnearioAtribuidoData> getBalnearios() {
+		return balnearios;
+	}
+
+	public void setBalnearios(java.util.List<BalnearioAtribuidoData> balnearios) {
+		this.balnearios = balnearios;
+	}
+
+	public java.util.List<BalnearioAtribuidoData> getBalneariosAdversario() {
+		return balneariosAdversario;
+	}
+
+	public void setBalneariosAdversario(java.util.List<BalnearioAtribuidoData> balneariosAdversario) {
+		this.balneariosAdversario = balneariosAdversario;
+	}
+
+	public java.util.List<String> getAvisosBalnearios() {
+		return avisosBalnearios;
+	}
+
+	public void setAvisosBalnearios(java.util.List<String> avisosBalnearios) {
+		this.avisosBalnearios = avisosBalnearios;
+	}
+
+	/** V18, so ADMIN: ids dos balnearios que cada lado nao pode usar; null sem regras. */
+	private java.util.List<Integer> balneariosNaoPermitidos;
+	private java.util.List<Integer> balneariosNaoPermitidosAdversario;
+
+	public java.util.List<Integer> getBalneariosNaoPermitidos() {
+		return balneariosNaoPermitidos;
+	}
+
+	public void setBalneariosNaoPermitidos(java.util.List<Integer> balneariosNaoPermitidos) {
+		this.balneariosNaoPermitidos = balneariosNaoPermitidos;
+	}
+
+	public java.util.List<Integer> getBalneariosNaoPermitidosAdversario() {
+		return balneariosNaoPermitidosAdversario;
+	}
+
+	public void setBalneariosNaoPermitidosAdversario(java.util.List<Integer> balneariosNaoPermitidosAdversario) {
+		this.balneariosNaoPermitidosAdversario = balneariosNaoPermitidosAdversario;
+	}
 }

@@ -275,6 +275,8 @@ public final class RegrasAcesso {
         // MicroCicloWS (o controller exige sempre a funcionalidade, o perfil e as equipas do treinador)
         staff("/getMicroCiclo/{tenantId}/{data}").tenant("tenantId");
         admin("/createMicroCiclo/{tenantId}").tenant("tenantId");
+        admin("/submeterMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId") // v9
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
         admin("/publicarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
                 .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
         admin("/cancelarMicroCiclo/{tenantId}/{idMicroCiclo}").tenant("tenantId")
@@ -318,6 +320,28 @@ public final class RegrasAcesso {
                 .recurso(TipoRecurso.JOGADOR, "idJogador");
         staffEAtleta("/getPorConfirmarAtleta/{tenantId}/{idJogador}").tenant("tenantId")
                 .recurso(TipoRecurso.JOGADOR, "idJogador");
+        // Indisponibilidades (so ATLETA, o proprio jogador: o staff recebe 403 no helper)
+        staffEAtleta("/getIndisponibilidades/{tenantId}/{idJogador}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+        staffEAtleta("/gravarIndisponibilidade/{tenantId}/{idJogador}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+        staffEAtleta("/cancelarIndisponibilidade/{tenantId}/{idJogador}/{idIndisponibilidade}").tenant("tenantId")
+                .recurso(TipoRecurso.JOGADOR, "idJogador");
+
+        // BalnearioWS (o controller exige MICRO_CICLO e ADMIN; o helper valida treinos, jogos e balnearios do tenant)
+        admin("/getConfigBalnearios/{tenantId}").tenant("tenantId");
+        admin("/gravarBalneario/{tenantId}").tenant("tenantId");
+        admin("/apagarBalneario/{tenantId}/{idBalneario}").tenant("tenantId");
+        admin("/gravarRegrasBalnearios/{tenantId}").tenant("tenantId");
+        admin("/gravarBalnearios/{tenantId}").tenant("tenantId");
+        admin("/calcularBalnearios/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+        admin("/gravarCalculoBalnearios/{tenantId}/{idMicroCiclo}").tenant("tenantId")
+                .recurso(TipoRecurso.MICRO_CICLO, "idMicroCiclo");
+
+        // ImportacaoWS (o controller exige sempre ADMIN e o tenant do token)
+        admin("/validarImportacao/{tenantId}").tenant("tenantId");
+        admin("/gravarImportacao/{tenantId}").tenant("tenantId");
 
         // NotificacaoWS (so as do proprio utilizador; v5: tambem o ATLETA, so as de convocatoria)
         staffEAtleta("/getNotificacoesNaoLidas/{tenantId}").tenant("tenantId");

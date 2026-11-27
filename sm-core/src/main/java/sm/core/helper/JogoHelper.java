@@ -7,9 +7,12 @@ import java.sql.SQLException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import sm.core.data.CompeticaoData;
@@ -25,6 +28,9 @@ public class JogoHelper {
 	private static final Logger log = LoggerFactory.getLogger(JogoHelper.class);
 
 	private final DBUtils dbUtils;
+
+	@Autowired
+	private IndisponibilidadeHelper indisponibilidadeHelper;
 
 	public JogoHelper(DBUtils dbUtils) {
 		this.dbUtils = dbUtils;
@@ -108,7 +114,8 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		
 		try (Connection conn = dbUtils.getConnection()) {
 			PreparedStatement preparedStatement = conn
-					.prepareStatement("INSERT INTO jogo (epoca_id, equipa_id, tipoequipa, data, hora, local, golos_equipa, equipa_adv_id, tipoequipa_adv, golos_equipa_adv, tipo_local, competicao_id, competicao_descritivo, arbitro_1, arbitro_2, estado, hora_concentracao, obs, numerojogo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+					.prepareStatement("INSERT INTO jogo (epoca_id, equipa_id, tipoequipa, data, hora, local, golos_equipa, equipa_adv_id, tipoequipa_adv, golos_equipa_adv, tipo_local, competicao_id, competicao_descritivo, arbitro_1, arbitro_2, estado, hora_concentracao, obs, numerojogo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+							java.sql.Statement.RETURN_GENERATED_KEYS);
 
 			preparedStatement.setInt(1, jogo.getEpoca_id());
 			preparedStatement.setInt(2, jogo.getEquipa_id());
@@ -133,6 +140,24 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 
 			//obter ID quando realiza o insert
 			int rowsAffected = preparedStatement.executeUpdate();
+			ResultSet rsId = preparedStatement.getGeneratedKeys();
+			if (rsId.next()) {
+				jogo.setId(rsId.getInt(1));
+			}
+
+			// Indisponibilidades (Z8): numa transacao propria; uma falha nao anula a criacao do jogo (R-4)
+			if (jogo.getId() > 0) {
+				try {
+					conn.setAutoCommit(false);
+					indisponibilidadeHelper.sincronizaJogo(conn, jogo.getId(), null);
+					conn.commit();
+				} catch (SQLException e) {
+					log.error("createJogo | jogo:" + jogo.getId() + " | Erro na sincronização das indisponibilidades", e);
+					conn.rollback();
+				} finally {
+					conn.setAutoCommit(true);
+				}
+			}
 
 			return rowsAffected > 0;
 
@@ -142,6 +167,15 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 		}
 
 		return false;
+	}
+
+	/** Indisponibilidades (Z6): id_jogador -> estado, do pedido de gravação. */
+	private static Map<Integer, String> estados(ArrayList<JogadorJogo> parmJogadores) {
+		Map<Integer, String> pedido = new HashMap<>();
+		for (JogadorJogo jogador : parmJogadores) {
+			pedido.put(jogador.getId_jogador(), jogador.getEstado());
+		}
+		return pedido;
 	}
 
 	public static String calculaHoraConcentracao(String horaJogo) {
@@ -254,6 +288,11 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 					}
 				}
 			}
+
+			// Indisponibilidades (Z6): junção com o pedido (sem lista: nada foi apagado) e
+			// aplicar/retirar pela data nova, na mesma transação
+			indisponibilidadeHelper.sincronizaJogo(conn, jogo.getId(),
+					jogo.getJogadores() != null && !jogo.getJogadores().isEmpty() ? estados(jogo.getJogadores()) : null);
 
 			// Só agora, com o UPDATE ao jogo e o DELETE+INSERT dos jogadores (quando
 			// aplicável) feitos com sucesso, é que confirmamos tudo em conjunto.
@@ -500,6 +539,12 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
         }
 
         int[] rowsAffected = insertStatement.executeBatch();
+        // Indisponibilidades (Z6): repõe as linhas automáticas que o pedido não traz, na mesma transação
+        Map<Integer, String> pedido = new HashMap<>();
+        for (JogadorConvocado jogador : convocatoriaData.getJogadoresConvocatoria()) {
+            pedido.put(jogador.getId_jogador(), jogador.getEstado());
+        }
+        indisponibilidadeHelper.sincronizaJogo(conn, convocatoriaData.getId(), pedido);
         conn.commit();
 
         // Atualizar estado do jogo para INICIADO
@@ -550,6 +595,7 @@ public ArrayList<JogoData> getAllJogosByEquipa(int parmEquipaID) {
 			while (rs.next()) {
 				jogadoresConvocados.add(new JogadorConvocado(rs.getInt("id_jogador"), rs.getString("nome"), rs.getString("estado"), rs.getString("obs"), rs.getString("licença")));
 			}
+			indisponibilidadeHelper.anotaConvocatoria(conn, jogoId, jogadoresConvocados); // Indisponibilidades (Z10)
 
 			return new ConvocatoriaData(jogoId, jogadoresConvocados);
 

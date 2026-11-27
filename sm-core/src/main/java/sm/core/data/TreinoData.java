@@ -319,4 +319,58 @@ public class TreinoData {
 	public void setCorEquipa(String corEquipa) {
 		this.corEquipa = corEquipa;
 	}
+
+	// ==================== balnearios (V17); todos sem inicializador de proposito ====================
+
+	/** So resposta: [] sem nenhum; null se o clube nao tem balnearios (ou num fisico ligado). */
+	private List<BalnearioAtribuidoData> balnearios;
+	/** So resposta: os avisos de balneario (tambem em avisos), para o painel. */
+	private List<String> avisosBalnearios;
+	/** So pedido (gravarTreino): null = nao mexer nos balnearios; lista = substituir (B3). */
+	private List<Integer> idsBalnearios;
+	/** So pedido: a lista que o utilizador viu (compare-and-set, B4); null = vazia. */
+	private List<Integer> idsBalneariosAntes;
+
+	public List<BalnearioAtribuidoData> getBalnearios() {
+		return balnearios;
+	}
+
+	public void setBalnearios(List<BalnearioAtribuidoData> balnearios) {
+		this.balnearios = balnearios;
+	}
+
+	public List<String> getAvisosBalnearios() {
+		return avisosBalnearios;
+	}
+
+	public void setAvisosBalnearios(List<String> avisosBalnearios) {
+		this.avisosBalnearios = avisosBalnearios;
+	}
+
+	public List<Integer> getIdsBalnearios() {
+		return idsBalnearios;
+	}
+
+	public void setIdsBalnearios(List<Integer> idsBalnearios) {
+		this.idsBalnearios = idsBalnearios;
+	}
+
+	public List<Integer> getIdsBalneariosAntes() {
+		return idsBalneariosAntes;
+	}
+
+	public void setIdsBalneariosAntes(List<Integer> idsBalneariosAntes) {
+		this.idsBalneariosAntes = idsBalneariosAntes;
+	}
+
+	/** So resposta (V18, so ADMIN): ids dos balnearios que a equipa nao pode usar; null sem regras. */
+	private List<Integer> balneariosNaoPermitidos;
+
+	public List<Integer> getBalneariosNaoPermitidos() {
+		return balneariosNaoPermitidos;
+	}
+
+	public void setBalneariosNaoPermitidos(List<Integer> balneariosNaoPermitidos) {
+		this.balneariosNaoPermitidos = balneariosNaoPermitidos;
+	}
 }
